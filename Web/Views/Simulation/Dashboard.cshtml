@@ -1,0 +1,115 @@
+@using System.Globalization
+@using Web.Helpers
+@model BiogasApp.Model.ViewModel.SimulationDashboardViewModel
+@{
+    ViewData["Title"] = $"Simulation v{Model.RunVersion}";
+    ViewData["RunId"] = Model.SimulationRunId;
+    var mb = Model.MassBalance;
+    var dk = Model.DigesterKinetics;
+    var warnings = Model.Warnings.Count > 0 ? Model.Warnings : Model.Kpis.Warnings;
+    var totalCost = Model.Equipment.Sum(e => e.TotalCost);
+    var other = Math.Max(0d, 100d - dk.Ch4Percent - dk.Co2Percent);
+}
+@functions {
+    static string Humanize(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var text = value.Replace('_', ' ').ToLowerInvariant();
+        return char.ToUpperInvariant(text[0]) + text.Substring(1);
+    }
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/gauges.js" asp-append-version="true"></script>
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Simulation results</h1>
+        <p class="bp-muted mb-0">
+            <strong>@Model.ProjectName</strong>
+            <span class="bp-chip bp-chip--simulated">Run v@Model.RunVersion</span>
+            <span class="bp-chip bp-chip--@(Model.ProjectStatus.Css())">@Model.ProjectStatus.Label()</span>
+        </p>
+    </div>
+    <div class="sm-actions">
+        <a class="bp-btn bp-btn--flame" asp-controller="Proposal" asp-action="Index" asp-route-runId="@Model.SimulationRunId">Build proposal</a>
+        <a class="bp-btn bp-btn--ghost" asp-controller="Cad" asp-action="Index" asp-route-runId="@Model.SimulationRunId">CAD drawings</a>
+        <a class="bp-btn bp-btn--ghost" asp-action="Results" asp-route-runId="@Model.SimulationRunId">Full results</a>
+        <a class="bp-btn bp-btn--ghost" asp-action="Mixer" asp-route-projectId="@Model.ProjectId">Adjust mixer</a>
+        <a class="bp-btn bp-btn--ghost" asp-action="History" asp-route-projectId="@Model.ProjectId">History</a>
+    </div>
+</div>
+
+@if (warnings.Count > 0)
+{
+    <section class="sm-warnings bp-card" aria-labelledby="sm-warn-title">
+        <h2 class="sm-card-title" id="sm-warn-title">Engine notes</h2>
+        <ul role="list">
+            @foreach (var w in warnings)
+            {
+                <li>
+                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 3 20h18L12 4zM12 10v4M12 17v.5" /></svg>
+                    <span>@w</span>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+<partial name="_KpiCards" model="Model.Kpis" />
+
+<partial name="_TechToggle" model="Model" />
+
+<div class="sm-columns">
+    <section class="sm-panel bp-card" aria-labelledby="sm-mb-title">
+        <h2 class="sm-card-title" id="sm-mb-title">Mass balance</h2>
+        <dl class="sm-bubbles">
+            <div class="sm-bubble"><dt>Total feed</dt><dd>@mb.TotalFeedTpd.ToString("N1") <small>TPD</small></dd></div>
+            <div class="sm-bubble"><dt>Blended TS</dt><dd>@mb.BlendedTsPercent.ToString("N1") <small>%</small></dd></div>
+            <div class="sm-bubble"><dt>Dilution water</dt><dd>@mb.DilutionWaterRequiredTpd.ToString("N1") <small>TPD</small></dd></div>
+            <div class="sm-bubble"><dt>Slurry flow</dt><dd>@mb.TotalSlurryFlowM3Day.ToString("N1") <small>m&sup3;/day</small></dd></div>
+            <div class="sm-bubble"><dt>Blended C:N</dt><dd>@mb.BlendedCnRatio.ToString("N1")</dd></div>
+            <div class="sm-bubble"><dt>Volatile solids</dt><dd>@mb.VsTotalKgDay.ToString("N0") <small>kg/day</small></dd></div>
+        </dl>
+    </section>
+
+    <section class="sm-panel bp-card" aria-labelledby="sm-dk-title">
+        <h2 class="sm-card-title" id="sm-dk-title">Digester performance</h2>
+        <dl class="sm-bubbles">
+            <div class="sm-bubble"><dt>Retention time</dt><dd>@dk.HrtDays.ToString("N1") <small>days</small></dd></div>
+            <div class="sm-bubble"><dt>Loading rate</dt><dd>@dk.OlrKgVsM3Day.ToString("N2") <small>kg VS/m&sup3;/day</small></dd></div>
+            <div class="sm-bubble"><dt>Hydrogen sulfide</dt><dd>@dk.H2sPpm.ToString("N0") <small>ppm</small></dd></div>
+        </dl>
+        <div class="sm-split" role="img" aria-label="Biogas composition: methane @dk.Ch4Percent.ToString("N1") percent, carbon dioxide @dk.Co2Percent.ToString("N1") percent">
+            <span class="sm-split__part sm-split__part--ch4" style="--sm-val:@dk.Ch4Percent.ToString("0.#", CultureInfo.InvariantCulture)">CH&#8324; @dk.Ch4Percent.ToString("N1")%</span>
+            <span class="sm-split__part sm-split__part--co2" style="--sm-val:@dk.Co2Percent.ToString("0.#", CultureInfo.InvariantCulture)">CO&#8322; @dk.Co2Percent.ToString("N1")%</span>
+            @if (other > 0.5)
+            {
+                <span class="sm-split__part sm-split__part--rest" style="--sm-val:@other.ToString("0.#", CultureInfo.InvariantCulture)">Other</span>
+            }
+        </div>
+    </section>
+</div>
+
+<section class="sm-section" aria-labelledby="sm-eq-title">
+    <div class="sm-section__head">
+        <h2 class="sm-card-title" id="sm-eq-title">Sized equipment</h2>
+        <p class="sm-section__total">Equipment total <strong>@totalCost.ToString("N0")</strong></p>
+    </div>
+    <ul class="sm-equipment" role="list">
+        @foreach (var e in Model.Equipment)
+        {
+            <li class="sm-equip bp-card">
+                <span class="sm-equip__tag">@e.EquipmentTag</span>
+                <h3 class="sm-equip__name">@Humanize(e.EquipmentType)</h3>
+                <p class="sm-equip__meta">
+                    <span class="bp-chip bp-chip--draft">Qty @e.Quantity</span>
+                    <span>@(e.TotalCost > 0 ? e.TotalCost.ToString("N0") : "Costed in BOM")</span>
+                </p>
+            </li>
+        }
+    </ul>
+</section>

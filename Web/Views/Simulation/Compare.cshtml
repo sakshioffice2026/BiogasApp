@@ -1,0 +1,140 @@
+@using System.Globalization
+@model List<BiogasApp.Model.DTOs.SimulationResultDto>
+@{
+    var a = Model[0];
+    var b = Model[1];
+    ViewData["Title"] = $"Compare v{a.Version} and v{b.Version}";
+    ViewData["RunId"] = b.SimulationRunId;
+    var inv = CultureInfo.InvariantCulture;
+
+    var groups = new List<(string Name, List<(string Label, string Unit, int Digits, double A, double B)> Items)>
+    {
+        ("Mass balance", new List<(string Label, string Unit, int Digits, double A, double B)>
+        {
+            ("Total feed", "TPD", 1, a.MassBalance.TotalFeedTpd, b.MassBalance.TotalFeedTpd),
+            ("Blended TS", "%", 1, a.MassBalance.BlendedTsPercent, b.MassBalance.BlendedTsPercent),
+            ("Dilution water", "TPD", 1, a.MassBalance.DilutionWaterRequiredTpd, b.MassBalance.DilutionWaterRequiredTpd),
+            ("Slurry flow", "m\u00B3/day", 1, a.MassBalance.TotalSlurryFlowM3Day, b.MassBalance.TotalSlurryFlowM3Day),
+            ("Blended C:N", "", 1, a.MassBalance.BlendedCnRatio, b.MassBalance.BlendedCnRatio),
+            ("Volatile solids", "kg/day", 0, a.MassBalance.VsTotalKgDay, b.MassBalance.VsTotalKgDay)
+        }),
+        ("Digester and gas", new List<(string Label, string Unit, int Digits, double A, double B)>
+        {
+            ("Retention time", "days", 1, a.DigesterKinetics.HrtDays, b.DigesterKinetics.HrtDays),
+            ("Loading rate", "kg VS/m\u00B3/day", 2, a.DigesterKinetics.OlrKgVsM3Day, b.DigesterKinetics.OlrKgVsM3Day),
+            ("Raw biogas", "Nm\u00B3/day", 0, a.DigesterKinetics.RawBiogasNm3Day, b.DigesterKinetics.RawBiogasNm3Day),
+            ("Methane", "%", 1, a.DigesterKinetics.Ch4Percent, b.DigesterKinetics.Ch4Percent),
+            ("Carbon dioxide", "%", 1, a.DigesterKinetics.Co2Percent, b.DigesterKinetics.Co2Percent),
+            ("Hydrogen sulfide", "ppm", 0, a.DigesterKinetics.H2sPpm, b.DigesterKinetics.H2sPpm),
+            ("Net compressed biogas", "kg/day", 0, a.DigesterKinetics.NetCbgKgDay, b.DigesterKinetics.NetCbgKgDay)
+        }),
+        ("Equipment", new List<(string Label, string Unit, int Digits, double A, double B)>
+        {
+            ("Equipment total", "", 0, (double)a.EquipmentSizing.Sum(e => e.TotalCost), (double)b.EquipmentSizing.Sum(e => e.TotalCost))
+        })
+    };
+}
+@functions {
+    static double Pct(double value, double other)
+    {
+        var max = Math.Max(Math.Abs(value), Math.Abs(other));
+        return max <= 0 ? 0 : Math.Abs(value) / max * 100d;
+    }
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Compare runs</h1>
+        <p class="bp-muted mb-0">
+            <span class="bp-chip bp-chip--simulated">A: v@a.Version</span>
+            <span class="bp-chip bp-chip--approved">B: v@b.Version</span>
+        </p>
+    </div>
+    <div class="sm-actions">
+        <a class="bp-btn bp-btn--ghost" asp-action="History" asp-route-projectId="@a.ProjectId">Back to history</a>
+        <a class="bp-btn bp-btn--ghost" asp-action="Dashboard" asp-route-runId="@a.SimulationRunId">Open A</a>
+        <a class="bp-btn bp-btn--ghost" asp-action="Dashboard" asp-route-runId="@b.SimulationRunId">Open B</a>
+    </div>
+</div>
+
+@foreach (var g in groups)
+{
+    <section class="sm-section" aria-labelledby="sm-cmp-@(g.Name.Replace(' ', '-'))">
+        <h2 class="sm-card-title" id="sm-cmp-@(g.Name.Replace(' ', '-'))">@g.Name</h2>
+        <ul class="sm-versus" role="list">
+            @foreach (var m in g.Items)
+            {
+                var delta = m.B - m.A;
+                var pct = Math.Abs(m.A) > 0.0000001 ? delta / Math.Abs(m.A) * 100d : (double?)null;
+                var fmt = "N" + m.Digits;
+                var state = Math.Abs(delta) < 0.0000001 ? "same" : delta > 0 ? "up" : "down";
+                <li class="sm-vs bp-card">
+                    <p class="sm-vs__label">@m.Label@(string.IsNullOrEmpty(m.Unit) ? string.Empty : " (" + m.Unit + ")")</p>
+                    <div class="sm-vs__bars">
+                        <div class="sm-vs__row">
+                            <span class="sm-vs__tag sm-vs__tag--a">A</span>
+                            <span class="sm-vs__bar sm-vs__bar--a" style="--sm-val:@Pct(m.A, m.B).ToString("0.#", inv)" aria-hidden="true"><span></span></span>
+                            <strong class="sm-vs__num">@m.A.ToString(fmt)</strong>
+                        </div>
+                        <div class="sm-vs__row">
+                            <span class="sm-vs__tag sm-vs__tag--b">B</span>
+                            <span class="sm-vs__bar sm-vs__bar--b" style="--sm-val:@Pct(m.B, m.A).ToString("0.#", inv)" aria-hidden="true"><span></span></span>
+                            <strong class="sm-vs__num">@m.B.ToString(fmt)</strong>
+                        </div>
+                    </div>
+                    <p class="sm-delta sm-delta--@state">
+                        @if (state == "up")
+                        {
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+                            <span>Up @delta.ToString(fmt)@(pct.HasValue ? " (+" + pct.Value.ToString("N1") + "%)" : string.Empty)</span>
+                        }
+                        else if (state == "down")
+                        {
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M6 13l6 6 6-6" /></svg>
+                            <span>Down @Math.Abs(delta).ToString(fmt)@(pct.HasValue ? " (" + pct.Value.ToString("N1") + "%)" : string.Empty)</span>
+                        }
+                        else
+                        {
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14" /></svg>
+                            <span>No change</span>
+                        }
+                    </p>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+<section class="sm-section" aria-labelledby="sm-cmp-notes">
+    <h2 class="sm-card-title" id="sm-cmp-notes">Engine notes</h2>
+    <div class="sm-columns">
+        @foreach (var r in new[] { (Tag: "A", Run: a), (Tag: "B", Run: b) })
+        {
+            <div class="sm-panel bp-card">
+                <h3 class="sm-equip__sub">Run @r.Tag (v@r.Run.Version)</h3>
+                @if (r.Run.Warnings.Count == 0)
+                {
+                    <p class="bp-muted mb-0">
+                        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+                        No engine notes
+                    </p>
+                }
+                else
+                {
+                    <ul class="sm-notes" role="list">
+                        @foreach (var w in r.Run.Warnings)
+                        {
+                            <li>
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 3 20h18L12 4zM12 10v4M12 17v.5" /></svg>
+                                <span>@w</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+    </div>
+</section>

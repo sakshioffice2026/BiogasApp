@@ -1,0 +1,123 @@
+@using BiogasApp.Database.Enums
+@using Web.Helpers
+@model BiogasApp.Model.ViewModel.FeedstockViewModel
+@{
+    var isEdit = Model.Id.HasValue;
+}
+@functions {
+    static string IconPath(FeedstockCategory c) => c switch
+    {
+        FeedstockCategory.Agro => "M5 19c0-8 5-13 14-14 0 9-5 14-13 14M5 19c3-4 6-7 10-9",
+        FeedstockCategory.Manure => "M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z",
+        FeedstockCategory.Industrial => "M3 20V10l6 4v-4l6 4V6h3v14H3z",
+        _ => "M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"
+    };
+}
+
+<div class="fs-layout">
+    <form asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" class="fs-form">
+        <div asp-validation-summary="ModelOnly" class="bp-toast bp-toast--error" role="alert"></div>
+        <input asp-for="Id" type="hidden" />
+
+        <fieldset class="fs-section bp-card">
+            <legend class="fs-section__title">Identity</legend>
+            <div class="fs-fields">
+                <div class="fs-field fs-field--wide">
+                    <label asp-for="Name" class="form-label"></label><span class="fs-req" aria-hidden="true">*</span>
+                    <input asp-for="Name" class="form-control" placeholder="e.g. Cow dung" autocomplete="off" aria-required="true" />
+                    <span asp-validation-for="Name" class="field-validation-error"></span>
+                </div>
+            </div>
+
+            <p class="form-label mt-3 mb-2" id="fs-cat-label">Category</p>
+            <div class="fs-choices" role="radiogroup" aria-labelledby="fs-cat-label">
+                @foreach (var v in Enum.GetValues<FeedstockCategory>())
+                {
+                    <label class="fs-choice">
+                        <input type="radio" asp-for="Category" id="cat-@v" value="@v" />
+                        <span class="fs-choice__body">
+                            <span class="fs-choice__check" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
+                            <span class="fs-cat fs-cat--@(v.Css())">
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="@IconPath(v)" /></svg>
+                                @v.Label()
+                            </span>
+                        </span>
+                    </label>
+                }
+            </div>
+            <span asp-validation-for="Category" class="field-validation-error"></span>
+        </fieldset>
+
+        <fieldset class="fs-section bp-card">
+            <legend class="fs-section__title">Composition</legend>
+            <div class="fs-fields">
+                <div class="fs-field">
+                    <label asp-for="TsPercent" class="form-label">TS (%)</label><span class="fs-req" aria-hidden="true">*</span>
+                    <input asp-for="TsPercent" class="form-control" inputmode="decimal" autocomplete="off" data-fs-ts aria-required="true" />
+                    <span class="fs-help">Total solids, as a share of fresh matter</span>
+                    <span asp-validation-for="TsPercent" class="field-validation-error"></span>
+                </div>
+                <div class="fs-field">
+                    <label asp-for="VsPercentOfTs" class="form-label">VS (% of TS)</label><span class="fs-req" aria-hidden="true">*</span>
+                    <input asp-for="VsPercentOfTs" class="form-control" inputmode="decimal" autocomplete="off" data-fs-vs aria-required="true" />
+                    <span class="fs-help" data-fs-vs-note aria-live="polite">Volatile solids, as a share of total solids</span>
+                    <span asp-validation-for="VsPercentOfTs" class="field-validation-error"></span>
+                </div>
+                <div class="fs-field">
+                    <label asp-for="CnRatio" class="form-label">C:N ratio</label><span class="fs-req" aria-hidden="true">*</span>
+                    <input asp-for="CnRatio" class="form-control" inputmode="decimal" autocomplete="off" data-fs-cn aria-required="true" />
+                    <span class="fs-help" data-fs-cn-note aria-live="polite">Ideal C:N for digestion is about 20 to 30.</span>
+                    <span asp-validation-for="CnRatio" class="field-validation-error"></span>
+                </div>
+                <div class="fs-field">
+                    <label asp-for="BulkDensityKgM3" class="form-label">Bulk density (kg/m&sup3;)</label><span class="fs-req" aria-hidden="true">*</span>
+                    <input asp-for="BulkDensityKgM3" class="form-control" inputmode="decimal" autocomplete="off" data-fs-density aria-required="true" />
+                    <span asp-validation-for="BulkDensityKgM3" class="field-validation-error"></span>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="fs-section bp-card">
+            <legend class="fs-section__title">Biogas and cost</legend>
+            <div class="fs-fields">
+                <div class="fs-field">
+                    <label asp-for="BmpNm3PerKgVs" class="form-label">BMP (Nm&sup3;/kg VS)</label><span class="fs-req" aria-hidden="true">*</span>
+                    <input asp-for="BmpNm3PerKgVs" class="form-control" inputmode="decimal" autocomplete="off" data-fs-bmp aria-required="true" />
+                    <span class="fs-help">Biochemical methane potential</span>
+                    <span asp-validation-for="BmpNm3PerKgVs" class="field-validation-error"></span>
+                </div>
+                <div class="fs-field">
+                    <label asp-for="DegradationFactor" class="form-label">Degradation factor (0 to 1)</label>
+                    <input asp-for="DegradationFactor" class="form-control" inputmode="decimal" autocomplete="off" />
+                    <span class="fs-help">Share of VS that actually breaks down in the digester</span>
+                    <span asp-validation-for="DegradationFactor" class="field-validation-error"></span>
+                </div>
+                <div class="fs-field fs-field--wide">
+                    <label asp-for="DefaultCostPerTon" class="form-label">Default cost (per ton)</label>
+                    <input asp-for="DefaultCostPerTon" class="form-control" inputmode="decimal" autocomplete="off" data-fs-cost />
+                    <span class="fs-help">Used as the starting cost when this feedstock is added to a blend</span>
+                    <span asp-validation-for="DefaultCostPerTon" class="field-validation-error"></span>
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="fs-actions">
+            <button type="submit" class="bp-btn bp-btn--primary">@(isEdit ? "Save changes" : "Create feedstock")</button>
+            <a class="bp-btn bp-btn--ghost" asp-action="Index">Cancel</a>
+        </div>
+    </form>
+
+    <aside class="fs-preview bp-card" aria-labelledby="fs-preview-title">
+        <h2 class="fs-preview__title" id="fs-preview-title">Live estimate</h2>
+        <div class="fs-preview__value" aria-live="polite">
+            <strong data-fs-yield>&mdash;</strong>
+            <small>Nm&sup3; biogas per ton of fresh matter</small>
+        </div>
+        <dl class="fs-preview__list">
+            <div><dt>VS per ton</dt><dd data-fs-vs-kg>&mdash;</dd></div>
+            <div><dt>Cost per Nm&sup3;</dt><dd data-fs-cost-m3>&mdash;</dd></div>
+            <div><dt>Bulk density</dt><dd data-fs-density-out>&mdash;</dd></div>
+        </dl>
+        <p class="fs-preview__note">Quick estimate from TS, VS and BMP. The simulation uses its own engine for final figures.</p>
+    </aside>
+</div>

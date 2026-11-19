@@ -1,0 +1,115 @@
+@model BiogasApp.Model.ViewModel.RegisterViewModel
+@{
+    ViewData["Title"] = "Create account";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/account.css" asp-append-version="true" />
+}
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/account.js" asp-append-version="true"></script>
+}
+
+<div class="ac-shell bp-glass">
+    <aside class="ac-brand" aria-label="About BiogasApp">
+        <p class="ac-brand__kicker">Set up your workspace</p>
+        <h2 class="ac-brand__title">One account, your whole plant pipeline.</h2>
+        <ol class="ac-pipe" role="list">
+            <li class="ac-pipe__node" style="--ac-i:0">
+                <span class="ac-pipe__dot" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14M5 19c3-4 6-7 10-9" /></svg></span>
+                <span class="ac-pipe__text"><strong>Feedstock</strong><small>Blend your materials</small></span>
+            </li>
+            <li class="ac-pipe__node" style="--ac-i:1">
+                <span class="ac-pipe__dot" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /></svg></span>
+                <span class="ac-pipe__text"><strong>Simulation</strong><small>Gas yield and sizing</small></span>
+            </li>
+            <li class="ac-pipe__node" style="--ac-i:2">
+                <span class="ac-pipe__dot" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="M7 3h7l4 4v14H7V3zM14 3v4h4M10 12h5M10 16h5" /></svg></span>
+                <span class="ac-pipe__text"><strong>Proposal</strong><small>Financials and BOM</small></span>
+            </li>
+            <li class="ac-pipe__node" style="--ac-i:3">
+                <span class="ac-pipe__dot" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="M3 17 17 3l4 4L7 21H3v-4zM13 7l4 4" /></svg></span>
+                <span class="ac-pipe__text"><strong>CAD drawings</strong><small>Ready for build</small></span>
+            </li>
+        </ol>
+    </aside>
+
+    <section class="ac-panel" aria-labelledby="ac-title">
+        <h1 class="ac-title" id="ac-title">Create your account</h1>
+        <p class="bp-muted">You will be the administrator of your company workspace.</p>
+
+        <form asp-action="Register" method="post" class="ac-form" data-ac-form>
+            <div asp-validation-summary="ModelOnly" class="bp-toast bp-toast--error" role="alert"></div>
+
+            <fieldset class="ac-group">
+                <legend class="ac-group__title">About you</legend>
+                <div class="ac-field">
+                    <label asp-for="FullName" class="form-label"></label>
+                    <input asp-for="FullName" class="form-control" autocomplete="name" placeholder="e.g. Asha Patil" aria-required="true" autofocus />
+                    <span asp-validation-for="FullName" class="field-validation-error"></span>
+                </div>
+                <div class="ac-field">
+                    <label asp-for="Email" class="form-label"></label>
+                    <input asp-for="Email" class="form-control" type="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="you@company.com" aria-required="true" />
+                    <span asp-validation-for="Email" class="field-validation-error"></span>
+                </div>
+            </fieldset>
+
+            <fieldset class="ac-group">
+                <legend class="ac-group__title">Your company</legend>
+                <div class="ac-field">
+                    <label asp-for="TenantName" class="form-label"></label>
+                    <input asp-for="TenantName" class="form-control" autocomplete="organization" placeholder="e.g. Green Energy Pvt Ltd" aria-required="true" />
+                    <span class="ac-help">Creates a private workspace for your team and projects.</span>
+                    <span asp-validation-for="TenantName" class="field-validation-error"></span>
+                </div>
+            </fieldset>
+
+            <fieldset class="ac-group">
+                <legend class="ac-group__title">Security</legend>
+                <div class="ac-field">
+                    <label asp-for="Password" class="form-label"></label>
+                    <div class="ac-secret">
+                        <input asp-for="Password" class="form-control" autocomplete="new-password" aria-required="true" aria-describedby="ac-rules" data-ac-password />
+                        <button type="button" class="ac-toggle" data-ac-toggle aria-controls="@Html.IdFor(m => m.Password)" aria-pressed="false">
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
+                            <span data-ac-toggle-text>Show</span>
+                        </button>
+                    </div>
+                    <span asp-validation-for="Password" class="field-validation-error"></span>
+
+                    <div class="ac-meter" data-ac-meter data-level="0">
+                        <span class="ac-meter__bar" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+                        <span class="ac-meter__text" aria-live="polite">Strength: <strong data-ac-strength>Not set</strong></span>
+                    </div>
+
+                    <ul class="ac-rules" id="ac-rules" role="list" aria-label="Password tips">
+                        <li class="ac-rule" data-ac-rule="length"><svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>8 or more characters <span class="visually-hidden" data-ac-rule-state>not met</span></li>
+                        <li class="ac-rule" data-ac-rule="case"><svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>Upper and lower case <span class="visually-hidden" data-ac-rule-state>not met</span></li>
+                        <li class="ac-rule" data-ac-rule="number"><svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>A number <span class="visually-hidden" data-ac-rule-state>not met</span></li>
+                        <li class="ac-rule" data-ac-rule="symbol"><svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>A symbol <span class="visually-hidden" data-ac-rule-state>not met</span></li>
+                    </ul>
+                </div>
+
+                <div class="ac-field">
+                    <label asp-for="ConfirmPassword" class="form-label"></label>
+                    <div class="ac-secret">
+                        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" aria-required="true" data-ac-confirm />
+                        <button type="button" class="ac-toggle" data-ac-toggle aria-controls="@Html.IdFor(m => m.ConfirmPassword)" aria-pressed="false">
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
+                            <span data-ac-toggle-text>Show</span>
+                        </button>
+                    </div>
+                    <span class="ac-help" data-ac-match aria-live="polite"></span>
+                    <span asp-validation-for="ConfirmPassword" class="field-validation-error"></span>
+                </div>
+            </fieldset>
+
+            <button type="submit" class="bp-btn bp-btn--flame ac-submit" data-ac-submit>
+                <span data-ac-submit-text>Create account</span>
+            </button>
+        </form>
+
+        <p class="ac-switch">Already have an account? <a asp-action="Login">Sign in</a></p>
+    </section>
+</div>

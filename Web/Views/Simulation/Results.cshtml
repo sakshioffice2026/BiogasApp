@@ -1,0 +1,143 @@
+@using System.Globalization
+@using System.Text.RegularExpressions
+@model BiogasApp.Model.DTOs.SimulationResultDto
+@{
+    ViewData["Title"] = $"Results v{Model.Version}";
+    ViewData["RunId"] = Model.SimulationRunId;
+    var mb = Model.MassBalance;
+    var dk = Model.DigesterKinetics;
+    var inv = CultureInfo.InvariantCulture;
+    var other = Math.Max(0d, 100d - dk.Ch4Percent - dk.Co2Percent);
+    var totalCost = Model.EquipmentSizing.Sum(e => e.TotalCost);
+}
+@functions {
+    static string Humanize(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var text = value.Replace('_', ' ').ToLowerInvariant();
+        return char.ToUpperInvariant(text[0]) + text.Substring(1);
+    }
+
+    static string KeyLabel(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return string.Empty;
+        var text = Regex.Replace(key, "([a-z0-9])([A-Z])", "$1 $2");
+        text = Regex.Replace(text, @"\s(M3)$", " (m\u00B3)");
+        text = Regex.Replace(text, @"\s(M2)$", " (m\u00B2)");
+        text = Regex.Replace(text, @"\sNm3 Hr$", " (Nm\u00B3/h)");
+        text = Regex.Replace(text, @"\sKw$", " (kW)");
+        text = Regex.Replace(text, @"\sMm Array$", " (mm)");
+        text = Regex.Replace(text, @"\sMm$", " (mm)");
+        text = Regex.Replace(text, @"\sLiters$", " (L)");
+        text = Regex.Replace(text, @"\sM$", " (m)");
+        text = text.Replace("Per Bank", "per bank");
+        return char.ToUpperInvariant(text[0]) + text.Substring(1);
+    }
+
+    static string ValueText(object? value) => value?.ToString() ?? "n/a";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Detailed results</h1>
+        <p class="bp-muted mb-0"><span class="bp-chip bp-chip--simulated">Run v@Model.Version</span></p>
+    </div>
+    <div class="sm-actions">
+        <a class="bp-btn bp-btn--primary" asp-action="Dashboard" asp-route-runId="@Model.SimulationRunId">Dashboard</a>
+        <a class="bp-btn bp-btn--ghost" asp-action="History" asp-route-projectId="@Model.ProjectId">History</a>
+        <a class="bp-btn bp-btn--ghost" asp-controller="Proposal" asp-action="Index" asp-route-runId="@Model.SimulationRunId">Proposal</a>
+        <a class="bp-btn bp-btn--ghost" asp-controller="Cad" asp-action="Index" asp-route-runId="@Model.SimulationRunId">CAD drawings</a>
+    </div>
+</div>
+
+@if (Model.Warnings.Count > 0)
+{
+    <section class="sm-warnings bp-card" aria-labelledby="sm-warn-title">
+        <h2 class="sm-card-title" id="sm-warn-title">Engine notes</h2>
+        <ul role="list">
+            @foreach (var w in Model.Warnings)
+            {
+                <li>
+                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 3 20h18L12 4zM12 10v4M12 17v.5" /></svg>
+                    <span>@w</span>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+<div class="sm-columns">
+    <section class="sm-panel bp-card" aria-labelledby="sm-mb-title">
+        <h2 class="sm-card-title" id="sm-mb-title">Mass balance</h2>
+        <dl class="sm-bubbles">
+            <div class="sm-bubble"><dt>Total feed</dt><dd>@mb.TotalFeedTpd.ToString("N2") <small>TPD</small></dd></div>
+            <div class="sm-bubble"><dt>Blended TS</dt><dd>@mb.BlendedTsPercent.ToString("N2") <small>%</small></dd></div>
+            <div class="sm-bubble"><dt>Dilution water</dt><dd>@mb.DilutionWaterRequiredTpd.ToString("N2") <small>TPD</small></dd></div>
+            <div class="sm-bubble"><dt>Slurry flow</dt><dd>@mb.TotalSlurryFlowM3Day.ToString("N2") <small>m&sup3;/day</small></dd></div>
+            <div class="sm-bubble"><dt>Blended C:N</dt><dd>@mb.BlendedCnRatio.ToString("N2")</dd></div>
+            <div class="sm-bubble"><dt>Volatile solids</dt><dd>@mb.VsTotalKgDay.ToString("N0") <small>kg/day</small></dd></div>
+        </dl>
+    </section>
+
+    <section class="sm-panel bp-card" aria-labelledby="sm-dk-title">
+        <h2 class="sm-card-title" id="sm-dk-title">Digester kinetics and gas</h2>
+        <dl class="sm-bubbles">
+            <div class="sm-bubble"><dt>Retention time</dt><dd>@dk.HrtDays.ToString("N1") <small>days</small></dd></div>
+            <div class="sm-bubble"><dt>Loading rate</dt><dd>@dk.OlrKgVsM3Day.ToString("N2") <small>kg VS/m&sup3;/day</small></dd></div>
+            <div class="sm-bubble"><dt>Raw biogas</dt><dd>@dk.RawBiogasNm3Day.ToString("N0") <small>Nm&sup3;/day</small></dd></div>
+            <div class="sm-bubble"><dt>Net compressed biogas</dt><dd>@dk.NetCbgKgDay.ToString("N0") <small>kg/day</small></dd></div>
+            <div class="sm-bubble"><dt>Hydrogen sulfide</dt><dd>@dk.H2sPpm.ToString("N0") <small>ppm</small></dd></div>
+        </dl>
+        <div class="sm-split" role="img" aria-label="Biogas composition: methane @dk.Ch4Percent.ToString("N1") percent, carbon dioxide @dk.Co2Percent.ToString("N1") percent">
+            <span class="sm-split__part sm-split__part--ch4" style="--sm-val:@dk.Ch4Percent.ToString("0.#", inv)">CH&#8324; @dk.Ch4Percent.ToString("N1")%</span>
+            <span class="sm-split__part sm-split__part--co2" style="--sm-val:@dk.Co2Percent.ToString("0.#", inv)">CO&#8322; @dk.Co2Percent.ToString("N1")%</span>
+            @if (other > 0.5)
+            {
+                <span class="sm-split__part sm-split__part--rest" style="--sm-val:@other.ToString("0.#", inv)">Other</span>
+            }
+        </div>
+    </section>
+</div>
+
+<section class="sm-section" aria-labelledby="sm-eq-title">
+    <div class="sm-section__head">
+        <h2 class="sm-card-title" id="sm-eq-title">Sized equipment</h2>
+        <p class="sm-section__total">Equipment total <strong>@totalCost.ToString("N0")</strong></p>
+    </div>
+    <ul class="sm-equipment sm-equipment--detail" role="list">
+        @foreach (var e in Model.EquipmentSizing)
+        {
+            <li class="sm-equip bp-card">
+                <span class="sm-equip__tag">@e.EquipmentTag</span>
+                <h3 class="sm-equip__name">@Humanize(e.EquipmentType)</h3>
+                <p class="sm-equip__meta">
+                    <span class="bp-chip bp-chip--draft">Qty @e.Quantity</span>
+                    <span>@(e.TotalCost > 0 ? e.TotalCost.ToString("N0") : "Costed in BOM")</span>
+                </p>
+                @if (e.GeometryParams.Count > 0)
+                {
+                    <h4 class="sm-equip__sub">Geometry</h4>
+                    <dl class="sm-facts">
+                        @foreach (var g in e.GeometryParams)
+                        {
+                            <div><dt>@KeyLabel(g.Key)</dt><dd>@ValueText(g.Value)</dd></div>
+                        }
+                    </dl>
+                }
+                @if (e.ProcessDuty.Count > 0)
+                {
+                    <h4 class="sm-equip__sub">Process duty</h4>
+                    <dl class="sm-facts">
+                        @foreach (var d in e.ProcessDuty)
+                        {
+                            <div><dt>@KeyLabel(d.Key)</dt><dd>@ValueText(d.Value)</dd></div>
+                        }
+                    </dl>
+                }
+            </li>
+        }
+    </ul>
+</section>

@@ -1,0 +1,190 @@
+@using BiogasApp.Database.Enums
+@using Web.Helpers
+@model BiogasApp.Model.ViewModel.FeedstockIndexViewModel
+@{
+    ViewData["Title"] = "Feedstock";
+    var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("ClientAdmin");
+    var filtered = !string.IsNullOrWhiteSpace(Model.Search) || Model.CategoryFilter.HasValue;
+    var count = Model.Feedstocks.Count;
+}
+@functions {
+    static string IconPath(FeedstockCategory c) => c switch
+    {
+        FeedstockCategory.Agro => "M5 19c0-8 5-13 14-14 0 9-5 14-13 14M5 19c3-4 6-7 10-9",
+        FeedstockCategory.Manure => "M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z",
+        FeedstockCategory.Industrial => "M3 20V10l6 4v-4l6 4V6h3v14H3z",
+        _ => "M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"
+    };
+
+    static string Accent(FeedstockCategory c) => c switch
+    {
+        FeedstockCategory.Agro => "--fs-c1:var(--bp-emerald);--fs-c2:var(--bp-cyan)",
+        FeedstockCategory.Manure => "--fs-c1:var(--bp-amber);--fs-c2:var(--bp-coral)",
+        FeedstockCategory.Industrial => "--fs-c1:var(--bp-cyan);--fs-c2:var(--bp-indigo)",
+        _ => "--fs-c1:var(--bp-indigo);--fs-c2:var(--bp-coral)"
+    };
+
+    static int Scale(decimal value, decimal max) => (int)Math.Round(Math.Min(100m, Math.Max(0m, value / max * 100m)));
+
+    static string CnNote(decimal cn) => cn < 20m ? "Low C:N" : cn > 30m ? "High C:N" : "In the ideal 20 to 30 range";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/feedstock.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/feedstock.js" asp-append-version="true"></script>
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Feedstock library</h1>
+        <p class="bp-muted mb-0">
+            @count @(count == 1 ? "feedstock" : "feedstocks")@(filtered ? " match your filters" : " available for blending")
+        </p>
+    </div>
+    @if (isAdmin)
+    {
+        <a class="bp-btn bp-btn--flame" asp-action="Create">
+            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+            New feedstock
+        </a>
+    }
+</div>
+
+<form class="fs-filter bp-glass" method="get" asp-action="Index" role="search" data-autosubmit>
+    <div class="fs-search">
+        <label class="visually-hidden" for="fs-search">Search feedstock</label>
+        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input id="fs-search" name="search" type="search" value="@Model.Search" class="form-control" placeholder="Search by feedstock name" autocomplete="off" />
+    </div>
+
+    <fieldset class="fs-pills">
+        <legend class="visually-hidden">Filter by category</legend>
+        <label class="fs-pill">
+            <input type="radio" name="category" value="" checked="@(!Model.CategoryFilter.HasValue)" />
+            <span>All</span>
+        </label>
+        @foreach (var c in Enum.GetValues<FeedstockCategory>())
+        {
+            <label class="fs-pill">
+                <input type="radio" name="category" value="@((int)c)" checked="@(Model.CategoryFilter == c)" />
+                <span>@c.Label()</span>
+            </label>
+        }
+    </fieldset>
+
+    <button type="submit" class="bp-btn bp-btn--primary">Search</button>
+</form>
+
+@if (count == 0)
+{
+    <section class="fs-empty bp-card" aria-live="polite">
+        <span class="fs-empty__icon" aria-hidden="true">
+            <svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="@IconPath(FeedstockCategory.Agro)" /></svg>
+        </span>
+        @if (filtered)
+        {
+            <h2>No feedstock matches these filters</h2>
+            <p class="bp-muted">Try a different name or category.</p>
+            <a class="bp-btn bp-btn--ghost" asp-action="Index">Clear filters</a>
+        }
+        else
+        {
+            <h2>Your feedstock library is empty</h2>
+            <p class="bp-muted">Add the materials your plants will digest, with their solids, yield and cost.</p>
+            @if (isAdmin)
+            {
+                <a class="bp-btn bp-btn--flame" asp-action="Create">Create a feedstock</a>
+            }
+        }
+    </section>
+}
+else
+{
+    <ul class="fs-grid" role="list">
+        @foreach (var f in Model.Feedstocks)
+        {
+            <li>
+                <article class="fs-card bp-card" style="@Accent(f.Category)">
+                    <header class="fs-card__head">
+                        <span class="fs-cat fs-cat--@(f.Category.Css())">
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="@IconPath(f.Category)" /></svg>
+                            @f.Category.Label()
+                        </span>
+                        <h2 class="fs-card__title">@f.Name</h2>
+                    </header>
+
+                    <div class="fs-rings">
+                        <div class="fs-ring">
+                            <span class="fs-ring__dial" style="--fs-val:@((int)Math.Round(f.TsPercent))" aria-hidden="true">
+                                <span class="fs-ring__value">@f.TsPercent.ToString("0.#")%</span>
+                            </span>
+                            <span class="fs-ring__label"><strong>TS</strong><small>Total solids</small></span>
+                        </div>
+                        <div class="fs-ring">
+                            <span class="fs-ring__dial fs-ring__dial--vs" style="--fs-val:@((int)Math.Round(f.VsPercentOfTs))" aria-hidden="true">
+                                <span class="fs-ring__value">@f.VsPercentOfTs.ToString("0.#")%</span>
+                            </span>
+                            <span class="fs-ring__label"><strong>VS</strong><small>of total solids</small></span>
+                        </div>
+                    </div>
+
+                    <dl class="fs-meters">
+                        <div class="fs-meter">
+                            <div class="fs-meter__top"><dt>BMP</dt><dd>@f.BmpNm3PerKgVs.ToString("0.###") Nm&sup3;/kg VS</dd></div>
+                            <span class="fs-meter__bar" aria-hidden="true"><span style="--fs-val:@Scale(f.BmpNm3PerKgVs, 0.8m)"></span></span>
+                        </div>
+                        <div class="fs-meter">
+                            <div class="fs-meter__top"><dt>C:N ratio</dt><dd>@f.CnRatio.ToString("0.#")</dd></div>
+                            <span class="fs-meter__bar" aria-hidden="true"><span style="--fs-val:@Scale(f.CnRatio, 60m)"></span></span>
+                            <span class="fs-meter__note">@CnNote(f.CnRatio)</span>
+                        </div>
+                        <div class="fs-meter">
+                            <div class="fs-meter__top"><dt>Degradation</dt><dd>@((f.DegradationFactor * 100m).ToString("0.#"))%</dd></div>
+                            <span class="fs-meter__bar fs-meter__bar--flame" aria-hidden="true"><span style="--fs-val:@Scale(f.DegradationFactor, 1m)"></span></span>
+                        </div>
+                        <div class="fs-meter">
+                            <div class="fs-meter__top"><dt>Bulk density</dt><dd>@f.BulkDensityKgM3.ToString("0.#") kg/m&sup3;</dd></div>
+                        </div>
+                    </dl>
+
+                    <footer class="fs-card__foot">
+                        <p class="fs-card__cost mb-0">
+                            <strong>@f.DefaultCostPerTon.ToString("N2")</strong>
+                            <small>default cost per ton</small>
+                        </p>
+                        @if (isAdmin)
+                        {
+                            <div class="fs-card__actions">
+                                <a class="bp-btn bp-btn--ghost" asp-action="Edit" asp-route-id="@f.Id" aria-label="Edit @f.Name">
+                                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" /></svg>
+                                    Edit
+                                </a>
+                                <button type="button" class="bp-btn fs-btn--danger" data-fs-delete data-id="@f.Id" data-name="@f.Name" aria-label="Delete @f.Name">
+                                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" /></svg>
+                                    Delete
+                                </button>
+                            </div>
+                        }
+                    </footer>
+                </article>
+            </li>
+        }
+    </ul>
+}
+
+@if (isAdmin)
+{
+    <dialog class="fs-dialog" data-fs-dialog aria-labelledby="fs-dialog-title">
+        <form method="post" asp-action="Delete" class="fs-dialog__box">
+            <input type="hidden" name="id" value="" data-fs-dialog-id />
+            <h2 class="fs-dialog__title" id="fs-dialog-title">Delete this feedstock?</h2>
+            <p><strong data-fs-dialog-name></strong> will be removed from the library. This cannot be undone.</p>
+            <p class="bp-muted">If a project already uses it in a blend, it cannot be deleted.</p>
+            <div class="fs-dialog__actions">
+                <button type="submit" class="bp-btn bp-btn--flame">Yes, delete</button>
+                <button type="button" class="bp-btn bp-btn--ghost" data-fs-dialog-cancel>Keep it</button>
+            </div>
+        </form>
+    </dialog>
+}

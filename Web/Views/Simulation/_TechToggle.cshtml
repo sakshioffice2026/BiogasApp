@@ -1,0 +1,65 @@
+@using BiogasApp.Database.Enums
+@using Web.Helpers
+@model BiogasApp.Model.ViewModel.SimulationDashboardViewModel
+@{
+    var options = Model.Kpis.TechnologyComparison;
+    var selectedKey = Model.SelectedTechnology.ToString().ToUpperInvariant();
+    var bestYield = options.Count > 0 ? options.Max(o => o.NetCbgKgDay) : 0d;
+    var lowestPower = options.Count > 0 ? options.Min(o => o.UpgradingPowerKw + o.CompressorPowerKw) : 0d;
+}
+
+@if (options.Count > 0)
+{
+    <section class="sm-tech" aria-labelledby="sm-tech-title">
+        <div class="sm-section__head">
+            <h2 class="sm-card-title" id="sm-tech-title">Upgrading technology</h2>
+            <p class="bp-muted mb-0">Compare how each option upgrades this run's biogas.</p>
+        </div>
+
+        <nav class="sm-tech__list" aria-label="Upgrading technology">
+            @foreach (var t in options)
+            {
+                var parsed = Enum.TryParse<UpgradingTech>(t.Technology, true, out var tech);
+                var isSelected = string.Equals(t.Technology, selectedKey, StringComparison.OrdinalIgnoreCase);
+                var power = t.UpgradingPowerKw + t.CompressorPowerKw;
+                <a class="sm-tech__card bp-card @(isSelected ? "is-selected" : null)"
+                   asp-action="Dashboard" asp-route-runId="@Model.SimulationRunId" asp-route-tech="@(parsed ? tech.ToString() : t.Technology)"
+                   aria-current="@(isSelected ? "true" : null)">
+                    <span class="sm-tech__head">
+                        <strong class="sm-tech__name">@(parsed ? tech.Label() : t.Technology)</strong>
+                        @if (isSelected)
+                        {
+                            <span class="bp-chip bp-chip--approved">
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+                                Selected
+                            </span>
+                        }
+                    </span>
+                    <span class="sm-tech__badges">
+                        @if (t.NetCbgKgDay >= bestYield && options.Count > 1)
+                        {
+                            <span class="bp-chip bp-chip--simulated">
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 4 2.5 5.200 5.500.800-4 4 1 5.500-5-2.700-5 2.700 1-5.500-4-4 5.500-.800L12 4z" /></svg>
+                                Highest yield
+                            </span>
+                        }
+                        @if (power <= lowestPower && options.Count > 1)
+                        {
+                            <span class="bp-chip bp-chip--archived">
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M13 3 5 14h6l-1 7 8-11h-6l1-7z" /></svg>
+                                Lowest power
+                            </span>
+                        }
+                    </span>
+                    <dl class="sm-tech__facts">
+                        <div><dt>Recovery</dt><dd>@t.RecoveryPercent.ToString("N1")%</dd></div>
+                        <div><dt>Purity</dt><dd>@t.PurityPercent.ToString("N1")%</dd></div>
+                        <div><dt>Upgrading power</dt><dd>@t.UpgradingPowerKw.ToString("N0") kW</dd></div>
+                        <div><dt>Compressor power</dt><dd>@t.CompressorPowerKw.ToString("N0") kW</dd></div>
+                        <div><dt>Net output</dt><dd>@t.NetCbgKgDay.ToString("N0") kg/day</dd></div>
+                    </dl>
+                </a>
+            }
+        </nav>
+    </section>
+}

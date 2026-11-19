@@ -1,0 +1,75 @@
+@model BiogasApp.Model.ViewModel.LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/account.css" asp-append-version="true" />
+}
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/account.js" asp-append-version="true"></script>
+}
+
+<div class="ac-shell bp-glass">
+    <aside class="ac-brand" aria-label="About BiogasApp">
+        <p class="ac-brand__kicker">Biogas plant engineering</p>
+        <h2 class="ac-brand__title">From feedstock to finished plant design.</h2>
+        <ol class="ac-pipe" role="list">
+            <li class="ac-pipe__node" style="--ac-i:0">
+                <span class="ac-pipe__dot" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="M5 19c0-8 5-13 14-14 0 9-5 14-13 14M5 19c3-4 6-7 10-9" /></svg></span>
+                <span class="ac-pipe__text"><strong>Feedstock</strong><small>Blend your materials</small></span>
+            </li>
+            <li class="ac-pipe__node" style="--ac-i:1">
+                <span class="ac-pipe__dot" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3" /></svg></span>
+                <span class="ac-pipe__text"><strong>Simulation</strong><small>Gas yield and sizing</small></span>
+            </li>
+            <li class="ac-pipe__node" style="--ac-i:2">
+                <span class="ac-pipe__dot" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="M7 3h7l4 4v14H7V3zM14 3v4h4M10 12h5M10 16h5" /></svg></span>
+                <span class="ac-pipe__text"><strong>Proposal</strong><small>Financials and BOM</small></span>
+            </li>
+            <li class="ac-pipe__node" style="--ac-i:3">
+                <span class="ac-pipe__dot" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="M3 17 17 3l4 4L7 21H3v-4zM13 7l4 4" /></svg></span>
+                <span class="ac-pipe__text"><strong>CAD drawings</strong><small>Ready for build</small></span>
+            </li>
+        </ol>
+    </aside>
+
+    <section class="ac-panel" aria-labelledby="ac-title">
+        <h1 class="ac-title" id="ac-title">Welcome back</h1>
+        <p class="bp-muted">Sign in to continue your projects.</p>
+
+        <form asp-action="Login" method="post" class="ac-form" data-ac-form>
+            <div asp-validation-summary="ModelOnly" class="bp-toast bp-toast--error" role="alert"></div>
+            <input asp-for="ReturnUrl" type="hidden" />
+
+            <div class="ac-field">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you@company.com" aria-required="true" autofocus />
+                <span asp-validation-for="Email" class="field-validation-error"></span>
+            </div>
+
+            <div class="ac-field">
+                <label asp-for="Password" class="form-label"></label>
+                <div class="ac-secret">
+                    <input asp-for="Password" class="form-control" autocomplete="current-password" aria-required="true" />
+                    <button type="button" class="ac-toggle" data-ac-toggle aria-controls="@Html.IdFor(m => m.Password)" aria-pressed="false">
+                        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" /></svg>
+                        <span data-ac-toggle-text>Show</span>
+                    </button>
+                </div>
+                <span asp-validation-for="Password" class="field-validation-error"></span>
+            </div>
+
+            <div class="ac-check">
+                <input asp-for="RememberMe" class="form-check-input" />
+                <label asp-for="RememberMe" class="form-check-label">Keep me signed in for 14 days</label>
+            </div>
+
+            <button type="submit" class="bp-btn bp-btn--primary ac-submit" data-ac-submit>
+                <span data-ac-submit-text>Sign in</span>
+            </button>
+        </form>
+
+        <p class="ac-switch">New to BiogasApp? <a asp-action="Register">Create an account</a></p>
+    </section>
+</div>

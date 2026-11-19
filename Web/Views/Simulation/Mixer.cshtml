@@ -1,0 +1,235 @@
+@using System.Globalization
+@using System.Text.Json
+@using Web.Helpers
+@model BiogasApp.Model.ViewModel.MixerViewModel
+@{
+    ViewData["Title"] = "Feedstock mixer";
+    var inv = CultureInfo.InvariantCulture;
+    var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+    var library = JsonSerializer.Serialize(Model.AvailableFeedstocks.Select(f => new
+    {
+        id = f.Id,
+        name = f.Name,
+        category = f.Category.Css(),
+        categoryLabel = f.Category.Label(),
+        ts = f.TsPercent,
+        vs = f.VsPercentOfTs,
+        cn = f.CnRatio,
+        bmp = f.BmpNm3PerKgVs
+    }), jsonOptions);
+    var rows = JsonSerializer.Serialize(Model.Rows.Select(r => new
+    {
+        feedstockId = r.FeedstockId,
+        tpd = r.DailyTonnageTpd,
+        days = r.SeasonalAvailabilityDays,
+        ts = r.CustomTsOverride,
+        vs = r.CustomVsOverride
+    }), jsonOptions);
+    var cnPos = Math.Min(100d, Math.Max(0d, Model.BlendedCnRatio / 50d * 100d));
+    var tsPos = Math.Min(100d, Math.Max(0d, Model.BlendedTsPercent / 30d * 100d));
+}
+@functions {
+    static string ZoneIcon(string zone) => zone switch
+    {
+        "Green" => "m5 12.5 4.5 4.5L19 7.5",
+        "Yellow" => "M12 4 3 20h18L12 4zM12 10v4M12 17v.5",
+        _ => "M6 6l12 12M18 6 6 18"
+    };
+
+    static string ZoneText(string zone) => zone switch
+    {
+        "Green" => "Optimal",
+        "Yellow" => "Watch",
+        _ => "Critical"
+    };
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/mixer.css" asp-append-version="true" />
+}
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/gauges.js" asp-append-version="true"></script>
+    <script src="~/js/mixer.js" asp-append-version="true"></script>
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Feedstock mixer</h1>
+        <p class="bp-muted mb-0">Blend the feedstock for <strong>@Model.ProjectName</strong> and watch the mix balance live.</p>
+    </div>
+    <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@Model.ProjectId">
+        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 6-6 6 6 6" /></svg>
+        Back to project
+    </a>
+</div>
+
+<script type="application/json" id="mx-library">@Html.Raw(library)</script>
+<script type="application/json" id="mx-rows">@Html.Raw(rows)</script>
+
+<form asp-action="Run" method="post" class="mx-form" data-mx-form data-preview-url="@Url.Action("Preview", "Simulation")">
+    <input asp-for="ProjectId" type="hidden" />
+    <div asp-validation-summary="All" class="bp-toast bp-toast--error" role="alert"></div>
+    <noscript><p class="bp-toast bp-toast--error">The mixer needs JavaScript to add feedstock and show live gauges.</p></noscript>
+
+    <div class="mx-layout">
+        <section class="mx-stage" aria-label="Live blend">
+            <div class="mx-bowl bp-card">
+                <svg class="mx-bowl__svg" viewBox="0 0 240 200" aria-hidden="true" focusable="false">
+                    <defs>
+                        <clipPath id="mx-bowl-clip"><path d="M20 50h200c0 70-40 130-100 130S20 120 20 50z" /></clipPath>
+                    </defs>
+                    <g clip-path="url(#mx-bowl-clip)">
+                        <rect class="mx-bowl__empty" x="20" y="30" width="200" height="160" />
+                        <g data-mx-layers></g>
+                    </g>
+                    <path class="mx-bowl__outline" d="M20 50h200c0 70-40 130-100 130S20 120 20 50z" />
+                    <path class="mx-bowl__rim" d="M12 50h216" />
+                </svg>
+                <p class="mx-bowl__empty-note" data-mx-empty>Add a feedstock to start filling the bowl.</p>
+                <ul class="mx-legend" data-mx-legend role="list"></ul>
+                <p class="visually-hidden" data-mx-summary aria-live="polite"></p>
+            </div>
+
+            <div class="mx-gauges">
+                <div class="mx-stat bp-card">
+                    <span class="mx-stat__label">Total feed</span>
+                    <strong class="mx-stat__value"><span data-mx-total>@Model.TotalFeedTpd.ToString("0.##", inv)</span> <small>TPD</small></strong>
+                </div>
+
+                <div class="bp-gauge bp-gauge--ring bp-card" data-gauge="ring" data-max="30" data-value="@Model.BlendedTsPercent.ToString("0.##", inv)" data-unit="%" style="--bp-val:@tsPos.ToString("0.#", inv)">
+                    <span class="bp-gauge__dial" aria-hidden="true"><span class="bp-gauge__value" data-gauge-value>@Model.BlendedTsPercent.ToString("0.#", inv)%</span></span>
+                    <span class="bp-gauge__label">
+                        <strong>Blended TS</strong>
+                        <small data-mx-target-note>Target @Model.TargetSlurryTsPercent.ToString("0.#", inv)%</small>
+                    </span>
+                </div>
+
+                <div class="bp-gauge bp-gauge--cn bp-card" data-gauge="cn" data-value="@Model.BlendedCnRatio.ToString("0.##", inv)" data-zone="@Model.CnGaugeZone" style="--bp-pos:@cnPos.ToString("0.#", inv)">
+                    <p class="bp-gauge__title">Blended C:N ratio</p>
+                    <div class="bp-gauge__track" aria-hidden="true">
+                        <span class="bp-gauge__seg bp-gauge__seg--red" style="--bp-w:30"></span>
+                        <span class="bp-gauge__seg bp-gauge__seg--yellow" style="--bp-w:10"></span>
+                        <span class="bp-gauge__seg bp-gauge__seg--green" style="--bp-w:20"></span>
+                        <span class="bp-gauge__seg bp-gauge__seg--yellow" style="--bp-w:10"></span>
+                        <span class="bp-gauge__seg bp-gauge__seg--red" style="--bp-w:30"></span>
+                        <span class="bp-gauge__marker"></span>
+                    </div>
+                    <p class="bp-gauge__readout">
+                        <strong data-gauge-value>@Model.BlendedCnRatio.ToString("0.##", inv)</strong>
+                        <span class="bp-gauge__zone">
+                            @foreach (var z in new[] { "Green", "Yellow", "Red" })
+                            {
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-zone-icon="@z"><path d="@ZoneIcon(z)" /></svg>
+                            }
+                            @foreach (var z in new[] { "Green", "Yellow", "Red" })
+                            {
+                                <span data-zone-text="@z">@ZoneText(z)</span>
+                            }
+                        </span>
+                    </p>
+                    <p class="bp-gauge__scale"><span>0</span><span>15</span><span>20 to 30 ideal</span><span>35</span><span>50</span></p>
+                </div>
+            </div>
+        </section>
+
+        <section class="mx-panel" aria-label="Feedstock mix">
+            <div class="mx-target bp-card">
+                <label asp-for="TargetSlurryTsPercent" class="form-label">Target slurry TS (%)</label>
+                <div class="mx-target__row">
+                    <input type="range" min="1" max="30" step="0.5" value="@Model.TargetSlurryTsPercent.ToString("0.#", inv)" data-mx-target-range aria-label="Target slurry TS slider" />
+                    <input asp-for="TargetSlurryTsPercent" type="number" min="1" max="30" step="0.5" class="form-control" inputmode="decimal" data-mx-target />
+                </div>
+                <span asp-validation-for="TargetSlurryTsPercent" class="field-validation-error"></span>
+            </div>
+
+            <div class="mx-add bp-card">
+                <label class="form-label" for="mx-picker">Add feedstock</label>
+                <div class="mx-add__row">
+                    <select id="mx-picker" class="form-select" data-mx-picker>
+                        <option value="">Choose a feedstock</option>
+                        @foreach (var f in Model.AvailableFeedstocks)
+                        {
+                            <option value="@f.Id">@f.Name (@f.Category.Label())</option>
+                        }
+                    </select>
+                    <button type="button" class="bp-btn bp-btn--ghost" data-mx-add>
+                        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+                        Add
+                    </button>
+                </div>
+                @if (Model.AvailableFeedstocks.Count == 0)
+                {
+                    <p class="bp-muted mb-0 mt-2">The feedstock library is empty. <a asp-controller="Feedstock" asp-action="Index">Open the library</a>.</p>
+                }
+            </div>
+
+            <ul class="mx-rows" data-mx-rows role="list"></ul>
+
+            <div class="mx-warnings bp-card" data-mx-warnings aria-live="polite" @(Model.Warnings.Count == 0 ? "hidden" : null)>
+                <h2 class="mx-warnings__title">Engine notes</h2>
+                <ul role="list" data-mx-warning-list>
+                    @foreach (var w in Model.Warnings)
+                    {
+                        <li>
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 3 20h18L12 4zM12 10v4M12 17v.5" /></svg>
+                            <span>@w</span>
+                        </li>
+                    }
+                </ul>
+            </div>
+
+            <p class="mx-status bp-muted" data-mx-status role="status"></p>
+
+            <div class="mx-actions">
+                <button type="submit" class="bp-btn bp-btn--flame" data-mx-run>
+                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m8 5 11 7-11 7V5z" /></svg>
+                    Run simulation
+                </button>
+                <a class="bp-btn bp-btn--ghost" asp-action="History" asp-route-projectId="@Model.ProjectId">Simulation history</a>
+            </div>
+        </section>
+    </div>
+</form>
+
+<template id="mx-row-template">
+    <li class="mx-row bp-card" data-mx-row>
+        <input type="hidden" name="Rows[__i__].FeedstockId" data-mx-id />
+        <div class="mx-row__head">
+            <span class="mx-swatch" data-mx-swatch aria-hidden="true"></span>
+            <div class="mx-row__title">
+                <strong data-mx-name></strong>
+                <span class="mx-row__cat" data-mx-cat></span>
+            </div>
+            <span class="bp-chip bp-chip--simulated mx-share" data-mx-share>0%</span>
+            <button type="button" class="mx-remove" data-mx-remove aria-label="Remove feedstock">
+                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+        </div>
+        <div class="mx-row__fields">
+            <div class="mx-field">
+                <label class="form-label" for="mx-tpd-__i__">Daily tonnage (TPD)</label>
+                <input id="mx-tpd-__i__" class="form-control" type="number" min="0" step="any" inputmode="decimal" name="Rows[__i__].DailyTonnageTpd" data-mx-tpd />
+            </div>
+            <div class="mx-field">
+                <label class="form-label" for="mx-days-__i__">Seasonal availability (days)</label>
+                <input id="mx-days-__i__" class="form-control" type="number" min="1" max="365" step="1" inputmode="numeric" name="Rows[__i__].SeasonalAvailabilityDays" data-mx-days />
+            </div>
+        </div>
+        <details class="mx-row__more">
+            <summary>Override TS and VS</summary>
+            <div class="mx-row__fields">
+                <div class="mx-field">
+                    <label class="form-label" for="mx-ts-__i__">Custom TS (%)</label>
+                    <input id="mx-ts-__i__" class="form-control" type="number" min="0" max="100" step="any" inputmode="decimal" name="Rows[__i__].CustomTsOverride" data-mx-ts />
+                    <small class="bp-muted" data-mx-ts-hint></small>
+                </div>
+                <div class="mx-field">
+                    <label class="form-label" for="mx-vs-__i__">Custom VS (% of TS)</label>
+                    <input id="mx-vs-__i__" class="form-control" type="number" min="0" max="100" step="any" inputmode="decimal" name="Rows[__i__].CustomVsOverride" data-mx-vs />
+                    <small class="bp-muted" data-mx-vs-hint></small>
+                </div>
+            </div>
+        </details>
+    </li>
+</template>

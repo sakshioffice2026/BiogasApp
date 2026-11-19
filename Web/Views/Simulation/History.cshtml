@@ -1,0 +1,125 @@
+@using System.Text.Json
+@model List<BiogasApp.Database.Entities.SimulationRun>
+@{
+    var projectId = ViewData["ProjectId"] as Guid? ?? Guid.Empty;
+    var projectName = ViewData["ProjectName"] as string ?? string.Empty;
+    ViewData["Title"] = "Simulation history";
+    var count = Model.Count;
+    var latestId = count > 0 ? Model[0].Id : Guid.Empty;
+    if (count > 0)
+    {
+        ViewData["RunId"] = latestId;
+    }
+}
+@functions {
+    static int WarningCount(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return 0;
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json)?.Count ?? 0;
+        }
+        catch (JsonException)
+        {
+            return 0;
+        }
+    }
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Simulation history</h1>
+        <p class="bp-muted mb-0">
+            <strong>@projectName</strong> has @count @(count == 1 ? "run" : "runs")
+        </p>
+    </div>
+    <div class="sm-actions">
+        <a class="bp-btn bp-btn--flame" asp-action="Mixer" asp-route-projectId="@projectId">New run</a>
+        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@projectId">Back to project</a>
+    </div>
+</div>
+
+@if (count == 0)
+{
+    <section class="sm-empty bp-card" aria-live="polite">
+        <span class="sm-empty__icon" aria-hidden="true">
+            <svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="m8 5 11 7-11 7V5z" /></svg>
+        </span>
+        <h2>No simulations yet</h2>
+        <p class="bp-muted">Blend your feedstock and run the first simulation for this plant.</p>
+        <a class="bp-btn bp-btn--flame" asp-action="Mixer" asp-route-projectId="@projectId">Open the mixer</a>
+    </section>
+}
+else
+{
+    <form method="get" asp-action="Compare" class="sm-history" data-sm-compare>
+        @if (count > 1)
+        {
+            <div class="sm-compare-bar bp-glass">
+                <p class="mb-0">Pick one run as <strong>A</strong> and one as <strong>B</strong>, then compare them.</p>
+                <button type="submit" class="bp-btn bp-btn--primary">Compare runs</button>
+            </div>
+        }
+
+        <ol class="sm-timeline" role="list">
+            @foreach (var run in Model)
+            {
+                var warns = WarningCount(run.WarningsJson);
+                <li class="sm-run @(run.Id == latestId ? "is-latest" : null)">
+                    <span class="sm-run__node" aria-hidden="true">v@run.RunVersion</span>
+                    <article class="sm-run__card bp-card">
+                        <header class="sm-run__head">
+                            <h2 class="sm-run__title">Run v@run.RunVersion</h2>
+                            @if (run.Id == latestId)
+                            {
+                                <span class="bp-chip bp-chip--approved">
+                                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+                                    Latest
+                                </span>
+                            }
+                            @if (warns > 0)
+                            {
+                                <span class="bp-chip bp-chip--archived">
+                                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 3 20h18L12 4zM12 10v4M12 17v.5" /></svg>
+                                    @warns @(warns == 1 ? "note" : "notes")
+                                </span>
+                            }
+                            <time class="sm-run__date" datetime="@run.CreatedAt.ToString("o")">@run.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</time>
+                        </header>
+
+                        <dl class="sm-bubbles sm-bubbles--tight">
+                            <div class="sm-bubble"><dt>Feed</dt><dd>@run.TotalFeedTpd.ToString("N1") <small>TPD</small></dd></div>
+                            <div class="sm-bubble"><dt>Raw biogas</dt><dd>@run.RawBiogasNm3Day.ToString("N0") <small>Nm&sup3;/day</small></dd></div>
+                            <div class="sm-bubble"><dt>Net output</dt><dd>@run.NetCbgKgDay.ToString("N0") <small>kg/day</small></dd></div>
+                            <div class="sm-bubble"><dt>C:N</dt><dd>@run.BlendedCnRatio.ToString("N1")</dd></div>
+                            <div class="sm-bubble"><dt>Retention</dt><dd>@run.HrtDays.ToString("N1") <small>days</small></dd></div>
+                        </dl>
+
+                        <footer class="sm-run__foot">
+                            <div class="sm-run__links">
+                                <a class="bp-btn bp-btn--ghost" asp-action="Dashboard" asp-route-runId="@run.Id">Dashboard</a>
+                                <a class="bp-btn bp-btn--ghost" asp-action="Results" asp-route-runId="@run.Id">Full results</a>
+                            </div>
+                            @if (count > 1)
+                            {
+                                <div class="sm-run__pick">
+                                    <label class="sm-pick">
+                                        <input type="radio" name="runA" value="@run.Id" required />
+                                        <span><span class="visually-hidden">Use run v@run.RunVersion as </span>A</span>
+                                    </label>
+                                    <label class="sm-pick">
+                                        <input type="radio" name="runB" value="@run.Id" required />
+                                        <span><span class="visually-hidden">Use run v@run.RunVersion as </span>B</span>
+                                    </label>
+                                </div>
+                            }
+                        </footer>
+                    </article>
+                </li>
+            }
+        </ol>
+    </form>
+}
