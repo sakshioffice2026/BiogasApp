@@ -1,0 +1,131 @@
+@using BiogasApp.Database.Enums
+@using Web.Helpers
+@model BiogasApp.Model.ViewModel.ProjectFormViewModel
+@{
+    var isEdit = Model.Id.HasValue;
+}
+
+<form asp-action="@(isEdit ? "Edit" : "Create")" asp-route-id="@Model.Id" method="post" class="pj-form">
+    <div asp-validation-summary="ModelOnly" class="bp-toast bp-toast--error" role="alert"></div>
+    <input asp-for="Id" type="hidden" />
+
+    <fieldset class="pj-section bp-card">
+        <legend class="pj-section__title">Site</legend>
+        <div class="pj-fields">
+            <div class="pj-field pj-field--wide">
+                <label asp-for="Name" class="form-label"></label><span class="pj-req" aria-hidden="true">*</span>
+                <input asp-for="Name" class="form-control" placeholder="e.g. Pune dairy cluster plant" autocomplete="off" aria-required="true" />
+                <span asp-validation-for="Name" class="field-validation-error"></span>
+            </div>
+            <div class="pj-field pj-field--wide">
+                <label asp-for="LocationCountry" class="form-label"></label><span class="pj-req" aria-hidden="true">*</span>
+                <input asp-for="LocationCountry" class="form-control" placeholder="e.g. India" autocomplete="country-name" aria-required="true" />
+                <span asp-validation-for="LocationCountry" class="field-validation-error"></span>
+            </div>
+            <div class="pj-field">
+                <label asp-for="PlotLengthM" class="form-label"></label><span class="pj-req" aria-hidden="true">*</span>
+                <input asp-for="PlotLengthM" class="form-control" inputmode="decimal" data-plot-length aria-required="true" />
+                <span asp-validation-for="PlotLengthM" class="field-validation-error"></span>
+            </div>
+            <div class="pj-field">
+                <label asp-for="PlotWidthM" class="form-label"></label><span class="pj-req" aria-hidden="true">*</span>
+                <input asp-for="PlotWidthM" class="form-control" inputmode="decimal" data-plot-width aria-required="true" />
+                <span asp-validation-for="PlotWidthM" class="field-validation-error"></span>
+            </div>
+        </div>
+        <p class="pj-plot" data-plot-output aria-live="polite">
+            Plot area <strong data-plot-value>0 m&sup2;</strong>
+            <span data-plot-note>Needs at least 2,500 m&sup2;</span>
+        </p>
+    </fieldset>
+
+    <fieldset class="pj-section bp-card">
+        <legend class="pj-section__title">Climate</legend>
+        <div class="pj-fields">
+            <div class="pj-field">
+                <label asp-for="AmbientTempMinC" class="form-label"></label>
+                <input asp-for="AmbientTempMinC" class="form-control" inputmode="decimal" data-temp-min />
+                <span asp-validation-for="AmbientTempMinC" class="field-validation-error"></span>
+            </div>
+            <div class="pj-field">
+                <label asp-for="AmbientTempMaxC" class="form-label"></label>
+                <input asp-for="AmbientTempMaxC" class="form-control" inputmode="decimal" data-temp-max />
+                <span asp-validation-for="AmbientTempMaxC" class="field-validation-error"></span>
+            </div>
+        </div>
+        <div class="pj-thermo" data-temp-range aria-hidden="true"><span class="pj-thermo__span"></span></div>
+        <p class="bp-muted mb-0" data-temp-output aria-live="polite"></p>
+    </fieldset>
+
+    <fieldset class="pj-section bp-card">
+        <legend class="pj-section__title">Regulatory code</legend>
+        <div class="pj-choices">
+            @foreach (var v in Enum.GetValues<RegulatoryStandard>())
+            {
+                <label class="pj-choice">
+                    <input type="radio" asp-for="RegulatoryStandard" id="reg-@v" value="@v" />
+                    <span class="pj-choice__body">
+                        <span class="pj-choice__check" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
+                        <strong>@v.Label()</strong>
+                        <small>@v.Hint()</small>
+                    </span>
+                </label>
+            }
+        </div>
+        <span asp-validation-for="RegulatoryStandard" class="field-validation-error"></span>
+    </fieldset>
+
+    <fieldset class="pj-section bp-card">
+        <legend class="pj-section__title">Digester regime</legend>
+        <div class="pj-choices">
+            @foreach (var v in Enum.GetValues<DigesterRegime>())
+            {
+                <label class="pj-choice">
+                    <input type="radio" asp-for="DigesterRegime" id="regime-@v" value="@v" />
+                    <span class="pj-choice__body">
+                        <span class="pj-choice__check" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
+                        <strong>@v.Label()</strong>
+                        <small>@v.Hint()</small>
+                    </span>
+                </label>
+            }
+        </div>
+        <span asp-validation-for="DigesterRegime" class="field-validation-error"></span>
+    </fieldset>
+
+    <fieldset class="pj-section bp-card">
+        <legend class="pj-section__title">Upgrading technology</legend>
+        <div class="pj-choices">
+            @foreach (var v in Enum.GetValues<UpgradingTech>())
+            {
+                <label class="pj-choice">
+                    <input type="radio" asp-for="UpgradingTech" id="tech-@v" value="@v" />
+                    <span class="pj-choice__body">
+                        <span class="pj-choice__check" aria-hidden="true"><svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg></span>
+                        <strong>@v.Label()</strong>
+                        <small>@v.Hint()</small>
+                    </span>
+                </label>
+            }
+        </div>
+        <span asp-validation-for="UpgradingTech" class="field-validation-error"></span>
+    </fieldset>
+
+    @if (isEdit)
+    {
+        <fieldset class="pj-section bp-card">
+            <legend class="pj-section__title">Status</legend>
+            <div class="pj-fields">
+                <div class="pj-field">
+                    <label asp-for="Status" class="form-label"></label>
+                    <select asp-for="Status" asp-items="Html.GetEnumSelectList<ProjectStatus>()" class="form-select"></select>
+                </div>
+            </div>
+        </fieldset>
+    }
+
+    <div class="pj-actions">
+        <button type="submit" class="bp-btn bp-btn--primary">@(isEdit ? "Save changes" : "Create project")</button>
+        <a class="bp-btn bp-btn--ghost" asp-action="@(isEdit ? "Detail" : "Index")" asp-route-id="@Model.Id">Cancel</a>
+    </div>
+</form>

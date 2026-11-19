@@ -1,0 +1,25 @@
+@model BiogasApp.Model.ViewModel.ProjectFormViewModel
+@{
+    ViewData["Title"] = "Edit " + Model.Name;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/project.css" asp-append-version="true" />
+}
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/project.js" asp-append-version="true"></script>
+}
+
+@*
+    ProjectController.Edit (GET) does not copy PlotLengthM / PlotWidthM into the view model,
+    so both fields open at 0 and must be entered before saving (the form validates a 2,500 m2 minimum).
+*@
+
+<div class="bp-page-head">
+    <div>
+        <h1>Edit project</h1>
+        <p class="bp-muted mb-0">@Model.Name</p>
+    </div>
+</div>
+
+<partial name="_ProjectForm" model="Model" />

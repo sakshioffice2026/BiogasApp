@@ -1,0 +1,20 @@
+@model BiogasApp.Model.ViewModel.ProjectFormViewModel
+@{
+    ViewData["Title"] = "New project";
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/project.css" asp-append-version="true" />
+}
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/project.js" asp-append-version="true"></script>
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>New project</h1>
+        <p class="bp-muted mb-0">Describe the site and the process. You can blend feedstock after saving.</p>
+    </div>
+</div>
+
+<partial name="_ProjectForm" model="Model" />

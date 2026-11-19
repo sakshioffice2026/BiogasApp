@@ -1,0 +1,100 @@
+@using BiogasApp.Database.Enums
+@using Web.Helpers
+@model BiogasApp.Model.ViewModel.ProjectIndexViewModel
+@{
+    ViewData["Title"] = "Projects";
+    var filtered = !string.IsNullOrWhiteSpace(Model.Search) || Model.StatusFilter.HasValue;
+    var count = Model.Projects.Count;
+}
+@section Styles {
+    <link rel="stylesheet" href="~/css/project.css" asp-append-version="true" />
+}
+@section Scripts {
+    <script src="~/js/project.js" asp-append-version="true"></script>
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Projects</h1>
+        <p class="bp-muted mb-0">
+            @count @(count == 1 ? "plant" : "plants")@(filtered ? " match your filters" : " in your portfolio")
+        </p>
+    </div>
+    <a class="bp-btn bp-btn--flame" asp-action="Create">
+        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+        New project
+    </a>
+</div>
+
+<form class="pj-filter bp-glass" method="get" asp-action="Index" role="search" data-autosubmit>
+    <div class="pj-search">
+        <label class="visually-hidden" for="pj-search">Search projects</label>
+        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+        <input id="pj-search" name="search" type="search" value="@Model.Search" class="form-control" placeholder="Search by project or country" autocomplete="off" />
+    </div>
+
+    <fieldset class="pj-pills">
+        <legend class="visually-hidden">Filter by status</legend>
+        <label class="pj-pill">
+            <input type="radio" name="status" value="" checked="@(!Model.StatusFilter.HasValue)" />
+            <span>All</span>
+        </label>
+        @foreach (var s in Enum.GetValues<ProjectStatus>())
+        {
+            <label class="pj-pill">
+                <input type="radio" name="status" value="@((int)s)" checked="@(Model.StatusFilter == s)" />
+                <span>@s.Label()</span>
+            </label>
+        }
+    </fieldset>
+
+    <button type="submit" class="bp-btn bp-btn--primary">Search</button>
+</form>
+
+@if (count == 0)
+{
+    <section class="pj-empty bp-card" aria-live="polite">
+        <partial name="_Digester" model="ProjectStatus.Archived" />
+        @if (filtered)
+        {
+            <h2>No projects match these filters</h2>
+            <p class="bp-muted">Try a different name, country or status.</p>
+            <a class="bp-btn bp-btn--ghost" asp-action="Index">Clear filters</a>
+        }
+        else
+        {
+            <h2>Build your first biogas plant</h2>
+            <p class="bp-muted">Add a site, pick the process and blend your feedstock to size the plant.</p>
+            <a class="bp-btn bp-btn--flame" asp-action="Create">Create a project</a>
+        }
+    </section>
+}
+else
+{
+    <ul class="pj-grid" role="list">
+        @foreach (var p in Model.Projects)
+        {
+            <li>
+                <a class="pj-card bp-card bp-card--link" asp-action="Detail" asp-route-id="@p.Id">
+                    <div class="pj-card__tank">
+                        <partial name="_Digester" model="p.Status" />
+                    </div>
+                    <div class="pj-card__body">
+                        <span class="bp-chip bp-chip--@(p.Status.Css())">@p.Status.Label()</span>
+                        <h2 class="pj-card__title">@p.Name</h2>
+                        <p class="pj-card__place">@p.LocationCountry</p>
+                        <dl class="pj-facts">
+                            <div><dt>Regime</dt><dd>@p.DigesterRegime.Label()</dd></div>
+                            <div><dt>Upgrading</dt><dd>@p.UpgradingTech.Label()</dd></div>
+                            <div><dt>Code</dt><dd>@p.RegulatoryStandard.Label()</dd></div>
+                        </dl>
+                        <p class="pj-card__foot">
+                            <span>@p.RunCount @(p.RunCount == 1 ? "simulation run" : "simulation runs")</span>
+                            <span>Created @p.CreatedAt.ToString("dd MMM yyyy")</span>
+                        </p>
+                    </div>
+                </a>
+            </li>
+        }
+    </ul>
+}

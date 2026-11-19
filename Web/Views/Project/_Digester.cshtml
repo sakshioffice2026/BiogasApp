@@ -1,0 +1,46 @@
+@using System.Globalization
+@using BiogasApp.Database.Enums
+@using Web.Helpers
+@model ProjectStatus
+@{
+    var uid = Guid.NewGuid().ToString("N").Substring(0, 6);
+    var pct = Model.FillPercent();
+    var archived = Model == ProjectStatus.Archived;
+    var gas = Model == ProjectStatus.Simulated || Model == ProjectStatus.Approved;
+
+    const double tankTop = 30d;
+    const double tankHeight = 48d;
+    var fillHeight = tankHeight * pct / 100d;
+    var fillY = (tankTop + tankHeight - fillHeight).ToString("0.##", CultureInfo.InvariantCulture);
+    var fillH = fillHeight.ToString("0.##", CultureInfo.InvariantCulture);
+
+    var domeFill = gas ? "url(#gas-" + uid + ")" : "#E4ECFF";
+    var dash = archived ? "4 3" : null;
+}
+<svg class="pj-digester@(archived ? " is-archived" : "")" viewBox="0 0 80 90" role="img" aria-label="Digester fill @pct% - @Model.Label()" focusable="false">
+    <defs>
+        <linearGradient id="liq-@uid" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#00C48C" />
+            <stop offset=".55" stop-color="#10B5E8" />
+            <stop offset="1" stop-color="#5B5BF0" />
+        </linearGradient>
+        <linearGradient id="gas-@uid" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#FFD36B" />
+            <stop offset="1" stop-color="#FF5E7E" />
+        </linearGradient>
+        <clipPath id="clip-@uid">
+            <rect x="12" y="30" width="56" height="48" rx="8" />
+        </clipPath>
+    </defs>
+    <path d="M12 32A28 20 0 0 1 68 32Z" fill="@domeFill" stroke="#9FB3E6" stroke-width="1.5" stroke-dasharray="@dash" />
+    <rect x="12" y="30" width="56" height="48" rx="8" fill="#FFFFFF" />
+    @if (pct > 0)
+    {
+        <g clip-path="url(#clip-@uid)">
+            <rect x="12" y="@fillY" width="56" height="@fillH" fill="url(#liq-@uid)" />
+            <rect x="12" y="@fillY" width="56" height="1.5" fill="#FFFFFF" opacity=".55" />
+        </g>
+    }
+    <rect x="12" y="30" width="56" height="48" rx="8" fill="none" stroke="#9FB3E6" stroke-width="1.5" stroke-dasharray="@dash" />
+    <rect x="20" y="78" width="40" height="6" rx="3" fill="#C9D6F2" />
+</svg>
