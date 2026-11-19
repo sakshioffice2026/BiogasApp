@@ -60,7 +60,7 @@ public class RazorViewRenderRepository : IRazorViewRenderer
         }
 
         var viewData = new ViewDataDictionary<TModel>(
-            new Microsoft.AspNetCore.Mvc.ModelBinding.Metadata.EmptyModelMetadataProvider(),
+                        new EmptyModelMetadataProvider(),
             new ModelStateDictionary())
         {
             Model = model
