@@ -8,8 +8,8 @@
     var archived = Model == ProjectStatus.Archived;
     var gas = Model == ProjectStatus.Simulated || Model == ProjectStatus.Approved;
 
-    const double tankTop = 30d;
-    const double tankHeight = 48d;
+    const double tankTop = 38d;
+    const double tankHeight = 40d;
     var fillHeight = tankHeight * pct / 100d;
     var fillY = (tankTop + tankHeight - fillHeight).ToString("0.##", CultureInfo.InvariantCulture);
     var fillH = fillHeight.ToString("0.##", CultureInfo.InvariantCulture);
@@ -17,7 +17,7 @@
     var domeFill = gas ? "url(#gas-" + uid + ")" : "#E4ECFF";
     var dash = archived ? "4 3" : null;
 }
-<svg class="pj-digester@(archived ? " is-archived" : "")" viewBox="0 0 80 90" role="img" aria-label="Digester fill @pct% - @Model.Label()" focusable="false">
+<svg class="pj-digester@(archived ? " is-archived" : "")" viewBox="0 0 80 90" role="img" aria-label="Biogas plant fill @pct% - @Model.Label()" focusable="false">
     <defs>
         <linearGradient id="liq-@uid" x1="0" y1="1" x2="1" y2="0">
             <stop offset="0" stop-color="#00C48C" />
@@ -29,18 +29,24 @@
             <stop offset="1" stop-color="#FF5E7E" />
         </linearGradient>
         <clipPath id="clip-@uid">
-            <rect x="12" y="30" width="56" height="48" rx="8" />
+            <rect x="10" y="38" width="48" height="40" rx="5" />
         </clipPath>
     </defs>
-    <path d="M12 32A28 20 0 0 1 68 32Z" fill="@domeFill" stroke="#9FB3E6" stroke-width="1.5" stroke-dasharray="@dash" />
-    <rect x="12" y="30" width="56" height="48" rx="8" fill="#FFFFFF" />
+    <rect x="6" y="78" width="56" height="6" rx="3" fill="#C9D6F2" />
+    <rect x="10" y="38" width="48" height="40" rx="5" fill="#FFFFFF" />
     @if (pct > 0)
     {
         <g clip-path="url(#clip-@uid)">
-            <rect x="12" y="@fillY" width="56" height="@fillH" fill="url(#liq-@uid)" />
-            <rect x="12" y="@fillY" width="56" height="1.5" fill="#FFFFFF" opacity=".55" />
+            <rect x="10" y="@fillY" width="48" height="@fillH" fill="url(#liq-@uid)" />
+            <rect x="10" y="@fillY" width="48" height="1.5" fill="#FFFFFF" opacity=".55" />
+            <circle cx="22" cy="70" r="2.2" fill="#FFFFFF" opacity=".6" />
+            <circle cx="34" cy="63" r="1.6" fill="#FFFFFF" opacity=".6" />
+            <circle cx="46" cy="71" r="2.6" fill="#FFFFFF" opacity=".6" />
+            <circle cx="40" cy="56" r="1.4" fill="#FFFFFF" opacity=".6" />
         </g>
     }
-    <rect x="12" y="30" width="56" height="48" rx="8" fill="none" stroke="#9FB3E6" stroke-width="1.5" stroke-dasharray="@dash" />
-    <rect x="20" y="78" width="40" height="6" rx="3" fill="#C9D6F2" />
+    <rect x="10" y="38" width="48" height="40" rx="5" fill="none" stroke="#9FB3E6" stroke-width="1.5" stroke-dasharray="@dash" />
+    <path d="M10 40A24 20 0 0 1 58 40Z" fill="@domeFill" stroke="#9FB3E6" stroke-width="1.5" stroke-dasharray="@dash" />
+    <path d="M34 20V12H66V16" fill="none" stroke="#9FB3E6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="@dash" />
+    <path d="M66 15C60 22 59 28 63 31C64.5 32.2 67.5 32.2 69 31C73 28 72 22 66 15Z" fill="@domeFill" stroke="#9FB3E6" stroke-width="1.2" stroke-dasharray="@dash" />
 </svg>

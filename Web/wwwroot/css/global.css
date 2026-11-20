@@ -167,19 +167,20 @@ a {
 .bp-topbar {
     position: fixed;
     z-index: 1030;
-    top: 12px;
-    left: 12px;
-    right: 12px;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 70px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 0 22px;
-    background: rgba(255, 255, 255, .96);
-    border: 1px solid #E5EAF3;
-    border-radius: 16px;
-    box-shadow: 0 4px 18px rgba(20, 40, 90, .06);
+    padding: 0 28px;
+    background: #FFFFFF;
+    border: 0;
+    border-bottom: 1px solid #E5EAF3;
+    border-radius: 0;
+    box-shadow: none;
     transition: box-shadow .25s var(--bp-ease);
 }
 
@@ -324,7 +325,7 @@ a {
     position: fixed;
     z-index: 1020;
     left: 12px;
-    top: calc(var(--bp-top-h) + 30px);
+    top: calc(var(--bp-top-h) + 12px);
     bottom: 12px;
     width: 94px;
     padding: 18px 9px;
@@ -770,12 +771,12 @@ label {
     /* Mobile header */
 
     .bp-topbar {
-        top: 8px;
-        left: 8px;
-        right: 8px;
+        top: 0;
+        left: 0;
+        right: 0;
         height: 58px;
-        padding: 0 12px;
-        border-radius: 13px;
+        padding: 0 14px;
+        border-radius: 0;
     }
 
     .bp-brand {

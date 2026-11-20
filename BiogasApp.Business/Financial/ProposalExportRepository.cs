@@ -507,7 +507,7 @@ public class ProposalExportRepository : IProposalExport
         private const double PageH = 842;
         private const double Margin = 40;
         private const double ContentW = PageW - 2 * Margin;
-        private const double BottomLimit = 60;
+        private const double BottomLimit = 42;
 
         private const string Teal = "0.059 0.463 0.431";
         private const string Ink = "0.059 0.090 0.165";
