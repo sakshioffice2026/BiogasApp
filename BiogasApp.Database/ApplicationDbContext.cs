@@ -24,6 +24,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<ExceptionLog> ExceptionLogs => Set<ExceptionLog>();
+    public DbSet<Enquiry> Enquiries => Set<Enquiry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -65,6 +66,26 @@ public class ApplicationDbContext : DbContext
             [ProjectStatus.Archived] = "ARCHIVED"
         });
 
+        var enquiryStatus = EnumToDb(new Dictionary<EnquiryStatus, string>
+        {
+            [EnquiryStatus.New] = "NEW",
+            [EnquiryStatus.UnderReview] = "UNDER_REVIEW",
+            [EnquiryStatus.ProposalSent] = "PROPOSAL_SENT",
+            [EnquiryStatus.Revised] = "REVISED",
+            [EnquiryStatus.Approved] = "APPROVED",
+            [EnquiryStatus.Rejected] = "REJECTED"
+        });
+
+        var enquirySource = EnumToDb(new Dictionary<EnquirySource, string>
+        {
+            [EnquirySource.Website] = "WEBSITE",
+            [EnquirySource.Email] = "EMAIL",
+            [EnquirySource.Phone] = "PHONE",
+            [EnquirySource.WhatsApp] = "WHATSAPP",
+            [EnquirySource.Referral] = "REFERRAL",
+            [EnquirySource.Exhibition] = "EXHIBITION",
+            [EnquirySource.Other] = "OTHER"
+        });
         var artifactType = EnumToDb(new Dictionary<ArtifactType, string>
         {
             [ArtifactType.GaDxf] = "GA_DXF",
@@ -236,6 +257,32 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ---------- enquiries ----------
+        modelBuilder.Entity<Enquiry>(e =>
+        {
+            e.ToTable("enquiries");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.EnquiryNo).HasMaxLength(30).IsRequired();
+            e.HasIndex(x => x.EnquiryNo).IsUnique().HasDatabaseName("uq_enquiries_enquiry_no");
+            e.Property(x => x.CustomerName).HasMaxLength(150).IsRequired();
+            e.Property(x => x.CompanyName).HasMaxLength(150);
+            e.Property(x => x.Email).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Phone).HasMaxLength(20).IsRequired();
+            e.Property(x => x.LocationCity).HasMaxLength(100).IsRequired();
+            e.Property(x => x.LocationState).HasMaxLength(100).IsRequired();
+            e.Property(x => x.LocationCountry).HasMaxLength(100).IsRequired();
+            e.Property(x => x.FeedstockType).HasMaxLength(200).IsRequired();
+            e.Property(x => x.FeedstockQtyTpd).HasPrecision(8, 2);
+            e.Property(x => x.EndUse).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Message).HasColumnType("text");
+            e.Property(x => x.Source).HasConversion(enquirySource).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Status).HasConversion(enquiryStatus).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_enquiries_status");
+            e.Property(x => x.AdminNotes).HasColumnType("text");
+            e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.Property(x => x.UpdatedAt).HasColumnType("timestamp");
+            e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_enquiries_created_at");
+        });
         // ---------- tenants ----------
         modelBuilder.Entity<Tenant>(e =>
         {

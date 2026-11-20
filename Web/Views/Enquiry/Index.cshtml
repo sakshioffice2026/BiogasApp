@@ -1,0 +1,136 @@
+@using BiogasApp.Database.Enums
+@model BiogasApp.Model.ViewModel.EnquiryIndexViewModel
+@{
+    ViewData["Title"] = "Enquiries";
+    var filtered = !string.IsNullOrWhiteSpace(Model.SearchText) || Model.StatusFilter.HasValue;
+    var count = Model.Items.Count;
+
+    string StatusLabel(EnquiryStatus s) => s switch
+    {
+        EnquiryStatus.UnderReview => "Under Review",
+        EnquiryStatus.ProposalSent => "Proposal Sent",
+        _ => s.ToString()
+    };
+
+    string StatusCss(EnquiryStatus s) => s switch
+    {
+        EnquiryStatus.New => "draft",
+        EnquiryStatus.UnderReview => "simulated",
+        EnquiryStatus.ProposalSent => "simulated",
+        EnquiryStatus.Revised => "draft",
+        EnquiryStatus.Approved => "approved",
+        EnquiryStatus.Rejected => "archived",
+        _ => "draft"
+    };
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Enquiries</h1>
+        <p class="bp-muted mb-0">
+            @count @(count == 1 ? "enquiry" : "enquiries")@(filtered ? " match your filters" : " received")
+        </p>
+    </div>
+    <a class="bp-btn bp-btn--flame" asp-action="Create">
+        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+        Add enquiry
+    </a>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success" role="status">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger" role="alert">@TempData["Error"]</div>
+}
+
+<form class="bp-glass p-3 mb-3 d-flex flex-wrap gap-2 align-items-center" method="get" asp-action="Index" role="search">
+    <label class="visually-hidden" for="enq-search">Search enquiries</label>
+    <input id="enq-search" name="search" type="search" value="@Model.SearchText"
+           class="form-control" style="max-width: 320px;"
+           placeholder="Search by no, customer, phone or city" autocomplete="off" />
+
+    <label class="visually-hidden" for="enq-status">Filter by status</label>
+    <select id="enq-status" name="status" class="form-select" style="max-width: 200px;">
+        <option value="">All statuses</option>
+        @foreach (var s in Enum.GetValues<EnquiryStatus>())
+        {
+            <option value="@((int)s)" selected="@(Model.StatusFilter == s)">@StatusLabel(s)</option>
+        }
+    </select>
+
+    <button type="submit" class="bp-btn bp-btn--primary">Search</button>
+
+    @if (filtered)
+    {
+        <a class="bp-btn bp-btn--ghost" asp-action="Index">Clear</a>
+    }
+</form>
+
+@if (count == 0)
+{
+    <section class="bp-card p-4 text-center" aria-live="polite">
+        @if (filtered)
+        {
+            <h2>No enquiries match these filters</h2>
+            <p class="bp-muted">Try a different search or status.</p>
+            <a class="bp-btn bp-btn--ghost" asp-action="Index">Clear filters</a>
+        }
+        else
+        {
+            <h2>No enquiries yet</h2>
+            <p class="bp-muted">Customer enquiries from the website form or added manually will appear here.</p>
+            <a class="bp-btn bp-btn--flame" asp-action="Create">Add enquiry</a>
+        }
+    </section>
+}
+else
+{
+    <div class="bp-card p-0 table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Enquiry No</th>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Phone</th>
+                    <th scope="col">City</th>
+                    <th scope="col">Feedstock</th>
+                    <th scope="col" class="text-end">TPD</th>
+                    <th scope="col">End Use</th>
+                    <th scope="col">Source</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Received</th>
+                    <th scope="col"><span class="visually-hidden">Actions</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Items)
+                {
+                    <tr>
+                        <td><a asp-action="Details" asp-route-id="@e.Id">@e.EnquiryNo</a></td>
+                        <td>
+                            @e.CustomerName
+                            @if (!string.IsNullOrWhiteSpace(e.CompanyName))
+                            {
+                                <div class="bp-muted small">@e.CompanyName</div>
+                            }
+                        </td>
+                        <td>@e.Phone</td>
+                        <td>@e.LocationCity</td>
+                        <td>@e.FeedstockType</td>
+                        <td class="text-end">@e.FeedstockQtyTpd.ToString("0.##")</td>
+                        <td>@e.EndUse</td>
+                        <td>@e.Source</td>
+                        <td><span class="bp-chip bp-chip--@(StatusCss(e.Status))">@StatusLabel(e.Status)</span></td>
+                        <td>@e.CreatedAt.ToString("dd MMM yyyy")</td>
+                        <td class="text-end">
+                            <a class="bp-btn bp-btn--ghost" asp-action="Details" asp-route-id="@e.Id">View</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

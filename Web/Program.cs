@@ -41,7 +41,7 @@ builder.Services.AddScoped<IRateCardRepository, RateCardRepository>();
 builder.Services.AddScoped<IRazorViewRenderer, RazorViewRenderRepository>();
 builder.Services.AddScoped<IProposalExport, ProposalExportRepository>();
 builder.Services.AddScoped<ExceptionHandlerRepository>();
-
+builder.Services.AddScoped<IEnquiryRepository, EnquiryRepository>();
 // ---------- Artifact storage (local disk) ----------
 var artifactRoot = builder.Configuration["ArtifactStorage:RootPath"];
 if (string.IsNullOrWhiteSpace(artifactRoot))

@@ -217,6 +217,27 @@
                     </a>
                 </li>
 
+                @if (isAdmin)
+                {
+                    <!-- Enquiries -->
+                    <li>
+                        <a class="bp-node @Active("enquiry")"
+                           asp-controller="Enquiry"
+                           asp-action="Index"
+                           aria-current="@Current("enquiry")">
+
+                            <span class="bp-node__dot">
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M4 5h16v11H8l-4 4V5Z" />
+                                    <path d="M8 9h8M8 12h5" />
+                                </svg>
+                            </span>
+
+                            <span class="bp-node__label">Enquiries</span>
+                        </a>
+                    </li>
+                }
+
                 <!-- Projects -->
                 <li>
                     <a class="bp-node @Active("project")"

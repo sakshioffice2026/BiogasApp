@@ -1,0 +1,120 @@
+@using BiogasApp.Database.Enums
+@model BiogasApp.Model.ViewModel.EnquiryDetailsViewModel
+@{
+    ViewData["Title"] = Model.EnquiryNo;
+
+    string StatusLabel(EnquiryStatus s) => s switch
+    {
+        EnquiryStatus.UnderReview => "Under Review",
+        EnquiryStatus.ProposalSent => "Proposal Sent",
+        _ => s.ToString()
+    };
+
+    string StatusCss(EnquiryStatus s) => s switch
+    {
+        EnquiryStatus.New => "draft",
+        EnquiryStatus.UnderReview => "simulated",
+        EnquiryStatus.ProposalSent => "simulated",
+        EnquiryStatus.Revised => "draft",
+        EnquiryStatus.Approved => "approved",
+        EnquiryStatus.Rejected => "archived",
+        _ => "draft"
+    };
+}
+
+<div class="bp-page-head">
+    <div>
+        <span class="bp-chip bp-chip--@(StatusCss(Model.Status))">@StatusLabel(Model.Status)</span>
+        <h1 class="mt-2">@Model.EnquiryNo</h1>
+        <p class="bp-muted mb-0">
+            Received @Model.CreatedAt.ToString("dd MMM yyyy, HH:mm") via @Model.Source
+            @if (Model.UpdatedAt.HasValue)
+            {
+                <text> &middot; Updated @Model.UpdatedAt.Value.ToString("dd MMM yyyy, HH:mm")</text>
+            }
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-action="Index">Back to enquiries</a>
+        <a class="bp-btn bp-btn--primary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success" role="status">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger" role="alert">@TempData["Error"]</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <section class="bp-card p-4 mb-3">
+            <h2 class="h5 mb-3">Customer</h2>
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Name</dt>
+                <dd class="col-sm-8">@Model.CustomerName</dd>
+                <dt class="col-sm-4">Company</dt>
+                <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.CompanyName) ? "-" : Model.CompanyName)</dd>
+                <dt class="col-sm-4">Email</dt>
+                <dd class="col-sm-8"><a href="mailto:@Model.Email">@Model.Email</a></dd>
+                <dt class="col-sm-4">Phone</dt>
+                <dd class="col-sm-8"><a href="tel:@Model.Phone">@Model.Phone</a></dd>
+            </dl>
+        </section>
+
+        <section class="bp-card p-4 mb-3">
+            <h2 class="h5 mb-3">Site location</h2>
+            <dl class="row mb-0">
+                <dt class="col-sm-4">City</dt>
+                <dd class="col-sm-8">@Model.LocationCity</dd>
+                <dt class="col-sm-4">State</dt>
+                <dd class="col-sm-8">@Model.LocationState</dd>
+                <dt class="col-sm-4">Country</dt>
+                <dd class="col-sm-8">@Model.LocationCountry</dd>
+            </dl>
+        </section>
+
+        <section class="bp-card p-4">
+            <h2 class="h5 mb-3">Requirement</h2>
+            <dl class="row mb-0">
+                <dt class="col-sm-4">Feedstock</dt>
+                <dd class="col-sm-8">@Model.FeedstockType</dd>
+                <dt class="col-sm-4">Quantity</dt>
+                <dd class="col-sm-8">@Model.FeedstockQtyTpd.ToString("0.##") TPD</dd>
+                <dt class="col-sm-4">End use</dt>
+                <dd class="col-sm-8">@Model.EndUse</dd>
+                <dt class="col-sm-4">Message</dt>
+                <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Message) ? "-" : Model.Message)</dd>
+            </dl>
+        </section>
+    </div>
+
+    <div class="col-lg-4">
+        <section class="bp-card p-4">
+            <h2 class="h5 mb-3">Status</h2>
+            <form asp-action="UpdateStatus" method="post">
+                <input type="hidden" name="Id" value="@Model.Id" />
+
+                <div class="mb-3">
+                    <label for="enq-status" class="form-label">Update status</label>
+                    <select id="enq-status" name="Status" class="form-select">
+                        @foreach (var s in Enum.GetValues<EnquiryStatus>())
+                        {
+                            <option value="@((int)s)" selected="@(Model.Status == s)">@StatusLabel(s)</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="enq-notes" class="form-label">Admin notes</label>
+                    <textarea id="enq-notes" name="AdminNotes" rows="5" maxlength="2000" class="form-control">@Model.AdminNotes</textarea>
+                </div>
+
+                <button type="submit" class="bp-btn bp-btn--flame w-100">Save status</button>
+            </form>
+        </section>
+    </div>
+</div>

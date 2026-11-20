@@ -1,0 +1,16 @@
+@{
+    ViewData["Title"] = "Enquiry received";
+    var enquiryNo = ViewData["EnquiryNo"]?.ToString();
+}
+
+<section class="bp-card p-5 text-center" aria-live="polite">
+    <h1>Thank you!</h1>
+    <p class="bp-muted">Your enquiry has been received. Our team will contact you shortly.</p>
+
+    @if (!string.IsNullOrWhiteSpace(enquiryNo))
+    {
+        <p>Your enquiry number is <strong>@enquiryNo</strong></p>
+    }
+
+    <a class="bp-btn bp-btn--ghost" asp-controller="PublicEnquiry" asp-action="Create">Submit another enquiry</a>
+</section>
