@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = $"Simulation v{Model.RunVersion}";
     ViewData["RunId"] = Model.SimulationRunId;
+    ViewData["WorkflowStep"] = 2;
     var mb = Model.MassBalance;
     var dk = Model.DigesterKinetics;
     var pt = Model.PreTreatment;
@@ -44,8 +45,9 @@
         <a class="bp-btn bp-btn--ghost" asp-action="History" asp-route-projectId="@Model.ProjectId">History</a>
     </div>
 </div>
+</div>
 
-<partial name="_WorkflowStrip" model="7" />
+
 
 @if (warnings.Count > 0)
 {

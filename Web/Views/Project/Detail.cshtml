@@ -3,7 +3,7 @@
 @model BiogasApp.Database.Entities.Project
 @{
     ViewData["Title"] = Model.Name;
-
+    ViewData["WorkflowStep"] = Model.Status == ProjectStatus.Draft ? 2 : Model.Status == ProjectStatus.Simulated ? 3 : 7;
     var mix = Model.FeedstockMix.OrderByDescending(m => m.DailyTonnageTpd).ToList();
     var totalTpd = mix.Sum(m => m.DailyTonnageTpd);
 
@@ -22,7 +22,6 @@
     <link rel="stylesheet" href="~/css/workflow.css" asp-append-version="true" />
 }
 
-<partial name="_WorkflowStrip" model="@(Model.Status == ProjectStatus.Draft ? 2 : Model.Status == ProjectStatus.Simulated ? 3 : 7)" />
 
 <section class="pj-hero bp-card" aria-labelledby="pj-title">
     <div class="pj-hero__tank">

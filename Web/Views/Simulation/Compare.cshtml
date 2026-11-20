@@ -4,6 +4,7 @@
     var a = Model[0];
     var b = Model[1];
     ViewData["Title"] = $"Compare v{a.Version} and v{b.Version}";
+    ViewData["WorkflowStep"] = 3;
     ViewData["RunId"] = b.SimulationRunId;
     var inv = CultureInfo.InvariantCulture;
 

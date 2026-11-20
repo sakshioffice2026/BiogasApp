@@ -6,6 +6,7 @@
     var projectId = (Guid)ViewData["ProjectId"]!;
     var projectName = ViewData["ProjectName"] as string ?? string.Empty;
     ViewData["RunId"] = runId;
+    ViewData["WorkflowStep"] = 7;
     var inv = CultureInfo.InvariantCulture;
     var grandTotal = Model.Sum(e => e.TotalCost);
 }

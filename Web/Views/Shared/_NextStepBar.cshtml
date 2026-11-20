@@ -1,0 +1,70 @@
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty;
+    var step = ViewData["WorkflowStep"] as int? ?? 0;
+    var runId = ViewData["RunId"] as Guid?;
+
+    bool Is(string c, string a) =>
+        string.Equals(controller, c, StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(action, a, StringComparison.OrdinalIgnoreCase);
+
+    string? label = null;
+    string? href = null;
+    var submit = false;
+    string? proposalUrl = runId.HasValue
+        ? Url.Action("Index", "Proposal", new { runId = runId.Value })
+        : null;
+
+    if (Is("Project", "Detail") && step == 2)
+    {
+        if (Guid.TryParse(ViewContext.RouteData.Values["id"]?.ToString(), out var projectId))
+        {
+            label = "Blend feedstock";
+            href = Url.Action("Mixer", "Simulation", new { projectId });
+        }
+    }
+    else if (Is("Simulation", "Mixer"))
+    {
+        label = "Run simulation";
+        submit = true;
+    }
+    else if (Is("Simulation", "Dashboard"))
+    {
+        label = "Next: Digester performance";
+        href = "#sm-digester";
+    }
+    else if ((Is("Simulation", "Results") || Is("Simulation", "History") || Is("Simulation", "Compare")) && proposalUrl != null)
+    {
+        label = "Build proposal";
+        href = proposalUrl;
+    }
+    else if ((Is("Proposal", "Financials") || Is("Proposal", "Bom")) && runId.HasValue)
+    {
+        label = "CAD drawings";
+        href = Url.Action("Index", "Cad", new { runId = runId.Value });
+    }
+}
+
+@if (label != null)
+{
+    <div class="wf-next">
+        <div class="wf-next__card" data-wf-next data-proposal-url="@proposalUrl">
+            <div class="wf-next__text">
+                <small data-wf-next-hint>@(step > 0 ? $"Step {step} of 7" : "Next step")</small>
+                <strong data-wf-next-label>@label</strong>
+            </div>
+            @if (submit)
+            {
+                <button type="button" class="wf-next__btn" data-wf-submit="[data-mx-form]" aria-label="@label">
+                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </button>
+            }
+            else
+            {
+                <a class="wf-next__btn" href="@href" data-wf-next-link aria-label="@label">
+                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </a>
+            }
+        </div>
+    </div>
+}

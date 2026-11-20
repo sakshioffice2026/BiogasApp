@@ -5,6 +5,7 @@
 @{
     ViewData["Title"] = $"Results v{Model.Version}";
     ViewData["RunId"] = Model.SimulationRunId;
+    ViewData["WorkflowStep"] = 2;
     var mb = Model.MassBalance;
     var dk = Model.DigesterKinetics;
     var pt = Model.PreTreatment;
@@ -72,7 +73,7 @@
     </div>
 </div>
 
-<partial name="_WorkflowStrip" model="7" />
+
 
 @if (Model.Warnings.Count > 0)
 {

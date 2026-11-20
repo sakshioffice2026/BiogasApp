@@ -72,8 +72,8 @@ public class ProjectController : Controller
         };
 
         var created = await _projects.AddAsync(project, cancellationToken);
-        TempData["Success"] = "Project created.";
-        return RedirectToAction(nameof(Detail), new { id = created.Id });
+        TempData["Success"] = "Project created. Next: Step 2 of 7, blend your feedstock.";
+        return RedirectToAction("Mixer", "Simulation", new { projectId = created.Id });
     }
 
     [HttpGet]

@@ -4,6 +4,7 @@
     var projectId = ViewData["ProjectId"] as Guid? ?? Guid.Empty;
     var projectName = ViewData["ProjectName"] as string ?? string.Empty;
     ViewData["Title"] = "Simulation history";
+    ViewData["WorkflowStep"] = 3;
     var count = Model.Count;
     var latestId = count > 0 ? Model[0].Id : Guid.Empty;
     if (count > 0)

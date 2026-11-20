@@ -1,6 +1,7 @@
 @model BiogasApp.Model.ViewModel.ProjectFormViewModel
 @{
     ViewData["Title"] = "Edit " + Model.Name;
+    ViewData["WorkflowStep"] = 1;
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/project.css" asp-append-version="true" />

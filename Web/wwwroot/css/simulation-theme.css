@@ -1,0 +1,171 @@
+/* ============================================================
+   Simulation theme: matches Project views (emerald, cyan, indigo)
+   Load AFTER simulation.css and mixer.css
+   ============================================================ */
+
+/* ---------- Remove orange decoration ---------- */
+.sm-actions .bp-btn--flame,
+.mx-form .bp-btn--flame,
+.sm-panel .bp-btn--flame {
+    background: var(--bp-grad-deep);
+    color: #fff;
+}
+
+.sm-actions .bp-btn--flame:hover,
+.mx-form .bp-btn--flame:hover,
+.sm-panel .bp-btn--flame:hover {
+    filter: brightness(1.08);
+}
+
+.sm-kpi--flame .sm-kpi__icon {
+    background: var(--bp-grad-deep);
+    color: #fff;
+}
+
+.sm-split__part--ch4 {
+    background: linear-gradient(135deg, var(--bp-emerald), var(--bp-cyan));
+    color: var(--bp-ink);
+}
+
+.sm-vs__tag--b {
+    background: var(--bp-grad-deep);
+    color: #fff;
+}
+
+.sm-vs__bar--b > span {
+    background: linear-gradient(90deg, var(--bp-cyan), var(--bp-indigo));
+}
+
+.mx-remove {
+    background: #fff;
+    border-color: #F4B4C0;
+}
+
+/* ---------- Top-right "Next step" bar ---------- */
+.wf-next {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 0 1rem;
+}
+
+.wf-next__card {
+    display: inline-flex;
+    align-items: center;
+    gap: .9rem;
+    max-width: 100%;
+    padding: .45rem .5rem .45rem 1.15rem;
+    background: var(--bp-surface);
+    border: 1px solid var(--bp-line);
+    border-radius: 999px;
+    box-shadow: var(--bp-shadow);
+}
+
+.wf-next__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.wf-next__text small {
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .02em;
+    color: var(--bp-ink-mute);
+}
+
+.wf-next__text strong {
+    font-size: .92rem;
+    color: var(--bp-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wf-next__btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--bp-grad-deep);
+    color: #fff;
+    cursor: pointer;
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.wf-next__btn:hover {
+    transform: translateX(2px);
+    box-shadow: 0 0 0 4px rgba(16, 181, 232, .2);
+    color: #fff;
+}
+
+.wf-next__btn .bp-ico {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ---------- Clickable stepper ---------- */
+.wf__row[data-clickable] {
+    cursor: pointer;
+}
+
+.wf__row[data-clickable]:hover .wf__card {
+    border-color: var(--bp-cyan);
+}
+
+.wf__row[data-clickable]:focus-visible {
+    outline: 2px solid var(--bp-cyan);
+    outline-offset: 2px;
+    border-radius: 10px;
+}
+
+/* ---------- Wizard mode (Simulation dashboard) ---------- */
+.sm-is-hidden {
+    display: none !important;
+}
+
+.sm-wizard .sm-columns {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.sm-wizard .sm-wizard-active {
+    animation: sm-wizard-in .25s ease both;
+}
+
+@keyframes sm-wizard-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sm-wizard .sm-wizard-active {
+        animation: none;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .wf-next {
+        justify-content: stretch;
+    }
+
+    .wf-next__card {
+        width: 100%;
+        justify-content: space-between;
+    }
+}

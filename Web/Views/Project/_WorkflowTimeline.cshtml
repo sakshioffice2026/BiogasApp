@@ -35,14 +35,14 @@
             <li class="wf__row @state" aria-current="@(i == current ? "step" : null)">
                 <div class="wf__card">
                     <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="@(i < current ? "M5 12l5 5 9-10" : s.DesignIcon)" />
+                        <path d="@(i < current ? "M5 12l5 5 9-10" : s.DesignIcon)" data-icon="@s.DesignIcon" />
                     </svg>
                     <span>@s.Design</span>
                 </div>
                 <span class="wf__dot">@i</span>
                 <div class="wf__card">
                     <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                        <path d="@(i < current ? "M5 12l5 5 9-10" : s.PlantIcon)" />
+                        <path d="@(i < current ? "M5 12l5 5 9-10" : s.PlantIcon)" data-icon="@s.PlantIcon" />
                     </svg>
                     <span>@s.Plant</span>
                 </div>

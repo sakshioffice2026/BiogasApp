@@ -42,8 +42,10 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/global.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/workflow.css" asp-append-version="true" />
 
     @await RenderSectionAsync("Styles", required: false)
+    <link rel="stylesheet" href="~/css/simulation-theme.css" asp-append-version="true" />
 </head>
 
 <body class="@(isAuth ? "bp-has-rail" : "bp-guest")">
@@ -254,67 +256,6 @@
                     </a>
                 </li>
 
-                @if (runId.HasValue)
-                {
-                    <!-- Simulation -->
-                    <li>
-                        <a class="bp-node bp-node--run @Active("simulation")"
-                           asp-controller="Simulation"
-                           asp-action="Dashboard"
-                           asp-route-runId="@runId"
-                           aria-current="@Current("simulation")">
-
-                            <span class="bp-node__dot">
-                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M3 12h4l3-8 4 16 3-8h4" />
-                                </svg>
-                            </span>
-
-                            <span class="bp-node__label">Simulation</span>
-                        </a>
-                    </li>
-
-                    <!-- Proposal -->
-                    <li>
-                        <a class="bp-node bp-node--run @Active("proposal")"
-                           asp-controller="Proposal"
-                           asp-action="Index"
-                           asp-route-runId="@runId"
-                           aria-current="@Current("proposal")">
-
-                            <span class="bp-node__dot">
-                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M7 3h7l5 5v13H7z" />
-                                    <path d="M14 3v5h5" />
-                                    <path d="M10 13h6M10 17h6" />
-                                </svg>
-                            </span>
-
-                            <span class="bp-node__label">Proposal</span>
-                        </a>
-                    </li>
-
-                    <!-- CAD -->
-                    <li>
-                        <a class="bp-node bp-node--run @Active("cad")"
-                           asp-controller="Cad"
-                           asp-action="Index"
-                           asp-route-runId="@runId"
-                           aria-current="@Current("cad")">
-
-                            <span class="bp-node__dot">
-                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" />
-                                    <path d="m4 7.5 8 4.5 8-4.5" />
-                                    <path d="M12 12v9" />
-                                </svg>
-                            </span>
-
-                            <span class="bp-node__label">CAD</span>
-                        </a>
-                    </li>
-                }
-
                 @if (isAdmin)
                 {
                     <!-- Admin -->
@@ -391,7 +332,20 @@
                 </div>
             }
 
-            @RenderBody()
+            @if (ViewData["WorkflowStep"] is int wfStep)
+            {
+                <partial name="_NextStepBar" />
+                <div class="wf-layout" data-wf-page="@(ViewContext.RouteData.Values["controller"])/@(ViewContext.RouteData.Values["action"])">
+                    <partial name="~/Views/Project/_WorkflowTimeline.cshtml" model="wfStep" />
+                    <div class="wf-content">
+                        @RenderBody()
+                    </div>
+                </div>
+            }
+            else
+            {
+                @RenderBody()
+            }
 
             <!-- Footer -->
             <footer class="bp-footer">
@@ -406,6 +360,7 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/sim-wizard.js" asp-append-version="true"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
 
