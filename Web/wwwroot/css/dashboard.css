@@ -1,0 +1,296 @@
+﻿/* =========================================================
+   BIOGAS APP — DASHBOARD
+   Dashboard/Index.cshtml styles
+   ========================================================= */
+
+.db-wrap {
+    display: grid;
+    gap: 24px;
+}
+
+/* Hero */
+.db-hero {
+    padding: 28px;
+    border-radius: 24px;
+    background: linear-gradient(120deg, #0f766e, #1d4ed8);
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+    .db-hero h1 {
+        font-size: clamp(1.6rem, 3vw, 2.4rem);
+        font-weight: 800;
+        margin: 0 0 8px;
+        line-height: 1.2;
+    }
+
+    .db-hero p {
+        margin: 0;
+        opacity: .88;
+    }
+
+.db-hero-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.db-hero .bp-btn {
+    text-decoration: none;
+}
+
+/* Summary KPI cards */
+.db-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.db-stat {
+    padding: 22px;
+    border: 1px solid var(--bp-line);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .84);
+    box-shadow: var(--bp-shadow-sm);
+    transition: transform .2s ease, box-shadow .2s ease;
+}
+
+    .db-stat:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--bp-shadow-lg);
+    }
+
+.db-stat-label {
+    color: var(--bp-ink-mute);
+    font-size: .86rem;
+    font-weight: 600;
+}
+
+.db-stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    margin: 8px 0;
+    color: var(--bp-ink);
+    line-height: 1.2;
+}
+
+.db-stat-note {
+    color: var(--bp-ink-mute);
+    font-size: .8rem;
+}
+
+/* Sections */
+.db-section {
+    padding: 24px;
+    border: 1px solid var(--bp-line);
+    border-radius: 22px;
+    background: rgba(255, 255, 255, .82);
+    box-shadow: var(--bp-shadow-sm);
+}
+
+    .db-section h2 {
+        font-size: 1.15rem;
+        font-weight: 750;
+        margin: 0 0 20px;
+        color: var(--bp-ink);
+    }
+
+/* Project pipeline */
+.db-status-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.db-status {
+    padding: 18px;
+    border-radius: 16px;
+    background: #f8fafc;
+    border: 1px solid var(--bp-line);
+    transition: transform .2s ease;
+}
+
+    .db-status:hover {
+        transform: translateY(-2px);
+    }
+
+.db-status-label {
+    font-size: .82rem;
+    color: var(--bp-ink-mute);
+    font-weight: 600;
+}
+
+.db-status-value {
+    font-size: 1.65rem;
+    font-weight: 800;
+    margin-top: 6px;
+    color: var(--bp-ink);
+}
+
+.db-status--draft {
+    border-left: 4px solid #64748b;
+}
+
+.db-status--simulated {
+    border-left: 4px solid #0ea5e9;
+}
+
+.db-status--proposed {
+    border-left: 4px solid #8b5cf6;
+}
+
+.db-status--approved {
+    border-left: 4px solid #16a34a;
+}
+
+/* Latest simulation */
+.db-latest {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.db-latest-item {
+    padding: 18px;
+    border-radius: 16px;
+    background: #f8fafc;
+    border: 1px solid var(--bp-line);
+    min-width: 0;
+}
+
+    .db-latest-item span {
+        display: block;
+        font-size: .82rem;
+        color: var(--bp-ink-mute);
+        line-height: 1.5;
+    }
+
+    .db-latest-item strong {
+        display: block;
+        font-size: 1.3rem;
+        font-weight: 750;
+        margin-top: 7px;
+        color: var(--bp-ink);
+        overflow-wrap: anywhere;
+    }
+
+/* Empty state */
+.db-empty {
+    text-align: center;
+    padding: 44px 24px;
+}
+
+    .db-empty h3 {
+        margin: 0 0 10px;
+        font-size: 1.25rem;
+        font-weight: 750;
+    }
+
+    .db-empty p {
+        color: var(--bp-ink-mute);
+        margin-bottom: 20px;
+    }
+
+/* Simulation warning */
+.db-warning {
+    padding: 16px 20px;
+    border-radius: 16px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #9a3412;
+}
+
+    .db-warning ul {
+        padding-left: 20px;
+    }
+
+/* Buttons */
+.db-hero-actions .bp-btn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 42px;
+}
+
+/* Tablet */
+@media (max-width: 1000px) {
+    .db-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .db-status-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .db-latest {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .db-wrap {
+        gap: 16px;
+    }
+
+    .db-hero {
+        padding: 22px;
+        border-radius: 20px;
+    }
+
+        .db-hero h1 {
+            font-size: 1.65rem;
+        }
+
+    .db-grid,
+    .db-status-list,
+    .db-latest {
+        grid-template-columns: 1fr;
+    }
+
+    .db-section {
+        padding: 18px;
+        border-radius: 18px;
+    }
+
+    .db-stat {
+        padding: 18px;
+    }
+
+    .db-stat-value {
+        font-size: 1.75rem;
+    }
+
+    .db-hero-actions {
+        width: 100%;
+    }
+
+        .db-hero-actions .bp-btn {
+            flex: 1 1 auto;
+        }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+    .db-hero {
+        padding: 18px;
+    }
+
+    .db-section {
+        padding: 14px;
+    }
+
+    .db-hero-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+        .db-hero-actions .bp-btn {
+            width: 100%;
+        }
+}

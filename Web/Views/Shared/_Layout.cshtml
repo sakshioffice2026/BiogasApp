@@ -4,14 +4,17 @@
     var isAuth = User.Identity?.IsAuthenticated == true;
     var isAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("ClientAdmin");
 
-    // Set ViewData["RunId"] = Model.RunId (Guid) in run-based views to reveal the run steps in the rail.
     var runId = ViewData["RunId"] as Guid?;
 
     var fullName = User.FindFirstValue(ClaimTypes.Name) ?? "User";
     var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
     var initials = parts.Length == 0
         ? "U"
-        : (parts.Length == 1 ? parts[0].Substring(0, 1) : parts[0].Substring(0, 1) + parts[parts.Length - 1].Substring(0, 1)).ToUpperInvariant();
+        : (parts.Length == 1
+            ? parts[0].Substring(0, 1)
+            : parts[0].Substring(0, 1) + parts[parts.Length - 1].Substring(0, 1)).ToUpperInvariant();
+
     var roleLabel = (User.FindFirstValue(ClaimTypes.Role) ?? string.Empty) switch
     {
         "SuperAdmin" => "Platform admin",
@@ -19,8 +22,11 @@
         var r => r
     };
 
-    string Active(params string[] names) => Array.IndexOf(names, ctrl) >= 0 ? "is-active" : string.Empty;
-    string Current(params string[] names) => Array.IndexOf(names, ctrl) >= 0 ? "page" : null;
+    string Active(params string[] names) =>
+        Array.IndexOf(names, ctrl) >= 0 ? "is-active" : string.Empty;
+
+    string Current(params string[] names) =>
+        Array.IndexOf(names, ctrl) >= 0 ? "page" : null;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -28,55 +34,134 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#EEF7FF" />
+
     <title>@ViewData["Title"] - BiogasApp</title>
+
     <script type="importmap"></script>
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/global.css" asp-append-version="true" />
+
     @await RenderSectionAsync("Styles", required: false)
 </head>
+
 <body class="@(isAuth ? "bp-has-rail" : "bp-guest")">
+
     <a class="bp-skip" href="#main">Skip to content</a>
     <div class="bp-aurora" aria-hidden="true"></div>
 
+    <!-- ================= TOP NAVBAR ================= -->
     <header class="bp-topbar bp-glass">
-        <a class="bp-brand" asp-controller="@(isAuth ? "Dashboard" : "Home")" asp-action="Index" aria-label="BiogasApp home">
-            <svg class="bp-brand__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+
+        <a class="bp-brand"
+           asp-controller="@(isAuth ? "Dashboard" : "Home")"
+           asp-action="Index"
+           aria-label="BiogasApp home">
+
+            <!-- Biogas Logo -->
+            <svg class="bp-brand__mark"
+                 viewBox="0 0 48 48"
+                 aria-hidden="true"
+                 focusable="false">
+
                 <defs>
-                    <linearGradient id="bpMarkBg" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stop-color="#047857" />
-                        <stop offset=".55" stop-color="#0369A1" />
-                        <stop offset="1" stop-color="#4338CA" />
-                    </linearGradient>
-                    <linearGradient id="bpMarkFlame" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stop-color="#FFD36B" />
-                        <stop offset="1" stop-color="#FF5E7E" />
+                    <linearGradient id="bioLogo" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stop-color="#0D9488" />
+                        <stop offset="100%" stop-color="#2563EB" />
                     </linearGradient>
                 </defs>
-                <rect width="40" height="40" rx="12" fill="url(#bpMarkBg)" />
-                <path d="M20 7c1.2 5 8 7.6 8 15a8 8 0 0 1-16 0c0-3.8 2.4-5.6 3.8-8.6.6 2.2 1.8 3 3 3.6C18.4 13.4 19 10.6 20 7z" fill="url(#bpMarkFlame)" />
+
+                <rect width="48" height="48" rx="14" fill="url(#bioLogo)" />
+
+                <!-- Energy leaf -->
+                <path d="M24 7c-1 7 3 10 8 10-1-5-4-8-8-10Z"
+                      fill="#B9F5C8" />
+                <path d="M24 9v8"
+                      stroke="#B9F5C8"
+                      stroke-width="1.6"
+                      stroke-linecap="round" />
+
+                <!-- Digester dome -->
+                <path d="M10 28a14 14 0 0 1 28 0"
+                      fill="none"
+                      stroke="#FFFFFF"
+                      stroke-width="2.8"
+                      stroke-linecap="round" />
+
+                <!-- Digester tank -->
+                <rect x="11" y="27" width="26" height="12" rx="3"
+                      fill="#FFFFFF" opacity=".96" />
+                <path d="M15 31h18M15 35h18"
+                      stroke="#C9E8E6"
+                      stroke-width="1.5"
+                      stroke-linecap="round" />
+
+                <!-- Gas pipe -->
+                <path d="M24 19v-3h7"
+                      stroke="#FFFFFF"
+                      stroke-width="2"
+                      fill="none"
+                      stroke-linecap="round"
+                      stroke-linejoin="round" />
             </svg>
+
             <span class="bp-brand__name">Biogas<em>App</em></span>
         </a>
 
         @if (isAuth)
         {
+            <!-- USER PROFILE -->
             <div class="dropdown">
-                <button class="bp-user" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu for @fullName">
+
+                <button class="bp-user"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        aria-label="Account menu for @fullName">
+
                     <span class="bp-user__avatar" aria-hidden="true">@initials</span>
+
                     <span class="bp-user__meta">
                         <span class="bp-user__name">@fullName</span>
                         <span class="bp-user__role">@roleLabel</span>
                     </span>
-                    <svg class="bp-ico bp-user__caret" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m6 9 6 6 6-6" /></svg>
+
+                    <svg class="bp-ico bp-user__caret"
+                         viewBox="0 0 24 24"
+                         aria-hidden="true"
+                         focusable="false">
+                        <path d="m6 9 6 6 6-6" />
+                    </svg>
                 </button>
+
                 <ul class="dropdown-menu dropdown-menu-end bp-menu">
-                    <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile">My profile</a></li>
-                    <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">Change password</a></li>
-                    <li><hr class="dropdown-divider" /></li>
+
                     <li>
-                        <form asp-controller="Account" asp-action="Logout" method="post">
-                            <button type="submit" class="dropdown-item">Sign out</button>
+                        <a class="dropdown-item"
+                           asp-controller="Account"
+                           asp-action="Profile">
+                            My profile
+                        </a>
+                    </li>
+
+                    <li>
+                        <a class="dropdown-item"
+                           asp-controller="Account"
+                           asp-action="ChangePassword">
+                            Change password
+                        </a>
+                    </li>
+
+                    <li><hr class="dropdown-divider" /></li>
+
+                    <li>
+                        <form asp-controller="Account"
+                              asp-action="Logout"
+                              method="post">
+                            <button type="submit" class="dropdown-item">
+                                Sign out
+                            </button>
                         </form>
                     </li>
                 </ul>
@@ -84,65 +169,147 @@
         }
         else
         {
+            <!-- GUEST ACTIONS -->
             <div class="bp-topbar__actions">
-                <a class="bp-btn bp-btn--ghost" asp-controller="Account" asp-action="Login">Sign in</a>
-                <a class="bp-btn bp-btn--primary" asp-controller="Account" asp-action="Register">Create account</a>
+                <a class="bp-btn bp-btn--ghost"
+                   asp-controller="Account"
+                   asp-action="Login">
+                    Sign in
+                </a>
+
+                <a class="bp-btn bp-btn--primary"
+                   asp-controller="Account"
+                   asp-action="Register">
+                    Create account
+                </a>
             </div>
         }
     </header>
 
+    <!-- ================= SIDEBAR ================= -->
     @if (isAuth)
     {
         <nav class="bp-rail bp-glass" aria-label="Main navigation">
+
+            <div class="bp-nav-caption">WORKSPACE</div>
+
             <ul class="bp-rail__list" role="list">
+
+                <!-- Overview -->
                 <li>
-                    <a class="bp-node @Active("dashboard")" asp-controller="Dashboard" asp-action="Index" aria-current="@Current("dashboard")">
+                    <a class="bp-node @Active("dashboard")"
+                       asp-controller="Dashboard"
+                       asp-action="Index"
+                       aria-current="@Current("dashboard")">
+
                         <span class="bp-node__dot">
-                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="8" height="8" rx="2" /><rect x="13" y="3" width="8" height="5" rx="2" /><rect x="13" y="10" width="8" height="11" rx="2" /><rect x="3" y="13" width="8" height="8" rx="2" /></svg>
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                <rect x="3" y="3" width="7" height="7" rx="2" />
+                                <rect x="14" y="3" width="7" height="7" rx="2" />
+                                <rect x="3" y="14" width="7" height="7" rx="2" />
+                                <rect x="14" y="14" width="7" height="7" rx="2" />
+                            </svg>
                         </span>
+
                         <span class="bp-node__label">Overview</span>
                     </a>
                 </li>
+
+                <!-- Projects -->
                 <li>
-                    <a class="bp-node @Active("project")" asp-controller="Project" asp-action="Index" aria-current="@Current("project")">
+                    <a class="bp-node @Active("project")"
+                       asp-controller="Project"
+                       asp-action="Index"
+                       aria-current="@Current("project")">
+
                         <span class="bp-node__dot">
-                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 3 8l9 5 9-5-9-5z" /><path d="m3 13 9 5 9-5" /></svg>
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="m3 7 9-4 9 4-9 5-9-5Z" />
+                                <path d="m3 12 9 5 9-5" />
+                                <path d="m3 17 9 5 9-5" />
+                            </svg>
                         </span>
+
                         <span class="bp-node__label">Projects</span>
                     </a>
                 </li>
+
+                <!-- Feedstock -->
                 <li>
-                    <a class="bp-node @Active("feedstock")" asp-controller="Feedstock" asp-action="Index" aria-current="@Current("feedstock")">
+                    <a class="bp-node @Active("feedstock")"
+                       asp-controller="Feedstock"
+                       asp-action="Index"
+                       aria-current="@Current("feedstock")">
+
                         <span class="bp-node__dot">
-                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15" /><path d="M5 19c3-5 6-8 10-10" /></svg>
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M20 4C10 4 5 9 5 19" />
+                                <path d="M5 19c0-7 5-12 15-15" />
+                                <path d="M5 19c4-4 7-7 11-9" />
+                                <path d="M12 14c0 3-2 5-5 5" />
+                            </svg>
                         </span>
+
                         <span class="bp-node__label">Feedstock</span>
                     </a>
                 </li>
 
                 @if (runId.HasValue)
                 {
+                    <!-- Simulation -->
                     <li>
-                        <a class="bp-node bp-node--run @Active("simulation")" asp-controller="Simulation" asp-action="Dashboard" asp-route-runId="@runId" aria-current="@Current("simulation")">
+                        <a class="bp-node bp-node--run @Active("simulation")"
+                           asp-controller="Simulation"
+                           asp-action="Dashboard"
+                           asp-route-runId="@runId"
+                           aria-current="@Current("simulation")">
+
                             <span class="bp-node__dot">
-                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg>
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M3 12h4l3-8 4 16 3-8h4" />
+                                </svg>
                             </span>
+
                             <span class="bp-node__label">Simulation</span>
                         </a>
                     </li>
+
+                    <!-- Proposal -->
                     <li>
-                        <a class="bp-node bp-node--run @Active("proposal")" asp-controller="Proposal" asp-action="Index" asp-route-runId="@runId" aria-current="@Current("proposal")">
+                        <a class="bp-node bp-node--run @Active("proposal")"
+                           asp-controller="Proposal"
+                           asp-action="Index"
+                           asp-route-runId="@runId"
+                           aria-current="@Current("proposal")">
+
                             <span class="bp-node__dot">
-                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6" /></svg>
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M7 3h7l5 5v13H7z" />
+                                    <path d="M14 3v5h5" />
+                                    <path d="M10 13h6M10 17h6" />
+                                </svg>
                             </span>
+
                             <span class="bp-node__label">Proposal</span>
                         </a>
                     </li>
+
+                    <!-- CAD -->
                     <li>
-                        <a class="bp-node bp-node--run @Active("cad")" asp-controller="Cad" asp-action="Index" asp-route-runId="@runId" aria-current="@Current("cad")">
+                        <a class="bp-node bp-node--run @Active("cad")"
+                           asp-controller="Cad"
+                           asp-action="Index"
+                           asp-route-runId="@runId"
+                           aria-current="@Current("cad")">
+
                             <span class="bp-node__dot">
-                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3z" /><path d="M4 7.5 12 12l8-4.5M12 12v9" /></svg>
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Z" />
+                                    <path d="m4 7.5 8 4.5 8-4.5" />
+                                    <path d="M12 12v9" />
+                                </svg>
                             </span>
+
                             <span class="bp-node__label">CAD</span>
                         </a>
                     </li>
@@ -150,55 +317,97 @@
 
                 @if (isAdmin)
                 {
+                    <!-- Admin -->
                     <li>
-                        <a class="bp-node @Active("admin")" asp-controller="Admin" asp-action="Index" aria-current="@Current("admin")">
+                        <a class="bp-node @Active("admin")"
+                           asp-controller="Admin"
+                           asp-action="Index"
+                           aria-current="@Current("admin")">
+
                             <span class="bp-node__dot">
-                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3z" /><path d="m9 12 2 2 4-4" /></svg>
+                                <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z" />
+                                    <path d="m9 12 2 2 4-4" />
+                                </svg>
                             </span>
+
                             <span class="bp-node__label">Admin</span>
                         </a>
                     </li>
                 }
+
             </ul>
         </nav>
     }
 
+    <!-- ================= MAIN CONTENT ================= -->
     <main id="main" class="bp-main" tabindex="-1">
         <div class="bp-main__inner">
+
+            <!-- Notifications -->
             @if (TempData["Success"] != null || TempData["Error"] != null)
             {
                 <div class="bp-flash">
+
                     @if (TempData["Success"] is string ok)
                     {
-                        <div class="bp-toast bp-toast--success alert fade show" role="status" data-bp-autohide>
-                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>
+                        <div class="bp-toast bp-toast--success alert fade show"
+                             role="status"
+                             data-bp-autohide>
+
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9" />
+                                <path d="m8 12 3 3 5-6" />
+                            </svg>
+
                             <span class="bp-toast__text">@ok</span>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss message"></button>
+
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="alert"
+                                    aria-label="Dismiss message"></button>
                         </div>
                     }
+
                     @if (TempData["Error"] is string err)
                     {
-                        <div class="bp-toast bp-toast--error alert fade show" role="alert">
-                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 2.5 20h19L12 3z" /><path d="M12 10v4M12 17.2v.1" /></svg>
+                        <div class="bp-toast bp-toast--error alert fade show"
+                             role="alert">
+
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 3 2.5 20h19L12 3z" />
+                                <path d="M12 10v4M12 17.2v.1" />
+                            </svg>
+
                             <span class="bp-toast__text">@err</span>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Dismiss message"></button>
+
+                            <button type="button"
+                                    class="btn-close"
+                                    data-bs-dismiss="alert"
+                                    aria-label="Dismiss message"></button>
                         </div>
                     }
+
                 </div>
             }
 
             @RenderBody()
 
+            <!-- Footer -->
             <footer class="bp-footer">
                 <span>&copy; @DateTime.Now.Year BiogasApp</span>
                 <a asp-controller="Home" asp-action="Privacy">Privacy</a>
             </footer>
+
         </div>
     </main>
 
+    <!-- ================= SCRIPTS ================= -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
     @await RenderSectionAsync("Scripts", required: false)
+
 </body>
 </html>

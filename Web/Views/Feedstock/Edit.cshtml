@@ -1,0 +1,56 @@
+@using BiogasApp.Model.ViewModel
+@model FeedstockViewModel
+
+@{
+    ViewData["Title"] = "Edit Feedstock";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/feedstock.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/feedstock.js" asp-append-version="true"></script>
+}
+
+<div class="bp-page-head">
+    <div>
+        <div class="bp-eyebrow">RESOURCE LIBRARY</div>
+        <h1>Edit feedstock</h1>
+        <p class="bp-muted mb-0">
+            Update composition, gas potential, density or cost parameters.
+        </p>
+    </div>
+
+    <a asp-controller="Feedstock" asp-action="Index" class="bp-btn bp-btn--ghost">
+        <svg class="bp-ico" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+            <path d="M19 12H5" />
+            <path d="m12 19-7-7 7-7" />
+        </svg>
+        Back to library
+    </a>
+</div>
+
+<div class="fs-page-intro">
+    <div class="fs-page-intro__icon" aria-hidden="true">
+        <svg class="bp-ico" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 20h4L19 9l-4-4L4 16v4Z" />
+            <path d="m13.5 6.5 4 4" />
+        </svg>
+    </div>
+
+    <div>
+        <h2>@Model.Name</h2>
+        <p>
+            Changes to this profile will affect future feedstock blend
+            calculations and simulations.
+        </p>
+    </div>
+</div>
+
+<partial name="_FeedstockForm" model="Model" />

@@ -1,0 +1,256 @@
+﻿
+/* =========================================================
+   BIOGAS APP - ACCOUNT / LOGIN / REGISTER
+   File: wwwroot/css/account.css
+   ========================================================= */
+
+.ac-shell {
+    width: min(100%, 980px);
+    margin: 20px auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+    align-items: center;
+    gap: 32px;
+    padding: 28px;
+}
+
+/* Brand / left side */
+.ac-brand {
+    padding: 24px;
+}
+
+.ac-brand__kicker {
+    color: var(--bp-ink-mute);
+    font-size: .95rem;
+    margin-bottom: 10px;
+}
+
+.ac-brand__title {
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    line-height: 1.2;
+    margin-bottom: 24px;
+}
+
+.ac-pipe {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 16px;
+}
+
+.ac-pipe__node {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ac-pipe__dot {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 42px;
+    height: 42px;
+    color: var(--bp-indigo);
+    border: 1px solid var(--bp-line);
+    border-radius: 12px;
+    background: rgba(255,255,255,.8);
+}
+
+.ac-pipe__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+    .ac-pipe__text strong {
+        font-weight: 700;
+        color: var(--bp-ink);
+    }
+
+    .ac-pipe__text small {
+        color: var(--bp-ink-mute);
+        font-size: .88rem;
+    }
+
+/* Login card */
+.ac-panel {
+    width: 100%;
+    padding: 32px;
+    border: 1px solid rgba(255,255,255,.9);
+    border-radius: 24px;
+    background: rgba(255,255,255,.82);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: var(--bp-shadow-lg);
+}
+
+.ac-title {
+    font-size: 2.2rem;
+    margin: 0 0 8px;
+}
+
+.ac-panel > .bp-muted {
+    color: var(--bp-ink-mute);
+    margin-bottom: 24px;
+}
+
+/* Form */
+.ac-form {
+    display: grid;
+    gap: 18px;
+}
+
+.ac-field {
+    display: grid;
+    gap: 7px;
+}
+
+    .ac-field .form-label {
+        margin: 0;
+        font-size: .92rem;
+    }
+
+    .ac-field .form-control {
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 14px;
+        box-sizing: border-box;
+    }
+
+.ac-secret {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ac-toggle {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 12px;
+    border: 1px solid var(--bp-line);
+    border-radius: 10px;
+    background: rgba(255,255,255,.85);
+    color: var(--bp-ink);
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, border-color .2s;
+}
+
+    .ac-toggle:hover {
+        background: #edf2ff;
+        border-color: var(--bp-indigo);
+    }
+
+    .ac-toggle .bp-ico {
+        width: 18px;
+        height: 18px;
+    }
+
+/* Validation messages */
+.field-validation-error {
+    color: #b4233d;
+    font-size: .82rem;
+}
+
+    .field-validation-error:empty {
+        display: none;
+    }
+
+.bp-toast--error:empty {
+    display: none;
+}
+
+/* Remember me */
+.ac-check {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+    .ac-check .form-check-input {
+        width: 17px;
+        height: 17px;
+        margin: 0;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+
+    .ac-check .form-check-label {
+        font-size: .9rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+/* Submit */
+.ac-submit {
+    width: fit-content;
+    min-width: 120px;
+    min-height: 46px;
+    margin-top: 2px;
+}
+
+/* Register link */
+.ac-switch {
+    margin: 18px 0 0;
+    font-size: .9rem;
+    color: var(--bp-ink-soft);
+}
+
+    .ac-switch a {
+        font-weight: 600;
+    }
+
+/* Responsive */
+@media (max-width: 800px) {
+    .ac-shell {
+        grid-template-columns: 1fr;
+        max-width: 520px;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .ac-brand {
+        padding: 8px 4px;
+    }
+
+    .ac-brand__title {
+        font-size: 1.8rem;
+        margin-bottom: 16px;
+    }
+
+    .ac-pipe {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .ac-pipe__node {
+        align-items: flex-start;
+    }
+
+    .ac-panel {
+        padding: 24px;
+    }
+}
+
+@media (max-width: 480px) {
+    .ac-shell {
+        padding: 10px;
+        margin: 12px auto;
+    }
+
+    .ac-panel {
+        padding: 20px 16px;
+        border-radius: 18px;
+    }
+
+    .ac-title {
+        font-size: 1.8rem;
+    }
+
+    .ac-pipe {
+        grid-template-columns: 1fr;
+    }
+}

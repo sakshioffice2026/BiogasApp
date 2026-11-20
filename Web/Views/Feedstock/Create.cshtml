@@ -1,0 +1,58 @@
+@using BiogasApp.Model.ViewModel
+@model FeedstockViewModel
+
+@{
+    ViewData["Title"] = "Create Feedstock";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/feedstock.css" asp-append-version="true" />
+}
+
+@section Scripts {
+    <script src="~/js/feedstock.js" asp-append-version="true"></script>
+}
+
+<div class="bp-page-head">
+    <div>
+        <div class="bp-eyebrow">RESOURCE LIBRARY</div>
+        <h1>Add feedstock</h1>
+        <p class="bp-muted mb-0">
+            Define the material properties used in biogas yield and blend calculations.
+        </p>
+    </div>
+
+    <a asp-controller="Feedstock" asp-action="Index" class="bp-btn bp-btn--ghost">
+        <svg class="bp-ico" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round"
+             aria-hidden="true">
+            <path d="M19 12H5" />
+            <path d="m12 19-7-7 7-7" />
+        </svg>
+        Back to library
+    </a>
+</div>
+
+<div class="fs-page-intro">
+    <div class="fs-page-intro__icon" aria-hidden="true">
+        <svg class="bp-ico" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v18" />
+            <path d="M5 12h14" />
+            <path d="M7 5.5c2.8 0 5 2.2 5 5-2.8 0-5-2.2-5-5Z" />
+            <path d="M17 18.5c-2.8 0-5-2.2-5-5 2.8 0 5 2.2 5 5Z" />
+        </svg>
+    </div>
+
+    <div>
+        <h2>New material profile</h2>
+        <p>
+            Enter laboratory or supplier data where available. These properties
+            determine the estimated gas yield and feedstock blend performance.
+        </p>
+    </div>
+</div>
+
+<partial name="_FeedstockForm" model="Model" />

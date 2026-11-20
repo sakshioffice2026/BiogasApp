@@ -1,21 +1,97 @@
+using BiogasApp.Business.Engine;
+using BiogasApp.Business.Financial;
+using BiogasApp.Database;
+using BiogasApp.Repositories.Contracts;
+using BiogasApp.Repositories.Repositories;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// ---------- MVC ----------
 builder.Services.AddControllersWithViews();
+
+// ---------- Database (MySQL) ----------
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is missing in appsettings.json.");
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36))));
+
+// ---------- Authentication (cookie) ----------
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Account/AccessDenied";
+        options.SlidingExpiration = true;
+    });
+
+// ---------- Repositories ----------
+builder.Services.AddScoped<IUnitOfWork, UnitOfWorks>();
+builder.Services.AddScoped<IAccount, AccountRepository>();
+builder.Services.AddScoped<ITenant, TenantRepository>();
+builder.Services.AddScoped<IAdminRepository, AdminRepository>();
+builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
+builder.Services.AddScoped<IFeedstockRepository, FeedstockRepository>();
+builder.Services.AddScoped<ISimulationRepository, SimulationRepository>();
+builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+builder.Services.AddScoped<IRateCardRepository, RateCardRepository>();
+builder.Services.AddScoped<IRazorViewRenderer, RazorViewRenderRepository>();
+builder.Services.AddScoped<IProposalExport, ProposalExportRepository>();
+builder.Services.AddScoped<ExceptionHandlerRepository>();
+
+// ---------- Artifact storage (local disk) ----------
+var artifactRoot = builder.Configuration["ArtifactStorage:RootPath"];
+if (string.IsNullOrWhiteSpace(artifactRoot))
+{
+    artifactRoot = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "artifacts");
+}
+builder.Services.AddSingleton<IArtifactStorage>(_ => new LocalArtifactStorage(artifactRoot));
+
+// ---------- CAD microservice (Python FastAPI) ----------
+var cadBaseUrl = builder.Configuration["CadService:BaseUrl"] ?? "http://localhost:8000/";
+if (!cadBaseUrl.EndsWith('/'))
+{
+    cadBaseUrl += "/";
+}
+builder.Services.AddHttpClient<ICadGeneration, CadGenerationRepository>(client =>
+{
+    client.BaseAddress = new Uri(cadBaseUrl);
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
+
+// ---------- Calculation engine ----------
+builder.Services.AddScoped<FeedstockBlendingService>();
+builder.Services.AddScoped<DigesterSizingService>();
+builder.Services.AddScoped<GasYieldService>();
+builder.Services.AddScoped<HeatBalanceService>();
+builder.Services.AddScoped<MechanicalSizingService>();
+builder.Services.AddScoped<UpgradingService>();
+builder.Services.AddScoped<DigestateBomService>();
+builder.Services.AddScoped<ICalculationEngine, CalculationEngine>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ---------- Seed reference data ----------
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await SeedData.InitializeAsync(db);
+}
+
+// ---------- HTTP pipeline ----------
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
@@ -24,6 +100,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
-
 
 app.Run();
