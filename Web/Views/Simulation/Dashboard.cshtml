@@ -20,6 +20,7 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/workflow.css" asp-append-version="true" />
 }
 @section Scripts {
     <script src="~/js/gauges.js" asp-append-version="true"></script>
@@ -42,6 +43,8 @@
         <a class="bp-btn bp-btn--ghost" asp-action="History" asp-route-projectId="@Model.ProjectId">History</a>
     </div>
 </div>
+
+<partial name="_WorkflowStrip" model="3" />
 
 @if (warnings.Count > 0)
 {

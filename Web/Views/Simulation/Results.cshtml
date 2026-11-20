@@ -38,6 +38,7 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/workflow.css" asp-append-version="true" />
 }
 
 <div class="bp-page-head">
@@ -52,6 +53,8 @@
         <a class="bp-btn bp-btn--ghost" asp-controller="Cad" asp-action="Index" asp-route-runId="@Model.SimulationRunId">CAD drawings</a>
     </div>
 </div>
+
+<partial name="_WorkflowStrip" model="3" />
 
 @if (Model.Warnings.Count > 0)
 {

@@ -1,0 +1,20 @@
+@{
+    ViewData["Title"] = "Access denied";
+    var isAuth = User.Identity?.IsAuthenticated == true;
+}
+
+<section class="bp-card p-5 text-center mx-auto" style="max-width:520px" aria-labelledby="ad-title" role="alert">
+    <h1 class="h3" id="ad-title">Access denied</h1>
+    <p class="bp-muted">You do not have permission to view this page. If you think this is a mistake, contact your administrator.</p>
+    <div class="d-flex flex-wrap gap-2 justify-content-center">
+        @if (isAuth)
+        {
+            <a class="bp-btn bp-btn--primary" asp-controller="Dashboard" asp-action="Index">Go to dashboard</a>
+        }
+        else
+        {
+            <a class="bp-btn bp-btn--primary" asp-controller="Account" asp-action="Login">Sign in</a>
+            <a class="bp-btn bp-btn--ghost" asp-controller="Home" asp-action="Index">Home</a>
+        }
+    </div>
+</section>

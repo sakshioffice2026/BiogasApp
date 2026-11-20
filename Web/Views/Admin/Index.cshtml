@@ -1,0 +1,133 @@
+@model BiogasApp.Model.ViewModel.AdminViewModel
+@{
+    ViewData["Title"] = "Admin";
+    var isPlatform = User.IsInRole("SuperAdmin");
+    var activeUsers = Model.Users.Count(u => u.IsActive);
+    var inactiveUsers = Model.Users.Count - activeUsers;
+    var recentUsers = Model.Users.OrderByDescending(u => u.CreatedAt).Take(5).ToList();
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Administration</h1>
+        <p class="bp-muted mb-0">Users, rate cards and system health at a glance</p>
+    </div>
+</div>
+
+<section class="row g-3 mb-4" aria-label="Summary">
+    <div class="col-12 col-md-4">
+        <article class="bp-card p-3 h-100">
+            <p class="bp-muted mb-1">Users</p>
+            <h2 class="mb-1">@Model.Users.Count</h2>
+            <small class="bp-muted">@activeUsers active, @inactiveUsers inactive</small>
+        </article>
+    </div>
+    <div class="col-12 col-md-4">
+        <article class="bp-card p-3 h-100">
+            <p class="bp-muted mb-1">Rate cards</p>
+            <h2 class="mb-1">@Model.RateCards.Count</h2>
+            <small class="bp-muted">@Model.RateCards.Select(r => r.Category).Distinct().Count() categories</small>
+        </article>
+    </div>
+    <div class="col-12 col-md-4">
+        <article class="bp-card p-3 h-100">
+            <p class="bp-muted mb-1">Recent exceptions</p>
+            <h2 class="mb-1">@Model.RecentExceptions.Count</h2>
+            <small class="bp-muted">Latest logged errors</small>
+        </article>
+    </div>
+</section>
+
+<nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Admin sections">
+    <a class="bp-btn bp-btn--primary" asp-action="Users">Manage users</a>
+    <a class="bp-btn bp-btn--primary" asp-action="RateCards">Manage rate cards</a>
+    @if (isPlatform)
+    {
+        <a class="bp-btn bp-btn--primary" asp-action="Tenants">Manage tenants</a>
+    }
+</nav>
+
+<div class="row g-3">
+    <section class="col-12 col-lg-6" aria-labelledby="recent-users-title">
+        <div class="bp-card p-3 h-100">
+            <h2 class="h5" id="recent-users-title">Newest users</h2>
+            @if (recentUsers.Count == 0)
+            {
+                <p class="bp-muted mb-0">No users yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Name</th>
+                                <th scope="col">Role</th>
+                                <th scope="col">Status</th>
+                                <th scope="col">Joined</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var u in recentUsers)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@u.FullName</strong><br />
+                                        <small class="bp-muted">@u.Email</small>
+                                    </td>
+                                    <td>@u.RoleName</td>
+                                    <td>
+                                        <span class="badge @(u.IsActive ? "text-bg-success" : "text-bg-secondary")">
+                                            @(u.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td>@u.CreatedAt.ToString("dd MMM yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+
+    <section class="col-12 col-lg-6" aria-labelledby="exceptions-title">
+        <div class="bp-card p-3 h-100">
+            <h2 class="h5" id="exceptions-title">Recent exceptions</h2>
+            @if (Model.RecentExceptions.Count == 0)
+            {
+                <p class="bp-muted mb-0">No exceptions logged.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">When (UTC)</th>
+                                <th scope="col">Message</th>
+                                <th scope="col">Path</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var e in Model.RecentExceptions)
+                            {
+                                <tr>
+                                    <td class="text-nowrap">@e.CreatedAt.ToString("dd MMM HH:mm")</td>
+                                    <td>
+                                        @e.Message
+                                        @if (!string.IsNullOrWhiteSpace(e.Source))
+                                        {
+                                            <br /><small class="bp-muted">@e.Source</small>
+                                        }
+                                    </td>
+                                    <td><small>@(string.IsNullOrWhiteSpace(e.RequestPath) ? "-" : e.RequestPath)</small></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </section>
+</div>

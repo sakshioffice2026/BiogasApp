@@ -1,0 +1,38 @@
+@model BiogasApp.Model.ViewModel.ProposalViewModel
+@{
+    ViewData["Title"] = "Proposal";
+    ViewData["RunId"] = Model.SimulationRunId;
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Proposal</h1>
+        <p class="bp-muted mb-0">@Model.ProjectName</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@Model.ProjectId">Back to project</a>
+        <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="Results" asp-route-runId="@Model.SimulationRunId">Results</a>
+    </div>
+</div>
+
+<section class="row g-3" aria-label="Proposal steps">
+    <div class="col-12 col-md-6">
+        <article class="bp-card p-4 h-100 d-flex flex-column">
+            <h2 class="h5">Bill of materials</h2>
+            <p class="bp-muted">Review the sized equipment list for this simulation run, or download it as an Excel sheet.</p>
+            <div class="mt-auto d-flex flex-wrap gap-2">
+                <a class="bp-btn bp-btn--primary" asp-action="Bom" asp-route-runId="@Model.SimulationRunId">View BOM</a>
+                <a class="bp-btn bp-btn--ghost" asp-action="BomExcel" asp-route-runId="@Model.SimulationRunId">Download Excel</a>
+            </div>
+        </article>
+    </div>
+    <div class="col-12 col-md-6">
+        <article class="bp-card p-4 h-100 d-flex flex-column">
+            <h2 class="h5">Financials</h2>
+            <p class="bp-muted">Set prices, discount rate, project life and financing, then generate the proposal with CAPEX, OPEX, NPV and IRR.</p>
+            <div class="mt-auto">
+                <a class="bp-btn bp-btn--flame" asp-action="Financials" asp-route-runId="@Model.SimulationRunId">Open financials</a>
+            </div>
+        </article>
+    </div>
+</section>

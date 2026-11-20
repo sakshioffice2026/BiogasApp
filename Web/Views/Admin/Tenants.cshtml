@@ -1,0 +1,70 @@
+@model List<BiogasApp.Model.TenantModel>
+@{
+    ViewData["Title"] = "Tenants";
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Tenants</h1>
+        <p class="bp-muted mb-0">@Model.Count @(Model.Count == 1 ? "tenant" : "tenants")</p>
+    </div>
+    <a class="bp-btn bp-btn--ghost" asp-action="Index">Back to admin</a>
+</div>
+
+<form method="post" asp-action="CreateTenant" class="bp-card p-3 mb-3 d-flex flex-wrap gap-2 align-items-end">
+    @Html.AntiForgeryToken()
+    <div class="flex-grow-1">
+        <label class="form-label" for="tenant-name">New tenant name</label>
+        <input id="tenant-name" name="name" class="form-control" minlength="2" maxlength="150" required autocomplete="off" />
+    </div>
+    <button type="submit" class="bp-btn bp-btn--flame">Create tenant</button>
+</form>
+
+@if (Model.Count == 0)
+{
+    <section class="bp-card p-4 text-center" aria-live="polite">
+        <h2 class="h5">No tenants yet</h2>
+        <p class="bp-muted mb-0">Create the first tenant above.</p>
+    </section>
+}
+else
+{
+    <div class="bp-card p-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Created</th>
+                        <th scope="col" class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model)
+                    {
+                        <tr>
+                            <td><strong>@t.Name</strong></td>
+                            <td>
+                                <span class="badge @(t.IsActive ? "text-bg-success" : "text-bg-secondary")">
+                                    @(t.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                            <td class="text-nowrap">@t.CreatedAt.ToString("dd MMM yyyy")</td>
+                            <td class="text-end">
+                                <form method="post" asp-action="SetTenantActive" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <input type="hidden" name="isActive" value="@((!t.IsActive).ToString().ToLowerInvariant())" />
+                                    <button type="submit" class="bp-btn @(t.IsActive ? "bp-btn--flame" : "bp-btn--primary")">
+                                        @(t.IsActive ? "Deactivate" : "Activate")
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

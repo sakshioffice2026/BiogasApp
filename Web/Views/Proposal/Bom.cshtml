@@ -1,0 +1,67 @@
+@using System.Globalization
+@model List<BiogasApp.Database.Entities.SizedEquipment>
+@{
+    ViewData["Title"] = "Bill of materials";
+    var runId = (Guid)ViewData["SimulationRunId"]!;
+    var projectId = (Guid)ViewData["ProjectId"]!;
+    var projectName = ViewData["ProjectName"] as string ?? string.Empty;
+    ViewData["RunId"] = runId;
+    var inv = CultureInfo.InvariantCulture;
+    var grandTotal = Model.Sum(e => e.TotalCost);
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Bill of materials</h1>
+        <p class="bp-muted mb-0">@projectName</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@projectId">Back to project</a>
+        <a class="bp-btn bp-btn--ghost" asp-action="Index" asp-route-runId="@runId">Back to proposal</a>
+        <a class="bp-btn bp-btn--primary" asp-action="BomExcel" asp-route-runId="@runId">Download Excel</a>
+    </div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <section class="bp-card p-4 text-center" aria-live="polite">
+        <h2 class="h5">No equipment sized for this run</h2>
+        <p class="bp-muted mb-0">Run a simulation to size the equipment.</p>
+    </section>
+}
+else
+{
+    <div class="bp-card p-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Tag</th>
+                        <th scope="col">Equipment</th>
+                        <th scope="col" class="text-end">Qty</th>
+                        <th scope="col" class="text-end">Unit cost</th>
+                        <th scope="col" class="text-end">Total cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.OrderBy(x => x.EquipmentTag))
+                    {
+                        <tr>
+                            <td><strong>@e.EquipmentTag</strong></td>
+                            <td>@e.EquipmentType</td>
+                            <td class="text-end">@e.Quantity</td>
+                            <td class="text-end">@e.UnitCost.ToString("N2", inv)</td>
+                            <td class="text-end">@e.TotalCost.ToString("N2", inv)</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th scope="row" colspan="4" class="text-end">Total</th>
+                        <th class="text-end">@grandTotal.ToString("N2", inv)</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}

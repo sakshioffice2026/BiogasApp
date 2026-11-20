@@ -1,0 +1,43 @@
+@model int
+@functions {
+    static readonly (string Design, string Plant)[] Steps =
+    {
+        ("Site and feedstock", "Sourcing"),
+        ("Blending, water", "Pre-treatment"),
+        ("Digester, gas", "Digestion"),
+        ("Thermal, mixing", "Heat, cleaning"),
+        ("Upgrading", "250-bar CBG"),
+        ("Digestate, civils", "Dispatch"),
+        ("CAD, BOM, proposal", "Deliverables")
+    };
+}
+@{
+    var current = Math.Clamp(Model, 1, Steps.Length);
+}
+
+<nav class="wfs" aria-label="Project workflow">
+    <ol class="wfs__list" role="list">
+        @for (var i = 1; i <= Steps.Length; i++)
+        {
+            var s = Steps[i - 1];
+            var state = i < current ? "is-done" : i == current ? "is-current" : "is-upcoming";
+            <li class="wfs__item @state" aria-current="@(i == current ? "step" : null)" title="@s.Design | @s.Plant">
+                <span class="wfs__dot">
+                    @if (i < current)
+                    {
+                        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12l5 5 9-10" /></svg>
+                        <span class="visually-hidden">Completed: </span>
+                    }
+                    else
+                    {
+                        @i
+                    }
+                </span>
+                <span class="wfs__txt">
+                    <strong>@s.Design</strong>
+                    <small>@s.Plant</small>
+                </span>
+            </li>
+        }
+    </ol>
+</nav>

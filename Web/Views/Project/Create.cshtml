@@ -4,6 +4,7 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/project.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/workflow.css" asp-append-version="true" />
 }
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
@@ -17,4 +18,7 @@
     </div>
 </div>
 
-<partial name="_ProjectForm" model="Model" />
+<div class="wf-layout">
+    <partial name="_WorkflowTimeline" model="1" />
+    <partial name="_ProjectForm" model="Model" />
+</div>

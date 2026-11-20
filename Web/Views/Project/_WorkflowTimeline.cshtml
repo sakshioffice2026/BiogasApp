@@ -1,0 +1,62 @@
+@model int
+@functions {
+    record Step(string Design, string DesignIcon, string Plant, string PlantIcon);
+
+    static readonly Step[] Steps =
+    {
+        new("Site and feedstock", "M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6", "Feedstock sourcing", "M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"),
+        new("Blending, water", "M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z", "Pre-treatment", "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 3v2M12 19v2M3 12h2M19 12h2"),
+        new("Digester, gas", "M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3", "Anaerobic digestion", "M12 3c3 4 6 6 6 10a6 6 0 0 1-12 0c0-2 1-3 2-4 1 2 2 2 2 2 0-3 0-5 2-8z"),
+        new("Thermal, mixing", "M10 14V5a2 2 0 1 1 4 0v9a4 4 0 1 1-4 0z", "Heat, gas cleaning", "M3 8h10a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"),
+        new("Upgrading", "M4 5h16l-6 8v6l-4-2v-4L4 5z", "250-bar compression", "M5 20V6a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14M5 20h10M15 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3M7 8h6"),
+        new("Digestate, civils", "M5 8V6a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v2M4 8h16l-1 12H5L4 8zM9 13h6", "Site dispatch", "M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM17 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"),
+        new("CAD, BOM, proposal", "M7 3h7l4 4v14H7V3zM14 3v4h4M10 12h5M10 16h5", "Deliverables", "M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM12 12l8-4.5M12 12v9M12 12L4 7.5")
+    };
+
+    static string State(int index, int current) =>
+        index < current ? "is-done" : index == current ? "is-current" : "is-upcoming";
+}
+@{
+    var current = Math.Clamp(Model, 1, Steps.Length);
+}
+
+<aside class="wf" aria-label="Project workflow">
+    <div class="wf__head" aria-hidden="true">
+        <span>Software design</span>
+        <span></span>
+        <span>Industrial plant</span>
+    </div>
+
+    <ol class="wf__list" role="list">
+        @for (var i = 1; i <= Steps.Length; i++)
+        {
+            var s = Steps[i - 1];
+            var state = State(i, current);
+            <li class="wf__row @state" aria-current="@(i == current ? "step" : null)">
+                <div class="wf__card">
+                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="@(i < current ? "M5 12l5 5 9-10" : s.DesignIcon)" />
+                    </svg>
+                    <span>@s.Design</span>
+                </div>
+                <span class="wf__dot">@i</span>
+                <div class="wf__card">
+                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="@(i < current ? "M5 12l5 5 9-10" : s.PlantIcon)" />
+                    </svg>
+                    <span>@s.Plant</span>
+                </div>
+                @if (i < current)
+                {
+                    <span class="visually-hidden">Completed</span>
+                }
+                else if (i == current)
+                {
+                    <span class="visually-hidden">Current step</span>
+                }
+            </li>
+        }
+    </ol>
+
+    <p class="wf__tag">Current: step @current of @Steps.Length</p>
+</aside>

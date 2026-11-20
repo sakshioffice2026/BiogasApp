@@ -1,0 +1,104 @@
+@using System.Security.Claims
+@model List<BiogasApp.Model.ViewModel.AdminUserViewModel>
+@{
+    ViewData["Title"] = "Users";
+    var roles = ViewData["Roles"] as List<BiogasApp.Model.UserRoleModel> ?? new List<BiogasApp.Model.UserRoleModel>();
+    var isPlatform = User.IsInRole("SuperAdmin");
+    var currentId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var assignable = isPlatform
+        ? roles
+        : roles.Where(r => !string.Equals(r.Name, "SuperAdmin", StringComparison.OrdinalIgnoreCase)).ToList();
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Users</h1>
+        <p class="bp-muted mb-0">@Model.Count @(Model.Count == 1 ? "user" : "users")</p>
+    </div>
+    <a class="bp-btn bp-btn--ghost" asp-action="Index">Back to admin</a>
+</div>
+
+@if (Model.Count == 0)
+{
+    <section class="bp-card p-4 text-center" aria-live="polite">
+        <h2 class="h5">No users found</h2>
+        <p class="bp-muted mb-0">Users will appear here once they register.</p>
+    </section>
+}
+else
+{
+    <div class="bp-card p-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Email</th>
+                        @if (isPlatform)
+                        {
+                            <th scope="col">Tenant</th>
+                        }
+                        <th scope="col">Role</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Joined</th>
+                        <th scope="col" class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model)
+                    {
+                        var isSelf = string.Equals(currentId, u.Id.ToString(), StringComparison.OrdinalIgnoreCase);
+                        <tr>
+                            <td><strong>@u.FullName</strong>@(isSelf ? " (you)" : "")</td>
+                            <td>@u.Email</td>
+                            @if (isPlatform)
+                            {
+                                <td>@u.TenantName</td>
+                            }
+                            <td>
+                                @if (isSelf)
+                                {
+                                    <span>@u.RoleName</span>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-action="ChangeUserRole" class="d-flex gap-2">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@u.Id" />
+                                        <label class="visually-hidden" for="role-@u.Id">Role for @u.FullName</label>
+                                        <select id="role-@u.Id" name="roleId" class="form-select form-select-sm">
+                                            @foreach (var r in assignable)
+                                            {
+                                                <option value="@r.Id" selected="@(string.Equals(r.Name, u.RoleName, StringComparison.OrdinalIgnoreCase))">@r.Name</option>
+                                            }
+                                        </select>
+                                        <button type="submit" class="bp-btn bp-btn--ghost">Save</button>
+                                    </form>
+                                }
+                            </td>
+                            <td>
+                                <span class="badge @(u.IsActive ? "text-bg-success" : "text-bg-secondary")">
+                                    @(u.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                            <td class="text-nowrap">@u.CreatedAt.ToString("dd MMM yyyy")</td>
+                            <td class="text-end">
+                                @if (!isSelf)
+                                {
+                                    <form method="post" asp-action="SetUserActive" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@u.Id" />
+                                        <input type="hidden" name="isActive" value="@((!u.IsActive).ToString().ToLowerInvariant())" />
+                                        <button type="submit" class="bp-btn @(u.IsActive ? "bp-btn--flame" : "bp-btn--primary")">
+                                            @(u.IsActive ? "Deactivate" : "Activate")
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

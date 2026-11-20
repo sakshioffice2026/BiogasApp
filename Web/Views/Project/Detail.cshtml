@@ -19,7 +19,10 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/project.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/workflow.css" asp-append-version="true" />
 }
+
+<partial name="_WorkflowStrip" model="@(Model.Status == ProjectStatus.Draft ? 2 : Model.Status == ProjectStatus.Simulated ? 3 : 7)" />
 
 <section class="pj-hero bp-card" aria-labelledby="pj-title">
     <div class="pj-hero__tank">

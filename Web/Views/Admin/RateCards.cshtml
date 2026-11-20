@@ -1,0 +1,202 @@
+@model List<BiogasApp.Model.ViewModel.RateCardViewModel>
+@{
+    ViewData["Title"] = "Rate cards";
+    var selected = ViewData["Category"] as string;
+    var categories = ViewData["Categories"] as string[] ?? Array.Empty<string>();
+    var units = ViewData["Units"] as string[] ?? Array.Empty<string>();
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Rate cards</h1>
+        <p class="bp-muted mb-0">
+            @Model.Count @(Model.Count == 1 ? "rate card" : "rate cards")@(string.IsNullOrWhiteSpace(selected) ? "" : " in " + selected)
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-action="Index">Back to admin</a>
+        <button type="button" class="bp-btn bp-btn--flame" data-rc-new>New rate card</button>
+    </div>
+</div>
+
+<form class="bp-card p-3 mb-3 d-flex flex-wrap gap-2 align-items-end" method="get" asp-action="RateCards" role="search">
+    <div>
+        <label class="form-label" for="rc-filter">Category</label>
+        <select id="rc-filter" name="category" class="form-select">
+            <option value="">All</option>
+            @foreach (var c in categories)
+            {
+                <option value="@c" selected="@(c == selected)">@c</option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="bp-btn bp-btn--primary">Filter</button>
+    @if (!string.IsNullOrWhiteSpace(selected))
+    {
+        <a class="bp-btn bp-btn--ghost" asp-action="RateCards">Clear</a>
+    }
+</form>
+
+@if (Model.Count == 0)
+{
+    <section class="bp-card p-4 text-center" aria-live="polite">
+        <h2 class="h5">No rate cards found</h2>
+        <p class="bp-muted mb-0">Add a rate card to use it in proposal costing.</p>
+    </section>
+}
+else
+{
+    <div class="bp-card p-3">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">Item code</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Unit</th>
+                        <th scope="col" class="text-end">Unit rate</th>
+                        <th scope="col">Currency</th>
+                        <th scope="col" class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model)
+                    {
+                        <tr>
+                            <td><strong>@r.ItemCode</strong></td>
+                            <td>@r.Category</td>
+                            <td>@r.Description</td>
+                            <td>@r.Unit</td>
+                            <td class="text-end">@r.UnitRate.ToString("N2")</td>
+                            <td>@r.Currency</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button"
+                                        class="bp-btn bp-btn--ghost"
+                                        data-rc-edit
+                                        data-id="@r.Id"
+                                        data-code="@r.ItemCode"
+                                        data-category="@r.Category"
+                                        data-description="@r.Description"
+                                        data-unit="@r.Unit"
+                                        data-rate="@r.UnitRate.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                        data-currency="@r.Currency">
+                                    Edit
+                                </button>
+                                <button type="button"
+                                        class="bp-btn bp-btn--flame"
+                                        data-rc-delete
+                                        data-id="@r.Id"
+                                        data-code="@r.ItemCode">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<dialog data-rc-dialog aria-labelledby="rc-dialog-title" class="bp-card p-0 border-0">
+    <form method="post" asp-action="SaveRateCard" class="p-4" style="min-width:min(92vw,420px)">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="Id" value="" data-rc-id />
+        <h2 class="h5" id="rc-dialog-title" data-rc-title>New rate card</h2>
+
+        <div class="mb-2">
+            <label class="form-label" for="rc-code">Item code</label>
+            <input id="rc-code" name="ItemCode" class="form-control" maxlength="50" required data-rc-code />
+        </div>
+        <div class="mb-2">
+            <label class="form-label" for="rc-category">Category</label>
+            <select id="rc-category" name="Category" class="form-select" data-rc-category>
+                @foreach (var c in categories)
+                {
+                    <option value="@c">@c</option>
+                }
+            </select>
+        </div>
+        <div class="mb-2">
+            <label class="form-label" for="rc-description">Description</label>
+            <input id="rc-description" name="Description" class="form-control" required data-rc-description />
+        </div>
+        <div class="row g-2 mb-2">
+            <div class="col-6">
+                <label class="form-label" for="rc-unit">Unit</label>
+                <select id="rc-unit" name="Unit" class="form-select" data-rc-unit>
+                    @foreach (var u in units)
+                    {
+                        <option value="@u">@u</option>
+                    }
+                </select>
+            </div>
+            <div class="col-6">
+                <label class="form-label" for="rc-rate">Unit rate</label>
+                <input id="rc-rate" name="UnitRate" type="number" step="0.01" min="0" max="99999999.99" class="form-control" required data-rc-rate />
+            </div>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="rc-currency">Currency</label>
+            <input id="rc-currency" name="Currency" class="form-control text-uppercase" maxlength="3" minlength="3" value="INR" required data-rc-currency />
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="bp-btn bp-btn--ghost" data-rc-cancel>Cancel</button>
+            <button type="submit" class="bp-btn bp-btn--flame">Save</button>
+        </div>
+    </form>
+</dialog>
+
+<dialog data-rc-delete-dialog aria-labelledby="rc-delete-title" class="bp-card p-0 border-0">
+    <form method="post" asp-action="DeleteRateCard" class="p-4" style="min-width:min(92vw,380px)">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" value="" data-rc-delete-id />
+        <h2 class="h5" id="rc-delete-title">Delete this rate card?</h2>
+        <p><strong data-rc-delete-code></strong> will be removed. This cannot be undone.</p>
+        <div class="d-flex gap-2 justify-content-end">
+            <button type="button" class="bp-btn bp-btn--ghost" data-rc-delete-cancel>Keep it</button>
+            <button type="submit" class="bp-btn bp-btn--flame">Yes, delete</button>
+        </div>
+    </form>
+</dialog>
+
+@section Scripts {
+    <script>
+        (function () {
+            var dlg = document.querySelector('[data-rc-dialog]');
+            var del = document.querySelector('[data-rc-delete-dialog]');
+            var q = function (s) { return dlg.querySelector(s); };
+
+            function openForm(d) {
+                q('[data-rc-id]').value = d.id || '';
+                q('[data-rc-title]').textContent = d.id ? 'Edit rate card' : 'New rate card';
+                q('[data-rc-code]').value = d.code || '';
+                q('[data-rc-category]').value = d.category || q('[data-rc-category]').options[0].value;
+                q('[data-rc-description]').value = d.description || '';
+                q('[data-rc-unit]').value = d.unit || 'nos';
+                q('[data-rc-rate]').value = d.rate || '';
+                q('[data-rc-currency]').value = d.currency || 'INR';
+                dlg.showModal();
+            }
+
+            document.querySelector('[data-rc-new]').addEventListener('click', function () { openForm({}); });
+
+            document.querySelectorAll('[data-rc-edit]').forEach(function (b) {
+                b.addEventListener('click', function () { openForm(b.dataset); });
+            });
+
+            document.querySelectorAll('[data-rc-delete]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    del.querySelector('[data-rc-delete-id]').value = b.dataset.id;
+                    del.querySelector('[data-rc-delete-code]').textContent = b.dataset.code;
+                    del.showModal();
+                });
+            });
+
+            dlg.querySelector('[data-rc-cancel]').addEventListener('click', function () { dlg.close(); });
+            del.querySelector('[data-rc-delete-cancel]').addEventListener('click', function () { del.close(); });
+        })();
+    </script>
+}
