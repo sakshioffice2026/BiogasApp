@@ -25,7 +25,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<AppUser> AppUsers => Set<AppUser>();
     public DbSet<ExceptionLog> ExceptionLogs => Set<ExceptionLog>();
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
-
+    public DbSet<EnquiryInvite> EnquiryInvites => Set<EnquiryInvite>();
+    public DbSet<EnquiryProposal> EnquiryProposals => Set<EnquiryProposal>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -85,6 +86,23 @@ public class ApplicationDbContext : DbContext
             [EnquirySource.Referral] = "REFERRAL",
             [EnquirySource.Exhibition] = "EXHIBITION",
             [EnquirySource.Other] = "OTHER"
+        });
+
+        var proposalStatus = EnumToDb(new Dictionary<ProposalStatus, string>
+        {
+            [ProposalStatus.Draft] = "DRAFT",
+            [ProposalStatus.Sent] = "SENT",
+            [ProposalStatus.Approved] = "APPROVED",
+            [ProposalStatus.Rejected] = "REJECTED",
+            [ProposalStatus.Superseded] = "SUPERSEDED"
+        });
+
+        var inviteStatus = EnumToDb(new Dictionary<InviteStatus, string>
+        {
+            [InviteStatus.Pending] = "PENDING",
+            [InviteStatus.Submitted] = "SUBMITTED",
+            [InviteStatus.Expired] = "EXPIRED",
+            [InviteStatus.Cancelled] = "CANCELLED"
         });
         var artifactType = EnumToDb(new Dictionary<ArtifactType, string>
         {
@@ -282,6 +300,68 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
             e.Property(x => x.UpdatedAt).HasColumnType("timestamp");
             e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_enquiries_created_at");
+        });
+
+        // ---------- enquiry_proposals ----------
+        modelBuilder.Entity<EnquiryProposal>(e =>
+        {
+            e.ToTable("enquiry_proposals");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ProposalNo).HasMaxLength(40).IsRequired();
+            e.HasIndex(x => x.ProposalNo).IsUnique().HasDatabaseName("uq_enquiry_proposals_no");
+            e.HasIndex(x => new { x.EnquiryId, x.Version }).IsUnique().HasDatabaseName("uq_enquiry_proposals_enquiry_version");
+            e.Property(x => x.Status).HasConversion(proposalStatus).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_enquiry_proposals_status");
+            e.Property(x => x.CapexTotal).HasPrecision(18, 2);
+            e.Property(x => x.OpexAnnual).HasPrecision(18, 2);
+            e.Property(x => x.AnnualRevenue).HasPrecision(18, 2);
+            e.Property(x => x.Npv).HasPrecision(18, 2);
+            e.Property(x => x.IrrPercent).HasPrecision(8, 2);
+            e.Property(x => x.PaybackPeriodYears).HasPrecision(8, 2);
+            e.Property(x => x.ProposalPdfUrl).HasColumnType("text");
+            e.Property(x => x.ExcelBomUrl).HasColumnType("text");
+            e.Property(x => x.Remarks).HasColumnType("text");
+            e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.Property(x => x.SentAt).HasColumnType("timestamp");
+            e.Property(x => x.DecidedAt).HasColumnType("timestamp");
+
+            e.HasOne(x => x.Enquiry)
+                .WithMany()
+                .HasForeignKey(x => x.EnquiryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(x => x.SimulationRun)
+                .WithMany()
+                .HasForeignKey(x => x.SimulationRunId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ---------- enquiry_invites ----------
+        modelBuilder.Entity<EnquiryInvite>(e =>
+        {
+            e.ToTable("enquiry_invites");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Token).HasMaxLength(64).IsRequired();
+            e.HasIndex(x => x.Token).IsUnique().HasDatabaseName("uq_enquiry_invites_token");
+            e.Property(x => x.CustomerName).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Phone).HasMaxLength(20);
+            e.Property(x => x.Email).HasMaxLength(200);
+            e.Property(x => x.Status).HasConversion(inviteStatus).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => x.Status).HasDatabaseName("ix_enquiry_invites_status");
+            e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasIndex(x => x.CreatedAt).HasDatabaseName("ix_enquiry_invites_created_at");
+            e.Property(x => x.ExpiresAt).HasColumnType("timestamp");
+            e.Property(x => x.SubmittedAt).HasColumnType("timestamp");
+
+            e.HasOne(x => x.Enquiry)
+                .WithMany()
+                .HasForeignKey(x => x.EnquiryId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
         // ---------- tenants ----------
         modelBuilder.Entity<Tenant>(e =>

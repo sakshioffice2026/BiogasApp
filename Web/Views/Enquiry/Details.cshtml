@@ -1,7 +1,19 @@
 @using BiogasApp.Database.Enums
+@using BiogasApp.Repositories.Contracts
 @model BiogasApp.Model.ViewModel.EnquiryDetailsViewModel
+@inject IEnquiryProposalRepository ProposalRepo
 @{
     ViewData["Title"] = Model.EnquiryNo;
+
+    var proposals = await ProposalRepo.GetByEnquiryAsync(Model.Id);
+
+    string ProposalCss(ProposalStatus s) => s switch
+    {
+        ProposalStatus.Draft => "draft",
+        ProposalStatus.Sent => "simulated",
+        ProposalStatus.Approved => "approved",
+        _ => "archived"
+    };
 
     string StatusLabel(EnquiryStatus s) => s switch
     {
@@ -37,6 +49,9 @@
     <div class="d-flex gap-2">
         <a class="bp-btn bp-btn--ghost" asp-action="Index">Back to enquiries</a>
         <a class="bp-btn bp-btn--primary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
+        <a class="bp-btn bp-btn--flame" asp-controller="EnquiryProposal" asp-action="Create" asp-route-enquiryId="@Model.Id">
+            @(proposals.Count == 0 ? "Create Proposal" : "Revise Proposal")
+        </a>
     </div>
 </div>
 
@@ -89,6 +104,48 @@
                 <dt class="col-sm-4">Message</dt>
                 <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Message) ? "-" : Model.Message)</dd>
             </dl>
+        </section>
+
+        <section class="bp-card p-4 mt-3">
+            <h2 class="h5 mb-3">Proposals</h2>
+            @if (proposals.Count == 0)
+            {
+                <p class="bp-muted mb-0">No proposal created yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Proposal</th>
+                                <th>Version</th>
+                                <th>Status</th>
+                                <th class="text-end">CAPEX</th>
+                                <th class="text-end">IRR</th>
+                                <th>Created</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in proposals.OrderByDescending(x => x.Version))
+                            {
+                                <tr>
+                                    <td>@p.ProposalNo</td>
+                                    <td>v@(p.Version)</td>
+                                    <td><span class="bp-chip bp-chip--@(ProposalCss(p.Status))">@p.Status</span></td>
+                                    <td class="text-end">@p.CapexTotal.ToString("N0")</td>
+                                    <td class="text-end">@(p.IrrPercent.HasValue? p.IrrPercent.Value.ToString("0.##") + " %" : "-")</td>
+                                    <td>@p.CreatedAt.ToString("dd MMM yyyy")</td>
+                                    <td class="text-end">
+                                        <a asp-controller="EnquiryProposal" asp-action="Details" asp-route-id="@p.Id">Open</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         </section>
     </div>
 

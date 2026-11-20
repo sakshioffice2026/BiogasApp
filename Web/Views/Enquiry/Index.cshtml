@@ -31,10 +31,16 @@
             @count @(count == 1 ? "enquiry" : "enquiries")@(filtered ? " match your filters" : " received")
         </p>
     </div>
-    <a class="bp-btn bp-btn--flame" asp-action="Create">
-        <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
-        Add enquiry
-    </a>
+    <div class="d-flex gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-controller="EnquiryInvite" asp-action="Index">
+            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" /></svg>
+            Share form
+        </a>
+        <a class="bp-btn bp-btn--flame" asp-action="Create">
+            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14" /></svg>
+            Add enquiry
+        </a>
+    </div>
 </div>
 
 @if (TempData["Success"] != null)

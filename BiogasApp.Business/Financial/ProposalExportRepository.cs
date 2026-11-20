@@ -392,59 +392,76 @@ public class ProposalExportRepository : IProposalExport
         var inv = CultureInfo.InvariantCulture;
         string N(double v) => v.ToString("N2", inv);
         string Opt(double? v) => v.HasValue ? N(v.Value) : "n/a";
+        string Pretty(string s) => inv.TextInfo.ToTitleCase(s.Replace('_', ' ').ToLowerInvariant());
 
         var run = data.Run;
+        var pdf = new ProposalPdf();
 
-        var lines = new List<string>
+        pdf.Banner("BiogasApp", "Techno-Economic Proposal - Biogas / Bio-CNG Plant");
+
+        pdf.InfoRows(new (string, string)[]
         {
-            "BIOGAS / BIO-CNG PLANT - TECHNO-ECONOMIC PROPOSAL",
-            new string('=', 60),
-            $"Project            : {data.Project.Name}",
-            $"Location           : {data.Project.LocationCountry}",
-            $"Simulation version : {run.RunVersion}",
-            $"Generated (UTC)    : {DateTime.UtcNow:yyyy-MM-dd HH:mm}",
-            "",
-            "PLANT SUMMARY",
-            new string('-', 60),
-            $"Total feed (t/day)        : {N((double)run.TotalFeedTpd)}",
-            $"Blended C:N ratio         : {N((double)run.BlendedCnRatio)}",
-            $"Raw biogas (Nm3/day)      : {N((double)run.RawBiogasNm3Day)}",
-            $"Methane (%)               : {N((double)run.Ch4Percent)}",
-            $"Net Bio-CNG (kg/day)      : {N((double)run.NetCbgKgDay)}",
-            $"Parasitic power (kW)      : {N((double)run.ParasiticPowerKw)}",
-            $"Parasitic heat (kW)       : {N((double)run.ParasiticHeatKw)}",
-            "",
-            "MAJOR EQUIPMENT",
-            new string('-', 60),
-            $"{"Tag",-10} {"Type",-28} {"Qty",3} {"Total cost",16}"
-        };
+            ("Project", data.Project.Name),
+            ("Location", data.Project.LocationCountry),
+            ("Simulation version", $"{run.RunVersion}"),
+            ("Generated (UTC)", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", inv))
+        });
 
-        foreach (var e in data.Equipment)
-            lines.Add($"{e.Tag,-10} {e.Type,-28} {e.Quantity,3} {e.TotalCost.ToString("N2", inv),16}");
-
-        lines.AddRange(new[]
+        pdf.MetricBoxes(new (string, string)[]
         {
-            "",
-            "FINANCIAL SUMMARY (INR)",
-            new string('-', 60),
-            $"Total CAPEX               : {N(metrics.CapexTotal)}",
-            $"Annual OPEX               : {N(metrics.OpexAnnual)}",
-            $"Annual revenue            : {N(metrics.AnnualRevenue)}",
-            $"NPV                       : {N(metrics.Npv)}",
-            $"IRR (%)                   : {Opt(metrics.IrrPercent)}",
-            $"Payback period (years)    : {Opt(metrics.PaybackPeriodYears)}",
-            $"Minimum DSCR              : {Opt(metrics.MinDscr)}"
+            ("Total CAPEX (INR)", N(metrics.CapexTotal)),
+            ("Annual revenue (INR)", N(metrics.AnnualRevenue)),
+            ("IRR (%)", Opt(metrics.IrrPercent)),
+            ("Payback (years)", Opt(metrics.PaybackPeriodYears))
+        });
+
+        pdf.Section("Plant summary");
+        pdf.KeyValueRows(new (string, string)[]
+        {
+            ("Total feed (t/day)", N((double)run.TotalFeedTpd)),
+            ("Blended C:N ratio", N((double)run.BlendedCnRatio)),
+            ("Raw biogas (Nm3/day)", N((double)run.RawBiogasNm3Day)),
+            ("Methane (%)", N((double)run.Ch4Percent)),
+            ("Net Bio-CNG (kg/day)", N((double)run.NetCbgKgDay)),
+            ("Parasitic power (kW)", N((double)run.ParasiticPowerKw)),
+            ("Parasitic heat (kW)", N((double)run.ParasiticHeatKw))
+        });
+
+        pdf.Section("Major equipment");
+        pdf.Table(
+            new[] { "Tag", "Equipment", "Qty", "Total cost (INR)" },
+            new[] { 80.0, 265.0, 50.0, 120.0 },
+            new[] { false, false, true, true },
+            data.Equipment
+                .Select(e => new[]
+                {
+                    e.Tag,
+                    Pretty(e.Type),
+                    e.Quantity.ToString(inv),
+                    e.TotalCost.ToString("N2", inv)
+                })
+                .ToList(),
+            new[] { string.Empty, "Total", string.Empty, data.EquipmentCapex.ToString("N2", inv) });
+
+        pdf.Section("Financial summary (INR)");
+        pdf.KeyValueRows(new (string, string)[]
+        {
+            ("Total CAPEX", N(metrics.CapexTotal)),
+            ("Annual OPEX", N(metrics.OpexAnnual)),
+            ("Annual revenue", N(metrics.AnnualRevenue)),
+            ("NPV", N(metrics.Npv)),
+            ("IRR (%)", Opt(metrics.IrrPercent)),
+            ("Payback period (years)", Opt(metrics.PaybackPeriodYears)),
+            ("Minimum DSCR", Opt(metrics.MinDscr))
         });
 
         if (data.Result.Warnings.Count > 0)
         {
-            lines.Add("");
-            lines.Add("ENGINEERING WARNINGS");
-            lines.Add(new string('-', 60));
-            lines.AddRange(data.Result.Warnings.Select(w => "* " + w));
+            pdf.Section("Engineering warnings");
+            pdf.Bullets(data.Result.Warnings);
         }
 
-        return SimplePdf.Build(lines);
+        return pdf.Build();
     }
 
     // ------------------------------------------------------------------ storage
@@ -478,51 +495,225 @@ public class ProposalExportRepository : IProposalExport
         return artifact.Id;
     }
 
-    // ------------------------------------------------------------------ minimal PDF writer
+    // ------------------------------------------------------------------ PDF writer
 
     /// <summary>
-    /// Dependency-free PDF writer: monospaced text (built-in Courier), A4, paginated.
-    /// Non-ASCII characters are replaced with '?'. Swap for a PDF library if you need rich layout.
+    /// Dependency-free PDF writer: A4, built-in Helvetica, simple banner, boxes, ruled tables and footer.
+    /// Non-ASCII characters are replaced with '?'.
     /// </summary>
-    private static class SimplePdf
+    private sealed class ProposalPdf
     {
-        private const int LinesPerPage = 62;
-        private const int MaxLineLength = 90;
+        private const double PageW = 595;
+        private const double PageH = 842;
+        private const double Margin = 40;
+        private const double ContentW = PageW - 2 * Margin;
+        private const double BottomLimit = 60;
 
-        public static byte[] Build(IReadOnlyList<string> lines)
+        private const string Teal = "0.059 0.463 0.431";
+        private const string Ink = "0.059 0.090 0.165";
+        private const string Muted = "0.392 0.455 0.545";
+        private const string Rule = "0.886 0.910 0.941";
+        private const string Soft = "0.945 0.961 0.976";
+        private const string White = "1 1 1";
+
+        // Helvetica glyph widths for ASCII 32..126 (1/1000 em).
+        private static readonly int[] Widths =
         {
-            var pages = lines.Chunk(LinesPerPage).ToList();
-            if (pages.Count == 0) pages.Add(Array.Empty<string>());
+            278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278,
+            556, 556, 556, 556, 556, 556, 556, 556, 556, 556,
+            278, 278, 584, 584, 584, 556, 1015,
+            667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833,
+            722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611,
+            278, 278, 278, 469, 556, 333,
+            556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833,
+            556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500,
+            334, 260, 334, 584
+        };
 
-            // Objects: 1 catalog, 2 pages, 3 font, then (page, content) pairs.
+        private readonly List<StringBuilder> _pages = new();
+        private StringBuilder _page = null!;
+        private double _y;
+
+        public ProposalPdf()
+        {
+            NewPage();
+        }
+
+        // ---------------------------------------------------------- layout
+
+        public void Banner(string title, string subtitle)
+        {
+            DrawRect(0, PageH - 84, PageW, 84, Teal);
+            DrawText(Margin, PageH - 40, title, 20, true, White);
+            DrawText(Margin, PageH - 62, subtitle, 10.5, false, White);
+            _y = PageH - 84 - 28;
+        }
+
+        public void InfoRows(IEnumerable<(string Label, string Value)> rows)
+        {
+            foreach (var (label, value) in rows)
+            {
+                EnsureSpace(16);
+                DrawText(Margin, _y, label, 9.5, false, Muted);
+                DrawText(Margin + 120, _y, value, 9.5, true, Ink);
+                _y -= 16;
+            }
+            _y -= 6;
+        }
+
+        public void MetricBoxes(IReadOnlyList<(string Label, string Value)> items)
+        {
+            const double gap = 8;
+            const double boxH = 46;
+            var boxW = (ContentW - gap * (items.Count - 1)) / items.Count;
+
+            EnsureSpace(boxH + 10);
+            for (var i = 0; i < items.Count; i++)
+            {
+                var x = Margin + i * (boxW + gap);
+                DrawRect(x, _y - boxH, boxW, boxH, Soft);
+                DrawRect(x, _y - boxH, 3, boxH, Teal);
+                DrawText(x + 12, _y - 16, items[i].Label, 8, false, Muted);
+                DrawText(x + 12, _y - 36, items[i].Value, 12.5, true, Ink);
+            }
+            _y -= boxH + 14;
+        }
+
+        public void Section(string title)
+        {
+            EnsureSpace(60);
+            DrawText(Margin, _y, title.ToUpperInvariant(), 10, true, Teal);
+            DrawLine(Margin, PageW - Margin, _y - 6, Teal, 0.8);
+            _y -= 22;
+        }
+
+        public void KeyValueRows(IEnumerable<(string Label, string Value)> rows)
+        {
+            foreach (var (label, value) in rows)
+            {
+                EnsureSpace(18);
+                DrawText(Margin + 4, _y - 2, label, 9.5, false, Ink);
+                DrawTextRight(PageW - Margin - 4, _y - 2, value, 9.5, true, Ink);
+                DrawLine(Margin, PageW - Margin, _y - 8, Rule, 0.5);
+                _y -= 18;
+            }
+            _y -= 8;
+        }
+
+        public void Table(
+            string[] headers,
+            double[] widths,
+            bool[] rightAlign,
+            IReadOnlyList<string[]> rows,
+            string[]? totalRow = null)
+        {
+            void Header()
+            {
+                DrawRect(Margin, _y - 14, ContentW, 20, Soft);
+                var hx = Margin;
+                for (var c = 0; c < headers.Length; c++)
+                {
+                    if (rightAlign[c])
+                        DrawTextRight(hx + widths[c] - 6, _y - 7, headers[c], 8.5, true, Muted);
+                    else
+                        DrawText(hx + 6, _y - 7, headers[c], 8.5, true, Muted);
+                    hx += widths[c];
+                }
+                _y -= 26;
+            }
+
+            void Row(string[] cells, bool bold)
+            {
+                var rx = Margin;
+                for (var c = 0; c < cells.Length; c++)
+                {
+                    if (rightAlign[c])
+                        DrawTextRight(rx + widths[c] - 6, _y - 2, cells[c], 9, bold, Ink);
+                    else
+                        DrawText(rx + 6, _y - 2, cells[c], 9, bold, Ink);
+                    rx += widths[c];
+                }
+                DrawLine(Margin, PageW - Margin, _y - 8, bold ? Ink : Rule, bold ? 0.8 : 0.5);
+                _y -= 18;
+            }
+
+            EnsureSpace(70);
+            Header();
+
+            foreach (var row in rows)
+            {
+                if (_y - 18 < BottomLimit)
+                {
+                    NewPage();
+                    Header();
+                }
+                Row(row, false);
+            }
+
+            if (totalRow != null)
+            {
+                if (_y - 18 < BottomLimit)
+                {
+                    NewPage();
+                    Header();
+                }
+                Row(totalRow, true);
+            }
+
+            _y -= 8;
+        }
+
+        public void Bullets(IEnumerable<string> items)
+        {
+            foreach (var item in items)
+            {
+                var lines = Wrap(item, 9.5, ContentW - 16);
+                EnsureSpace(lines.Count * 13 + 4);
+                DrawText(Margin + 4, _y - 2, "-", 9.5, true, Teal);
+                foreach (var line in lines)
+                {
+                    DrawText(Margin + 16, _y - 2, line, 9.5, false, Ink);
+                    _y -= 13;
+                }
+                _y -= 4;
+            }
+        }
+
+        public byte[] Build()
+        {
+            var total = _pages.Count;
+            for (var i = 0; i < total; i++)
+            {
+                _page = _pages[i];
+                DrawLine(Margin, PageW - Margin, 38, Rule, 0.5);
+                DrawText(Margin, 24, "BiogasApp - Techno-Economic Proposal", 8, false, Muted);
+                DrawTextRight(PageW - Margin, 24, $"Page {i + 1} of {total}", 8, false, Muted);
+            }
+
+            // Objects: 1 catalog, 2 pages, 3 regular font, 4 bold font, then (page, content) pairs.
             var objects = new List<string>
             {
                 "<< /Type /Catalog /Pages 2 0 R >>",
                 "",
-                "<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>"
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"
             };
 
             var kids = new List<string>();
-
-            for (var i = 0; i < pages.Count; i++)
+            for (var i = 0; i < total; i++)
             {
-                var pageId = 4 + i * 2;
+                var pageId = 5 + i * 2;
                 var contentId = pageId + 1;
                 kids.Add($"{pageId} 0 R");
 
-                var stream = new StringBuilder();
-                stream.Append("BT /F1 9 Tf 50 800 Td 12 TL\n");
-                foreach (var line in pages[i])
-                    stream.Append('(').Append(Escape(line)).Append(") Tj T*\n");
-                stream.Append("ET");
-
+                var stream = _pages[i].ToString();
                 objects.Add(
                     $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents {contentId} 0 R " +
-                    "/Resources << /Font << /F1 3 0 R >> >> >>");
+                    "/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> >>");
                 objects.Add($"<< /Length {stream.Length} >>\nstream\n{stream}\nendstream");
             }
 
-            objects[1] = $"<< /Type /Pages /Kids [{string.Join(" ", kids)}] /Count {pages.Count} >>";
+            objects[1] = $"<< /Type /Pages /Kids [{string.Join(" ", kids)}] /Count {total} >>";
 
             var pdf = new StringBuilder("%PDF-1.4\n");
             var offsets = new List<int>();
@@ -543,11 +734,89 @@ public class ProposalExportRepository : IProposalExport
             return Encoding.ASCII.GetBytes(pdf.ToString());
         }
 
+        // ---------------------------------------------------------- helpers
+
+        private void NewPage()
+        {
+            _page = new StringBuilder();
+            _pages.Add(_page);
+            _y = PageH - Margin;
+        }
+
+        private void EnsureSpace(double needed)
+        {
+            if (_y - needed < BottomLimit)
+                NewPage();
+        }
+
+        private void DrawText(double x, double y, string text, double size, bool bold, string color)
+        {
+            _page.Append("BT /").Append(bold ? "F2" : "F1").Append(' ').Append(F(size)).Append(" Tf ")
+                .Append(color).Append(" rg ").Append(F(x)).Append(' ').Append(F(y)).Append(" Td (")
+                .Append(Escape(text)).Append(") Tj ET\n");
+        }
+
+        private void DrawTextRight(double xRight, double y, string text, double size, bool bold, string color)
+        {
+            DrawText(xRight - Measure(text, size), y, text, size, bold, color);
+        }
+
+        private void DrawRect(double x, double y, double w, double h, string color)
+        {
+            _page.Append(color).Append(" rg ")
+                .Append(F(x)).Append(' ').Append(F(y)).Append(' ')
+                .Append(F(w)).Append(' ').Append(F(h)).Append(" re f\n");
+        }
+
+        private void DrawLine(double x1, double x2, double y, string color, double width)
+        {
+            _page.Append(color).Append(" RG ").Append(F(width)).Append(" w ")
+                .Append(F(x1)).Append(' ').Append(F(y)).Append(" m ")
+                .Append(F(x2)).Append(' ').Append(F(y)).Append(" l S\n");
+        }
+
+        private static string F(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+        private static double Measure(string text, double size)
+        {
+            double total = 0;
+            foreach (var ch in text)
+            {
+                var index = ch >= ' ' && ch <= '~' ? ch - 32 : '?' - 32;
+                total += Widths[index];
+            }
+            return total * size / 1000.0;
+        }
+
+        private static List<string> Wrap(string text, double size, double maxWidth)
+        {
+            var result = new List<string>();
+            var current = new StringBuilder();
+
+            foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var candidate = current.Length == 0 ? word : current.ToString() + " " + word;
+                if (current.Length > 0 && Measure(candidate, size) > maxWidth)
+                {
+                    result.Add(current.ToString());
+                    current.Clear().Append(word);
+                }
+                else
+                {
+                    current.Clear().Append(candidate);
+                }
+            }
+
+            if (current.Length > 0)
+                result.Add(current.ToString());
+            if (result.Count == 0)
+                result.Add(string.Empty);
+
+            return result;
+        }
+
         private static string Escape(string text)
         {
-            if (text.Length > MaxLineLength)
-                text = text[..MaxLineLength];
-
             var sb = new StringBuilder(text.Length);
             foreach (var ch in text)
             {

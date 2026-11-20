@@ -1,0 +1,93 @@
+@model BiogasApp.Model.ViewModel.EnquiryFormViewModel
+@{
+    ViewData["Title"] = "Biogas plant enquiry";
+}
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Biogas plant enquiry</h1>
+        <p class="bp-muted mb-0">Tell us about your feedstock and requirement. Our team will contact you with a proposal.</p>
+    </div>
+</div>
+
+<form asp-controller="PublicEnquiry" asp-action="Create" method="post" class="bp-card p-4" novalidate>
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+    <input asp-for="Token" type="hidden" />
+
+    <h2 class="h5 mb-3">Your details</h2>
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <label asp-for="CustomerName" class="form-label"></label>
+            <input asp-for="CustomerName" class="form-control" autocomplete="name" />
+            <span asp-validation-for="CustomerName" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="CompanyName" class="form-label"></label>
+            <input asp-for="CompanyName" class="form-control" autocomplete="organization" />
+            <span asp-validation-for="CompanyName" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" type="email" class="form-control" autocomplete="email" />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="Phone" class="form-label"></label>
+            <input asp-for="Phone" type="tel" class="form-control" autocomplete="tel" />
+            <span asp-validation-for="Phone" class="text-danger"></span>
+        </div>
+    </div>
+
+    <h2 class="h5 mb-3">Site location</h2>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <label asp-for="LocationCity" class="form-label"></label>
+            <input asp-for="LocationCity" class="form-control" />
+            <span asp-validation-for="LocationCity" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="LocationState" class="form-label"></label>
+            <input asp-for="LocationState" class="form-control" />
+            <span asp-validation-for="LocationState" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="LocationCountry" class="form-label"></label>
+            <input asp-for="LocationCountry" class="form-control" />
+            <span asp-validation-for="LocationCountry" class="text-danger"></span>
+        </div>
+    </div>
+
+    <h2 class="h5 mb-3">Your requirement</h2>
+    <div class="row g-3 mb-4">
+        <div class="col-md-5">
+            <label asp-for="FeedstockType" class="form-label"></label>
+            <input asp-for="FeedstockType" class="form-control" placeholder="e.g. Napier grass, cow dung, press mud" />
+            <span asp-validation-for="FeedstockType" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="FeedstockQtyTpd" class="form-label"></label>
+            <input asp-for="FeedstockQtyTpd" type="number" step="0.1" min="0.1" class="form-control" />
+            <span asp-validation-for="FeedstockQtyTpd" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="EndUse" class="form-label"></label>
+            <select asp-for="EndUse" class="form-select">
+                <option value="CBG">CBG (Bio-CNG)</option>
+                <option value="Power">Power generation</option>
+                <option value="Heat">Heat / thermal</option>
+                <option value="Other">Other</option>
+            </select>
+            <span asp-validation-for="EndUse" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <label asp-for="Message" class="form-label"></label>
+            <textarea asp-for="Message" rows="4" class="form-control"></textarea>
+            <span asp-validation-for="Message" class="text-danger"></span>
+        </div>
+    </div>
+
+    <button type="submit" class="bp-btn bp-btn--flame">Submit enquiry</button>
+</form>

@@ -1,0 +1,222 @@
+@using BiogasApp.Database.Enums
+@model BiogasApp.Model.ViewModel.EnquiryProposalFormViewModel
+@{
+    ViewData["Title"] = $"New proposal (v{Model.NextVersion})";
+    if (Model.FeedstockLines.Count == 0)
+    {
+        Model.FeedstockLines.Add(new BiogasApp.Model.ViewModel.ProposalFeedstockLineViewModel());
+    }
+}
+
+<div class="bp-page-head">
+    <div>
+        <span class="bp-chip bp-chip--draft">Version @Model.NextVersion</span>
+        <h1 class="mt-2">New proposal</h1>
+        <p class="bp-muted mb-0">@Model.EnquiryNo &middot; @Model.CustomerName</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-controller="Enquiry" asp-action="Details" asp-route-id="@Model.EnquiryId">Back to enquiry</a>
+    </div>
+</div>
+
+<form asp-action="Create" method="post" id="proposal-form">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <input asp-for="EnquiryId" type="hidden" />
+    <input asp-for="EnquiryNo" type="hidden" />
+    <input asp-for="CustomerName" type="hidden" />
+    <input asp-for="FeedstockRequested" type="hidden" />
+    <input asp-for="QuantityRequestedTpd" type="hidden" />
+    <input asp-for="EndUseRequested" type="hidden" />
+    <input asp-for="NextVersion" type="hidden" />
+    <input asp-for="ProjectId" type="hidden" />
+
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <section class="bp-card p-4 mb-3">
+                <h2 class="h5 mb-3">Customer requirement</h2>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Feedstock</dt>
+                    <dd class="col-sm-8">@Model.FeedstockRequested</dd>
+                    <dt class="col-sm-4">Quantity</dt>
+                    <dd class="col-sm-8">@Model.QuantityRequestedTpd.ToString("0.##") TPD</dd>
+                    <dt class="col-sm-4">End use</dt>
+                    <dd class="col-sm-8">@Model.EndUseRequested</dd>
+                </dl>
+            </section>
+
+            <section class="bp-card p-4 mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h5 mb-0">Feedstock mix</h2>
+                    <button type="button" class="bp-btn bp-btn--ghost" id="add-line">Add feedstock</button>
+                </div>
+
+                <div id="line-list">
+                    @for (var i = 0; i < Model.FeedstockLines.Count; i++)
+                    {
+                        <div class="row g-2 align-items-end mb-2 feed-line">
+                            <div class="col-md-5">
+                                <label class="form-label">Feedstock</label>
+                                <select name="FeedstockLines[@i].FeedstockId" class="form-select">
+                                    <option value="@Guid.Empty">Select feedstock</option>
+                                    @foreach (var f in Model.AvailableFeedstocks)
+                                    {
+                                        <option value="@f.Id" selected="@(Model.FeedstockLines[i].FeedstockId == f.Id)">@f.Name (@f.Category)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Quantity (TPD)</label>
+                                <input type="number" step="0.1" min="0.1" name="FeedstockLines[@i].DailyTonnageTpd"
+                                       value="@Model.FeedstockLines[i].DailyTonnageTpd" class="form-control" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Availability (days/yr)</label>
+                                <input type="number" min="1" max="365" name="FeedstockLines[@i].SeasonalAvailabilityDays"
+                                       value="@Model.FeedstockLines[i].SeasonalAvailabilityDays" class="form-control" />
+                            </div>
+                            <div class="col-md-1">
+                                <button type="button" class="bp-btn bp-btn--ghost w-100 remove-line" aria-label="Remove">&times;</button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </section>
+
+            <section class="bp-card p-4 mb-3">
+                <h2 class="h5 mb-3">Process options</h2>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="RegulatoryStandard" class="form-label"></label>
+                        <select asp-for="RegulatoryStandard" class="form-select"
+                                asp-items="Html.GetEnumSelectList<RegulatoryStandard>()"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="DigesterRegime" class="form-label"></label>
+                        <select asp-for="DigesterRegime" class="form-select"
+                                asp-items="Html.GetEnumSelectList<DigesterRegime>()"></select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="UpgradingTech" class="form-label"></label>
+                        <select asp-for="UpgradingTech" class="form-select"
+                                asp-items="Html.GetEnumSelectList<UpgradingTech>()"></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="AmbientTempMinC" class="form-label"></label>
+                        <input asp-for="AmbientTempMinC" type="number" step="0.1" class="form-control" />
+                        <span asp-validation-for="AmbientTempMinC" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="AmbientTempMaxC" class="form-label"></label>
+                        <input asp-for="AmbientTempMaxC" type="number" step="0.1" class="form-control" />
+                        <span asp-validation-for="AmbientTempMaxC" class="text-danger"></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bp-card p-4">
+                <h2 class="h5 mb-3">Financial inputs</h2>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label" for="fi-cbg">CBG price (per kg)</label>
+                        <input id="fi-cbg" asp-for="FinancialInputs.CbgSellingPricePerKg" type="number" step="0.01" class="form-control" />
+                        <span asp-validation-for="FinancialInputs.CbgSellingPricePerKg" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="fi-fom">FOM price (per ton)</label>
+                        <input id="fi-fom" asp-for="FinancialInputs.FomSellingPricePerTon" type="number" step="0.01" class="form-control" />
+                        <span asp-validation-for="FinancialInputs.FomSellingPricePerTon" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="fi-disc">Discount rate (%)</label>
+                        <input id="fi-disc" asp-for="FinancialInputs.DiscountRatePercent" type="number" step="0.1" class="form-control" />
+                        <span asp-validation-for="FinancialInputs.DiscountRatePercent" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="fi-life">Project life (years)</label>
+                        <input id="fi-life" asp-for="FinancialInputs.ProjectLifeYears" type="number" class="form-control" />
+                        <span asp-validation-for="FinancialInputs.ProjectLifeYears" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="fi-debt">Debt ratio (%)</label>
+                        <input id="fi-debt" asp-for="FinancialInputs.DebtRatioPercent" type="number" step="0.1" class="form-control" />
+                        <span asp-validation-for="FinancialInputs.DebtRatioPercent" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="fi-int">Interest rate (%)</label>
+                        <input id="fi-int" asp-for="FinancialInputs.InterestRatePercent" type="number" step="0.1" class="form-control" />
+                        <span asp-validation-for="FinancialInputs.InterestRatePercent" class="text-danger"></span>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="col-lg-4">
+            <section class="bp-card p-4">
+                <h2 class="h5 mb-3">Remarks</h2>
+                <textarea asp-for="Remarks" rows="6" maxlength="2000" class="form-control mb-3"></textarea>
+                <span asp-validation-for="Remarks" class="text-danger"></span>
+                <button type="submit" class="bp-btn bp-btn--flame w-100">Generate proposal v@(Model.NextVersion)</button>
+            </section>
+        </div>
+    </div>
+</form>
+
+<template id="line-template">
+    <div class="row g-2 align-items-end mb-2 feed-line">
+        <div class="col-md-5">
+            <label class="form-label">Feedstock</label>
+            <select name="FeedstockLines[__i__].FeedstockId" class="form-select">
+                <option value="@Guid.Empty">Select feedstock</option>
+                @foreach (var f in Model.AvailableFeedstocks)
+                {
+                    <option value="@f.Id">@f.Name (@f.Category)</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Quantity (TPD)</label>
+            <input type="number" step="0.1" min="0.1" name="FeedstockLines[__i__].DailyTonnageTpd" value="0" class="form-control" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Availability (days/yr)</label>
+            <input type="number" min="1" max="365" name="FeedstockLines[__i__].SeasonalAvailabilityDays" value="365" class="form-control" />
+        </div>
+        <div class="col-md-1">
+            <button type="button" class="bp-btn bp-btn--ghost w-100 remove-line" aria-label="Remove">&times;</button>
+        </div>
+    </div>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var list = document.getElementById('line-list');
+            var tpl = document.getElementById('line-template');
+
+            function reindex() {
+                var rows = list.querySelectorAll('.feed-line');
+                rows.forEach(function (row, i) {
+                    row.querySelectorAll('[name]').forEach(function (el) {
+                        el.name = el.name.replace(/FeedstockLines\[[^\]]*\]/, 'FeedstockLines[' + i + ']');
+                    });
+                });
+            }
+
+            document.getElementById('add-line').addEventListener('click', function () {
+                var html = tpl.innerHTML.replace(/__i__/g, list.querySelectorAll('.feed-line').length);
+                list.insertAdjacentHTML('beforeend', html);
+                reindex();
+            });
+
+            list.addEventListener('click', function (e) {
+                var btn = e.target.closest('.remove-line');
+                if (!btn) return;
+                if (list.querySelectorAll('.feed-line').length === 1) return;
+                btn.closest('.feed-line').remove();
+                reindex();
+            });
+        })();
+    </script>
+}

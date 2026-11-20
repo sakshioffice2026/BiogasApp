@@ -1,0 +1,188 @@
+@using BiogasApp.Database.Enums
+@model BiogasApp.Model.ViewModel.EnquiryInviteIndexViewModel
+@{
+    ViewData["Title"] = "Customer enquiry links";
+
+    string StatusCss(InviteStatus s) => s switch
+    {
+        InviteStatus.Pending => "simulated",
+        InviteStatus.Submitted => "approved",
+        _ => "archived"
+    };
+
+    string WaDigits(string? phone)
+    {
+        var digits = new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+        return digits.Length == 10 ? "91" + digits : digits;
+    }
+
+    string MessageFor(string name, string link) =>
+        $"Hello {name}, please fill in your biogas project enquiry using this link: {link}";
+
+    string GenericMessage(string link) =>
+        $"Hello, please fill in your biogas project enquiry using this link: {link}";
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Customer enquiry links</h1>
+        <p class="bp-muted mb-0">Create a personal link for a customer and send it by WhatsApp, SMS or email.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-controller="Enquiry" asp-action="Index">Back to enquiries</a>
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success" role="status">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger" role="alert">@TempData["Error"]</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <section class="bp-card p-4 mb-3">
+            <h2 class="h5 mb-3">New personal link</h2>
+            <form asp-action="Create" method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Form.CustomerName" class="form-label"></label>
+                    <input asp-for="Form.CustomerName" class="form-control" maxlength="150" />
+                    <span asp-validation-for="Form.CustomerName" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Form.Phone" class="form-label"></label>
+                    <input asp-for="Form.Phone" class="form-control" maxlength="20" />
+                    <span asp-validation-for="Form.Phone" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Form.Email" class="form-label"></label>
+                    <input asp-for="Form.Email" type="email" class="form-control" maxlength="200" />
+                    <span asp-validation-for="Form.Email" class="text-danger"></span>
+                </div>
+
+                <p class="bp-muted small">Valid for 30 days. Works once.</p>
+                <button type="submit" class="bp-btn bp-btn--flame w-100">Create link</button>
+            </form>
+            <hr class="my-4" />
+
+            <h2 class="h5 mb-3">General link</h2>
+            <p class="bp-muted small">Open to everyone. Not linked to a customer.</p>
+            <input type="text" class="form-control mb-2" readonly value="@Model.GenericLink" id="generic-link" />
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="bp-btn bp-btn--ghost" data-copy="@Model.GenericLink">Copy</button>
+                <a class="bp-btn bp-btn--ghost" target="_blank" rel="noopener"
+                   href="https://wa.me/?text=@(Uri.EscapeDataString(GenericMessage(Model.GenericLink)))">WhatsApp</a>
+                <a class="bp-btn bp-btn--ghost"
+                   href="sms:?body=@(Uri.EscapeDataString(GenericMessage(Model.GenericLink)))">SMS</a>
+                <a class="bp-btn bp-btn--ghost"
+                   href="mailto:?subject=@(Uri.EscapeDataString("Biogas project enquiry"))&body=@(Uri.EscapeDataString(GenericMessage(Model.GenericLink)))">Email</a>
+            </div>
+        </section>
+    </div>
+
+    <div class="col-lg-8">
+        <section class="bp-card p-4">
+            <h2 class="h5 mb-3">Sent links</h2>
+
+            @if (Model.Invites.Count == 0)
+            {
+                <p class="bp-muted mb-0">No links created yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th>Status</th>
+                                <th>Expires</th>
+                                <th>Enquiry</th>
+                                <th>Send</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var i in Model.Invites)
+                            {
+                                var msg = MessageFor(i.CustomerName, i.Link);
+                                var encoded = Uri.EscapeDataString(msg);
+                                var waPhone = WaDigits(i.Phone);
+                                <tr>
+                                    <td>
+                                        <strong>@i.CustomerName</strong><br />
+                                        <small class="bp-muted">@(string.IsNullOrWhiteSpace(i.Phone) ? i.Email : i.Phone)</small>
+                                    </td>
+                                    <td><span class="bp-chip bp-chip--@(StatusCss(i.Status))">@i.Status</span></td>
+                                    <td>@i.ExpiresAt.ToString("dd MMM yyyy")</td>
+                                    <td>
+                                        @if (i.EnquiryId.HasValue)
+                                        {
+                                            <a asp-controller="Enquiry" asp-action="Details" asp-route-id="@i.EnquiryId">@i.EnquiryNo</a>
+                                        }
+                                        else
+                                        {
+                                            <span>-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (i.Status == InviteStatus.Pending)
+                                        {
+                                            <div class="d-flex flex-wrap gap-1">
+                                                <button type="button" class="bp-btn bp-btn--ghost" data-copy="@i.Link">Copy</button>
+                                                <a class="bp-btn bp-btn--ghost" target="_blank" rel="noopener"
+                                                   href="https://wa.me/@(waPhone)?text=@encoded">WhatsApp</a>
+                                                <a class="bp-btn bp-btn--ghost"
+                                                   href="sms:@(i.Phone)?body=@encoded">SMS</a>
+                                                <a class="bp-btn bp-btn--ghost"
+                                                   href="mailto:@(i.Email)?subject=@(Uri.EscapeDataString("Biogas project enquiry"))&body=@encoded">Email</a>
+                                                <form asp-action="Cancel" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@i.Id" />
+                                                    <button type="submit" class="bp-btn bp-btn--ghost">Cancel</button>
+                                                </form>
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-copy]');
+            if (!btn) return;
+
+            var text = btn.getAttribute('data-copy');
+            var original = btn.textContent;
+
+            function done() {
+                btn.textContent = 'Copied';
+                setTimeout(function () { btn.textContent = original; }, 1500);
+            }
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(done);
+            } else {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                done();
+            }
+        });
+    </script>
+}

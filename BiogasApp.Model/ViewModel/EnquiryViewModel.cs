@@ -53,6 +53,9 @@ public class EnquiryFormViewModel
 
     [Display(Name = "Source")]
     public EnquirySource Source { get; set; } = EnquirySource.Website;
+
+    /// <summary>Personal invite token from the public link. Not shown to the customer.</summary>
+    public string? Token { get; set; }
 }
 
 public class EnquiryDetailsViewModel

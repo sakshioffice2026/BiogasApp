@@ -1,0 +1,153 @@
+@using BiogasApp.Database.Enums
+@model BiogasApp.Model.ViewModel.EnquiryProposalDetailsViewModel
+@{
+    ViewData["Title"] = Model.ProposalNo;
+
+    string StatusCss(ProposalStatus s) => s switch
+    {
+        ProposalStatus.Draft => "draft",
+        ProposalStatus.Sent => "simulated",
+        ProposalStatus.Approved => "approved",
+        ProposalStatus.Rejected => "archived",
+        ProposalStatus.Superseded => "archived",
+        _ => "draft"
+    };
+
+    var isLatest = Model.Versions.Count == 0 || Model.Versions.Max(v => v.Version) == Model.Version;
+}
+
+<div class="bp-page-head">
+    <div>
+        <span class="bp-chip bp-chip--@(StatusCss(Model.Status))">@Model.Status</span>
+        <h1 class="mt-2">@Model.ProposalNo <small class="bp-muted">v@(Model.Version)</small></h1>
+        <p class="bp-muted mb-0">
+            @Model.EnquiryNo &middot; @Model.CustomerName &middot; Created @Model.CreatedAt.ToString("dd MMM yyyy, HH:mm")
+            @if (Model.SentAt.HasValue)
+            {
+                <text> &middot; Sent @Model.SentAt.Value.ToString("dd MMM yyyy")</text>
+            }
+            @if (Model.DecidedAt.HasValue)
+            {
+                <text> &middot; Decision @Model.DecidedAt.Value.ToString("dd MMM yyyy")</text>
+            }
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-controller="Enquiry" asp-action="Details" asp-route-id="@Model.EnquiryId">Back to enquiry</a>
+        @if (Model.HasPdf)
+        {
+            <a class="bp-btn bp-btn--primary" asp-action="DownloadPdf" asp-route-id="@Model.Id">Download PDF</a>
+        }
+        @if (Model.Status == ProposalStatus.Approved)
+        {
+            <a class="bp-btn bp-btn--flame" asp-controller="Project" asp-action="Detail" asp-route-id="@Model.ProjectId">Create Project</a>
+        }
+        @if (isLatest && Model.Status != ProposalStatus.Approved)
+        {
+            <a class="bp-btn bp-btn--flame" asp-action="Create" asp-route-enquiryId="@Model.EnquiryId">Revise (new version)</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success" role="status">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger" role="alert">@TempData["Error"]</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <section class="bp-card p-4 mb-3">
+            <h2 class="h5 mb-3">Financial summary</h2>
+            <dl class="row mb-0">
+                <dt class="col-sm-5">Total CAPEX</dt>
+                <dd class="col-sm-7">@Model.CapexTotal.ToString("N0")</dd>
+                <dt class="col-sm-5">Annual OPEX</dt>
+                <dd class="col-sm-7">@Model.OpexAnnual.ToString("N0")</dd>
+                <dt class="col-sm-5">Annual revenue</dt>
+                <dd class="col-sm-7">@Model.AnnualRevenue.ToString("N0")</dd>
+                <dt class="col-sm-5">NPV</dt>
+                <dd class="col-sm-7">@Model.Npv.ToString("N0")</dd>
+                <dt class="col-sm-5">IRR</dt>
+                <dd class="col-sm-7">@(Model.IrrPercent.HasValue? Model.IrrPercent.Value.ToString("0.##") + " %" : "-")</dd>
+                <dt class="col-sm-5">Payback period</dt>
+                <dd class="col-sm-7">@(Model.PaybackPeriodYears.HasValue? Model.PaybackPeriodYears.Value.ToString("0.#") + " years" : "-")</dd>
+            </dl>
+        </section>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Remarks))
+        {
+            <section class="bp-card p-4 mb-3">
+                <h2 class="h5 mb-3">Remarks</h2>
+                <p class="mb-0">@Model.Remarks</p>
+            </section>
+        }
+
+        <section class="bp-card p-4">
+            <h2 class="h5 mb-3">Versions</h2>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Proposal</th>
+                            <th>Version</th>
+                            <th>Status</th>
+                            <th class="text-end">CAPEX</th>
+                            <th class="text-end">IRR</th>
+                            <th>Created</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var v in Model.Versions.OrderByDescending(x => x.Version))
+                        {
+                            <tr class="@(v.Id == Model.Id ? "table-active" : "")">
+                                <td>@v.ProposalNo</td>
+                                <td>v@(v.Version)</td>
+                                <td><span class="bp-chip bp-chip--@(StatusCss(v.Status))">@v.Status</span></td>
+                                <td class="text-end">@v.CapexTotal.ToString("N0")</td>
+                                <td class="text-end">@(v.IrrPercent.HasValue? v.IrrPercent.Value.ToString("0.##") + " %" : "-")</td>
+                                <td>@v.CreatedAt.ToString("dd MMM yyyy")</td>
+                                <td class="text-end">
+                                    @if (v.Id != Model.Id)
+                                    {
+                                        <a asp-action="Details" asp-route-id="@v.Id">Open</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="col-lg-4">
+        <section class="bp-card p-4">
+            <h2 class="h5 mb-3">Status</h2>
+            <form asp-action="UpdateStatus" method="post">
+                <input type="hidden" name="Id" value="@Model.Id" />
+
+                <div class="mb-3">
+                    <label for="pr-status" class="form-label">Update status</label>
+                    <select id="pr-status" name="Status" class="form-select">
+                        @foreach (var s in Enum.GetValues<ProposalStatus>())
+                        {
+                            <option value="@((int)s)" selected="@(Model.Status == s)">@s</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="pr-remarks" class="form-label">Remarks</label>
+                    <textarea id="pr-remarks" name="Remarks" rows="5" maxlength="2000" class="form-control">@Model.Remarks</textarea>
+                </div>
+
+                <button type="submit" class="bp-btn bp-btn--flame w-100">Save status</button>
+            </form>
+        </section>
+    </div>
+</div>

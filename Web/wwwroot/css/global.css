@@ -21,7 +21,7 @@
     --bp-coral: #FF5E7E;
     --bp-grad-flow: linear-gradient( 135deg, var(--bp-emerald), var(--bp-cyan) 55%, var(--bp-indigo) );
     --bp-grad-deep: linear-gradient( 135deg, #047857, #0369A1 55%, #4338CA );
-    --bp-grad-flame: linear-gradient( 135deg, var(--bp-amber), var(--bp-coral) );
+    --bp-grad-flame: linear-gradient( 135deg, #7DD3FC, #0EA5E9 );
     --bp-surface: rgba(255, 255, 255, .94);
     --bp-radius: 18px;
     --bp-radius-sm: 12px;
@@ -588,7 +588,7 @@ a {
 .bp-btn--flame {
     background: var(--bp-grad-flame);
     color: var(--bp-ink);
-    box-shadow: 0 10px 22px -10px rgba(255, 94, 126, .45);
+    box-shadow: 0 10px 22px -10px rgba(14, 165, 233, .45);
 }
 
     .bp-btn--flame:hover {

@@ -11,24 +11,58 @@ namespace Web.Controllers;
 public class PublicEnquiryController : Controller
 {
     private readonly IEnquiryRepository _enquiries;
+    private readonly IEnquiryInviteRepository _invites;
     private readonly ILogger<PublicEnquiryController> _logger;
 
-    public PublicEnquiryController(IEnquiryRepository enquiries, ILogger<PublicEnquiryController> logger)
+    public PublicEnquiryController(
+        IEnquiryRepository enquiries,
+        IEnquiryInviteRepository invites,
+        ILogger<PublicEnquiryController> logger)
     {
         _enquiries = enquiries;
+        _invites = invites;
         _logger = logger;
     }
 
     [HttpGet]
-    public IActionResult Create()
+    public async Task<IActionResult> Create(string? token, CancellationToken cancellationToken)
     {
-        return View(new EnquiryFormViewModel { Source = EnquirySource.Website });
+        var model = new EnquiryFormViewModel { Source = EnquirySource.Website };
+
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            var invite = await _invites.ValidateTokenAsync(token, cancellationToken);
+            if (invite.IsValid)
+            {
+                model.Token = token;
+                model.CustomerName = invite.CustomerName ?? string.Empty;
+                model.Phone = invite.Phone ?? string.Empty;
+                model.Email = invite.Email ?? string.Empty;
+            }
+            else
+            {
+                ModelState.AddModelError(string.Empty, "This link has expired or was already used. You can still fill the form below.");
+            }
+        }
+
+        return View(model);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(EnquiryFormViewModel model, CancellationToken cancellationToken)
     {
+        if (!string.IsNullOrWhiteSpace(model.Token))
+        {
+            var invite = await _invites.ValidateTokenAsync(model.Token, cancellationToken);
+            if (!invite.IsValid)
+            {
+                ModelState.Remove(nameof(model.Token));
+                model.Token = null;
+                ModelState.AddModelError(string.Empty, "This link has expired or was already used.");
+            }
+        }
+
         if (!ModelState.IsValid)
         {
             return View(model);
@@ -53,6 +87,11 @@ public class PublicEnquiryController : Controller
 
         var created = await _enquiries.AddAsync(enquiry, cancellationToken);
         _logger.LogInformation("Public enquiry {EnquiryNo} received.", created.EnquiryNo);
+
+        if (!string.IsNullOrWhiteSpace(model.Token))
+        {
+            await _invites.MarkSubmittedAsync(model.Token, created.Id, cancellationToken);
+        }
 
         TempData["EnquiryNo"] = created.EnquiryNo;
         return RedirectToAction(nameof(ThankYou));
