@@ -1,6 +1,6 @@
 .wf-layout {
     display: grid;
-    grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-columns: 400px minmax(0, 1fr);
     grid-auto-rows: min-content;
     column-gap: 1.25rem;
     row-gap: 0;
@@ -23,7 +23,7 @@
     }
 
 .wf {
-    padding: 1rem;
+    padding: 1.25rem;
     background: var(--bp-surface);
     border: 1px solid var(--bp-line);
     border-radius: var(--bp-radius);
@@ -35,14 +35,14 @@
 .wf__head,
 .wf__row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+    gap: 8px;
     align-items: center;
 }
 
 .wf__head {
-    margin-bottom: .6rem;
-    font-size: .72rem;
+    margin-bottom: .8rem;
+    font-size: .86rem;
     font-weight: 600;
     letter-spacing: .02em;
     color: var(--bp-ink-mute);
@@ -53,7 +53,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 7px;
+    gap: 10px;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -63,8 +63,8 @@
         content: "";
         position: absolute;
         left: 50%;
-        top: 14px;
-        bottom: 14px;
+        top: 17px;
+        bottom: 17px;
         width: 2px;
         background: var(--bp-line);
         transform: translateX(-1px);
@@ -73,22 +73,22 @@
 .wf__card {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
-    padding: 6px 8px;
+    padding: 9px 11px;
     background: #fff;
     border: 1px solid var(--bp-line);
     border-radius: var(--bp-radius-sm);
-    font-size: .76rem;
-    line-height: 1.25;
+    font-size: .92rem;
+    line-height: 1.3;
     color: var(--bp-ink-mute);
     transition: border-color .2s var(--bp-ease), background .2s var(--bp-ease);
 }
 
     .wf__card .bp-ico {
         flex: none;
-        width: 16px;
-        height: 16px;
+        width: 19px;
+        height: 19px;
         fill: none;
         stroke: currentColor;
         stroke-width: 1.8;
@@ -103,12 +103,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     background: #fff;
     border: 1px solid var(--bp-line);
-    font-size: .76rem;
+    font-size: .92rem;
     font-weight: 600;
     color: var(--bp-ink-mute);
 }
@@ -141,11 +141,11 @@
 
 .wf__tag {
     display: inline-block;
-    margin: .75rem 0 0;
-    padding: 2px 10px;
+    margin: 1rem 0 0;
+    padding: 4px 14px;
     border-radius: 999px;
     background: var(--bp-grad-deep);
-    font-size: .72rem;
+    font-size: .86rem;
     color: #fff;
 }
 
@@ -275,4 +275,10 @@
 
 .wfs__item.is-current .wfs__txt strong {
     color: var(--bp-ink);
+}
+.wf-content > .pj-hero,
+.wf-content > .pj-columns,
+.wf-content > .pj-mix,
+.wf-content > .pj-danger-zone {
+    zoom: .88;
 }

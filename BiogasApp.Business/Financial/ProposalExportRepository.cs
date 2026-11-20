@@ -238,7 +238,9 @@ public class ProposalExportRepository : IProposalExport
         var mix = await _projects.GetFeedstockMixAsync(data.Project.Id, cancellationToken);
 
         var feedstockCost = mix.Sum(m =>
-            (double)m.DailyTonnageTpd * (double)(m.Feedstock?.DefaultCostPerTon ?? 0m)) * days;
+        (double)m.DailyTonnageTpd *
+        (double)(m.Feedstock?.DefaultCostPerTon ?? 0m) *
+        Math.Min(m.SeasonalAvailabilityDays <= 0 ? days : m.SeasonalAvailabilityDays, days));
 
         var electricityCost = (double)data.Run.ParasiticPowerKw * 24.0 * days * _assumptions.ElectricityTariffPerKwh;
         var maintenance = capex * _assumptions.OmPercentOfCapexPerYear / 100.0;

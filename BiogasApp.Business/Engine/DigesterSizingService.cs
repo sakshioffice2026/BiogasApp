@@ -43,7 +43,6 @@ public class DigesterSizingService
 
         var numTanks = (int)Math.Ceiling(vGrossTotal / maxSingleTankVolM3);
         var vGrossPerTank = vGrossTotal / numTanks;
-        var vWorkingPerTank = vWorkingTotal / numTanks;
 
         // V = (pi * D^3) / 8 for H/D = 0.5  =>  D = (8 * V / pi)^(1/3)
         var diameterM = Math.Pow((8.0 * vGrossPerTank) / Math.PI, 1.0 / 3.0);
@@ -56,14 +55,19 @@ public class DigesterSizingService
             (vGrossPerTank / (Math.PI * Math.Pow(diameterM, 2) / 4.0)) * 100.0) / 100.0;
         var liquidHeightM = totalHeightM * (1.0 - fHeadspace);
 
+        var tankAreaM2 = Math.PI * Math.Pow(diameterM, 2) / 4.0;
+        var vGrossActualPerTank = tankAreaM2 * totalHeightM;
+        var vWorkingActualPerTank = tankAreaM2 * liquidHeightM;
+        var vWorkingActualTotal = vWorkingActualPerTank * numTanks;
+
         return new DigesterSizingResult(
             NumTanks: numTanks,
-            VWorkingPerTankM3: vWorkingPerTank,
-            VGrossPerTankM3: vGrossPerTank,
+            VWorkingPerTankM3: vWorkingActualPerTank,
+            VGrossPerTankM3: vGrossActualPerTank,
             DiameterM: diameterM,
             TotalHeightM: totalHeightM,
             LiquidHeightM: liquidHeightM,
-            ActualHrtDays: (vWorkingPerTank * numTanks) / qSlurryM3Day,
-            ActualOlr: vsTotalKgDay / (vWorkingPerTank * numTanks));
+            ActualHrtDays: vWorkingActualTotal / qSlurryM3Day,
+            ActualOlr: vsTotalKgDay / vWorkingActualTotal);
     }
 }

@@ -11,6 +11,7 @@ public record HeatBalanceResult(
 
 public class HeatBalanceService
 {
+    private const double ThermalBridgeAllowanceFactor = 1.05;
     public static double GetOperatingTempC(DigesterRegime regime) =>
         regime == DigesterRegime.Mesophilic
             ? EngineeringConstants.MesophilicOperatingTempC
@@ -33,14 +34,17 @@ public class HeatBalanceService
         // Surface areas
         var aFloor = Math.PI * Math.Pow(diameterM, 2) / 4.0;
         var aWallLiquid = Math.PI * diameterM * liquidHeightM;
+        var aWallExposed = Math.PI * diameterM * Math.Max(totalHeightM - liquidHeightM, 0.0);
         var aRoof = Math.PI * Math.Pow(diameterM, 2) / 4.0 * EngineeringConstants.RoofAreaFactor;
 
         // Transmission losses
         var qLossW =
             (EngineeringConstants.UFloorWPerM2K * aFloor * deltaT) +
             (EngineeringConstants.UWallWPerM2K * aWallLiquid * deltaT) +
+            (EngineeringConstants.UWallWPerM2K * aWallExposed * deltaT) +
             (EngineeringConstants.URoofWPerM2K * aRoof * deltaT);
-        var qLossKw = qLossW / 1000.0;
+        var qLossKw = (qLossW * ThermalBridgeAllowanceFactor) / 1000.0;
+        
 
         var qTotalKw = (qFeedKw + qLossKw) * EngineeringConstants.HeatSafetyFactor;
 

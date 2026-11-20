@@ -89,9 +89,11 @@ public class CalculationEngine : ICalculationEngine
 
         var parasiticHeatKw = heat.QTotalThermalDutyKw * digester.NumTanks;
         var parasiticPowerKw =
-            (mechanical.TotalMixingPowerKw * digester.NumTanks) +
-            upgrading.UpgradingPowerKw +
-            upgrading.CompressorPowerKw;
+        (mechanical.TotalMixingPowerKw * digester.NumTanks) +
+        upgrading.UpgradingPowerKw +
+        upgrading.CompressorPowerKw +
+        preTreatment.ShredderPowerKw +
+        preTreatment.MixerPowerKw;
 
         return new CalculationResult(
             Blending: blending,

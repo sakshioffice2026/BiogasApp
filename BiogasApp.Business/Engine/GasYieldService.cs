@@ -32,13 +32,20 @@ public class GasYieldService
                 : EngineeringConstants.DefaultDegradationFactor;
 
             var biogasYield = vsKg * f.Bmp * degradation;
-            var ch4Yield = biogasYield * EngineeringConstants.MethaneFraction;
+            var methaneFraction = f.MethanePct.HasValue && f.MethanePct.Value > 0
+     ? f.MethanePct.Value / 100.0
+     : EngineeringConstants.MethaneFraction;
+            var ch4Yield = biogasYield * methaneFraction;
 
             qBiogasTotalNm3Day += biogasYield;
             qCh4TotalNm3Day += ch4Yield;
 
             double h2sFeedPpm;
-            if (f.Category == EngineeringConstants.AgroCategoryName)
+            if (f.H2sPpm.HasValue && f.H2sPpm.Value >= 0)
+            {
+                h2sFeedPpm = f.H2sPpm.Value;
+            }
+            else if (f.Category == EngineeringConstants.AgroCategoryName)
             {
                 h2sFeedPpm = EngineeringConstants.H2sPpmAgro;
             }
@@ -53,7 +60,7 @@ public class GasYieldService
 
             h2sWeightedPpm += h2sFeedPpm * biogasYield;
         }
-
+     
         if (qBiogasTotalNm3Day <= 0)
         {
             throw new InvalidOperationException("Total biogas yield is zero. Check feedstock inputs.");
@@ -62,7 +69,7 @@ public class GasYieldService
         h2sWeightedPpm /= qBiogasTotalNm3Day;
 
         var ch4Pct = (qCh4TotalNm3Day / qBiogasTotalNm3Day) * 100.0;
-        var co2Pct = 100.0 - ch4Pct - EngineeringConstants.MinorGasesPercent;
+        var co2Pct = Math.Max(0.0, 100.0 - ch4Pct - EngineeringConstants.MinorGasesPercent);
 
         var mH2sKgDay = qBiogasTotalNm3Day * (h2sWeightedPpm / 1e6) * EngineeringConstants.H2sKgPerNm3;
 

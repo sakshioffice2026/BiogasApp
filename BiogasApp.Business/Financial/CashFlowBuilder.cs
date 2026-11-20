@@ -8,11 +8,12 @@ public record CashFlowYear(
     double InterestPaid,
     double PrincipalPaid,
     double DebtService,
-    double ProjectCashFlow);
+    double ProjectCashFlow,
+    double EquityCashFlow = 0.0);
 
 public static class CashFlowBuilder
 {
-    public const int DefaultOperatingDays = 365;
+    public const int DefaultOperatingDays = (int)BiogasApp.Business.Constants.EngineeringConstants.PlantOperatingDaysPerYear;
     public const int DefaultLoanTenureYears = 10;
 
     public static double CalculateAnnualRevenue(
@@ -70,7 +71,8 @@ public static class CashFlowBuilder
             InterestPaid: 0,
             PrincipalPaid: 0,
             DebtService: 0,
-            ProjectCashFlow: -capexTotal));
+            ProjectCashFlow: -capexTotal,
+            EquityCashFlow: -(capexTotal - debt)));
 
         for (var year = 1; year <= projectLifeYears; year++)
         {
@@ -94,7 +96,8 @@ public static class CashFlowBuilder
                 InterestPaid: interest,
                 PrincipalPaid: principal,
                 DebtService: debtService,
-                ProjectCashFlow: ebitda));
+                ProjectCashFlow: ebitda,
+                EquityCashFlow: ebitda - debtService));
         }
 
         return years;

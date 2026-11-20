@@ -14,6 +14,16 @@ public class SimulationController : Controller
 {
     private const decimal DigesterUnitCost = 185000m;
     private const decimal UpgradingSkidUnitCost = 320000m;
+    private const decimal HeatExchangerUnitCost = 450000m;
+    private const decimal CompressorUnitCost = 4500000m;
+    private const decimal CascadeBankUnitCost = 600000m;
+    private const decimal ShredderUnitCost = 1200000m;
+    private const decimal SlurryMixTankUnitCost = 800000m;
+    private const decimal DigestateSeparatorUnitCost = 1500000m;
+    private const decimal CbgDispatchUnitCost = 2500000m;
+    private const decimal RccRatePerM3 = 8000m;
+    private const decimal ExcavationRatePerM3 = 300m;
+    private const decimal SteelRatePerTon = 65000m;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -401,7 +411,8 @@ public class SimulationController : Controller
                 ["feedHeatingKw"] = r.Heat.QFeedHeatingKw,
                 ["transmissionLossKw"] = r.Heat.QTransmissionLossKw
             },
-            0m));
+            HeatExchangerUnitCost));
+        
 
         list.Add(Equipment(runId, "UPG-101", $"{tech.ToString().ToUpperInvariant()}_UPGRADING_SKID", 1,
             new Dictionary<string, object?>
@@ -426,12 +437,12 @@ public class SimulationController : Controller
                 ["compressorPowerKw"] = r.Upgrading.CompressorPowerKw,
                 ["capacityNm3Hr"] = r.Upgrading.CompressorCapacityNm3Hr
             },
-            0m));
+            CompressorUnitCost));
 
         list.Add(Equipment(runId, "CSC-101", "CASCADE_STORAGE_BANK", Math.Max(r.Upgrading.NumCascadeBanks3000L, 1),
             new Dictionary<string, object?> { ["waterCapacityLitersPerBank"] = 3000 },
-            new Dictionary<string, object?> { ["totalWaterCapacityLiters"] = r.Upgrading.CascadeWaterCapacityLiters },
-            0m));
+                       new Dictionary<string, object?> { ["totalWaterCapacityLiters"] = r.Upgrading.CascadeWaterCapacityLiters },
+            CascadeBankUnitCost));
 
         // Stage 2 pre-treatment
         list.Add(Equipment(runId, "PRE-101", "SHREDDER", 1,
@@ -441,7 +452,7 @@ public class SimulationController : Controller
                 ["capacityTph"] = r.PreTreatment.ShredderCapacityTph,
                 ["powerKw"] = r.PreTreatment.ShredderPowerKw
             },
-            0m));
+            ShredderUnitCost));
 
         list.Add(Equipment(runId, "MIX-101", "SLURRY_MIX_TANK", 1,
             new Dictionary<string, object?> { ["volumeM3"] = r.PreTreatment.MixTankVolumeM3 },
@@ -452,7 +463,8 @@ public class SimulationController : Controller
                 ["dilutionWaterTpd"] = r.Blending.MWaterTpd,
                 ["slurryFlowM3Day"] = r.Blending.QSlurryM3Day
             },
-            0m));
+            SlurryMixTankUnitCost));
+        
 
         // Stage 6 digestate, civil and dispatch
         list.Add(Equipment(runId, "DIG-101", "DIGESTATE_SEPARATOR", 1,
@@ -462,7 +474,7 @@ public class SimulationController : Controller
                 ["solidCakeTpd"] = r.Bom.DigestateSolidCakeTpd,
                 ["liquidLfomTpd"] = r.Bom.DigestateLiquidLfomTpd
             },
-            0m));
+            DigestateSeparatorUnitCost));
 
         list.Add(Equipment(runId, "CIV-101", "CIVIL_WORKS", 1,
             new Dictionary<string, object?>(),
@@ -472,7 +484,9 @@ public class SimulationController : Controller
                 ["rccConcreteM3"] = r.Bom.CivilRccConcreteM3,
                 ["steelRebarTons"] = r.Bom.StructuralSteelRebarTons
             },
-            0m));
+            (decimal)r.Bom.CivilRccConcreteM3 * RccRatePerM3 +
+            (decimal)r.Bom.CivilExcavationM3 * ExcavationRatePerM3 +
+            (decimal)r.Bom.StructuralSteelRebarTons * SteelRatePerTon));
 
         list.Add(Equipment(runId, "DSP-101", "CBG_DISPATCH", 1,
             new Dictionary<string, object?>(),
@@ -485,7 +499,7 @@ public class SimulationController : Controller
                 ["fillTimeHoursPerTanker"] = r.Dispatch.FillTimeHoursPerTanker,
                 ["bufferHoursAvailable"] = r.Dispatch.BufferHoursAvailable
             },
-            0m));
+            CbgDispatchUnitCost));
 
         return list;
     }

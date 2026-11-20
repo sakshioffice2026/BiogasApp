@@ -80,20 +80,6 @@
             </div>
         </dl>
     </section>
-
-    <section class="bp-card" aria-labelledby="pj-status">
-        <h2 id="pj-status" class="pj-card-title">Project status</h2>
-        <p class="bp-muted">Move the project forward, or step it back when the design changes.</p>
-        <div class="pj-zone">
-            @foreach (var s in Enum.GetValues<ProjectStatus>().Where(s => s != Model.Status))
-            {
-                <form asp-action="SetStatus" asp-route-id="@Model.Id" method="post">
-                    <input type="hidden" name="status" value="@((int)s)" />
-                    <button type="submit" class="bp-btn bp-btn--ghost">@s.ActionLabel()</button>
-                </form>
-            }
-        </div>
-    </section>
 </div>
 
 <section class="bp-card pj-mix" aria-labelledby="pj-mix-title">

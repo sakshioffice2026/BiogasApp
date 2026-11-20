@@ -42,14 +42,14 @@ public class MechanicalSizingService
 
         var powerPerAgitatorKw = Math.Ceiling(pMixTotalKw / numAgitators);
 
-        // API 650 shell plate thickness
+        // Shell plate thickness - API 650 one-foot method only (no wind, seismic or roof checks)
         var courseHeight = EngineeringConstants.ShellCourseHeightM;
         var numCourses = (int)Math.Ceiling(totalHeightM / courseHeight);
         var courses = new List<ShellCourse>();
 
         for (var i = 0; i < numCourses; i++)
         {
-            var hLevel = totalHeightM - (i * courseHeight);
+            var hLevel = Math.Max(liquidHeightM - (i * courseHeight) - 0.3, 0.0);
 
             var tCalc =
                 (4.9 * diameterM * hLevel * EngineeringConstants.ShellSlurrySpecificGravity) /
