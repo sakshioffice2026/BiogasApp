@@ -9,11 +9,13 @@ namespace Web.Controllers;
 public class ProjectController : Controller
 {
     private readonly IProjectRepository _projects;
+    private readonly ISimulationRepository _simulations;
     private readonly ILogger<ProjectController> _logger;
 
-    public ProjectController(IProjectRepository projects, ILogger<ProjectController> logger)
+    public ProjectController(IProjectRepository projects, ISimulationRepository simulations, ILogger<ProjectController> logger)
     {
         _projects = projects;
+        _simulations = simulations;
         _logger = logger;
     }
 
@@ -32,6 +34,9 @@ public class ProjectController : Controller
         {
             return NotFound();
         }
+
+        var latestRun = await _simulations.GetLatestRunAsync(id, cancellationToken);
+        ViewData["LatestRunId"] = latestRun?.Id;
 
         project.FeedstockMix = await _projects.GetFeedstockMixAsync(id, cancellationToken);
         return View(project);

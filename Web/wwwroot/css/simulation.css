@@ -991,3 +991,9 @@
         min-height: 40px;
     }
 }
+
+.sm-next {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}

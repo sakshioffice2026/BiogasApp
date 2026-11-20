@@ -713,3 +713,25 @@ fieldset.pj-section > legend.pj-section__title {
             width: 100%;
         }
 }
+
+.pj-stepbar {
+    max-width: 880px;
+    margin: 0;
+}
+
+    .pj-stepbar button.wfs__txt {
+        padding: 0;
+        border: 0;
+        background: none;
+        text-align: left;
+        cursor: pointer;
+        font: inherit;
+    }
+
+.pj-actions [hidden] {
+    display: none;
+}
+
+.pj-section [data-pj-step-error] {
+    margin: .75rem 0 0;
+}

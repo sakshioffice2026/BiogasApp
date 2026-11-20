@@ -28,6 +28,8 @@
 
     // Results pages set ViewData["RunId"]; only those pages contain the section anchors.
     var linkSections = ViewData["RunId"] != null;
+    var latestRunId = ViewData["LatestRunId"] as Guid?;
+    var linkRunId = (ViewData["RunId"] as Guid?) ?? latestRunId;
 }
 
 <nav class="wfs" aria-label="Project workflow">
@@ -36,7 +38,26 @@
         {
             var s = Steps[i - 1];
             var state = i < current ? "is-done" : i == current ? "is-current" : "is-upcoming";
-            var anchor = linkSections ? Anchors[i - 1] : null;
+            var anchor = Anchors[i - 1];
+            string? href = null;
+            if (i == Steps.Length)
+            {
+                if (linkRunId != null)
+                {
+                    href = Url.Action("Index", "Proposal", new { runId = linkRunId });
+                }
+            }
+            else if (anchor != null)
+            {
+                if (linkSections)
+                {
+                    href = "#" + anchor;
+                }
+                else if (latestRunId != null)
+                {
+                    href = Url.Action("Dashboard", "Simulation", new { runId = latestRunId }) + "#" + anchor;
+                }
+            }
             <li class="wfs__item @state" aria-current="@(i == current ? "step" : null)" title="@s.Design | @s.Plant">
                 <span class="wfs__dot">
                     @if (i < current)
@@ -49,9 +70,9 @@
                         @i
                     }
                 </span>
-                @if (anchor != null)
+                @if (href != null)
                 {
-                    <a class="wfs__txt wfs__link" href="#@anchor">
+                    <a class="wfs__txt wfs__link" href="@href">
                         <strong>@s.Design</strong>
                         <small>@s.Plant</small>
                     </a>

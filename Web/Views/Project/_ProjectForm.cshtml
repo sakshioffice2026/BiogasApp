@@ -9,7 +9,7 @@
 <form asp-action="@(isEdit ? "Edit" : "Create")"
       asp-route-id="@Model.Id"
       method="post"
-      class="pj-form">
+      class="pj-form" data-pj-wizard>
 
     <div asp-validation-summary="ModelOnly"
          class="bp-toast bp-toast--error"
@@ -17,8 +17,41 @@
 
     <input asp-for="Id" type="hidden" />
 
+    <!-- STEP BAR (shown by project-steps.js) -->
+    @{
+        var wizardSteps = new List<(string Title, string Hint)>
+        {
+            ("Site", "Plot and location"),
+            ("Climate", "Temperature range"),
+            ("Regulatory code", "Safety standard"),
+            ("Digester regime", "Process temperature"),
+            ("Upgrading", "Gas upgrading")
+        };
+        if (isEdit)
+        {
+            wizardSteps.Add(("Status", "Project stage"));
+        }
+    }
+    <nav class="wfs pj-stepbar" aria-label="Project steps" data-pj-stepbar hidden>
+        <ol class="wfs__list" role="list">
+            @for (var i = 1; i <= wizardSteps.Count; i++)
+            {
+                <li class="wfs__item is-upcoming" data-pj-item="@i">
+                    <span class="wfs__dot">
+                        <span class="wfs__num">@i</span>
+                        <svg class="bp-ico wfs__tick" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12l5 5 9-10" /></svg>
+                    </span>
+                    <button type="button" class="wfs__txt wfs__link" data-pj-goto="@i">
+                        <strong>@wizardSteps[i - 1].Title</strong>
+                        <small>@wizardSteps[i - 1].Hint</small>
+                    </button>
+                </li>
+            }
+        </ol>
+    </nav>
+
     <!-- SITE -->
-    <section class="pj-section bp-card" aria-labelledby="pj-site-heading">
+    <section class="pj-section bp-card" aria-labelledby="pj-site-heading" data-pj-step="1">
         <h2 class="pj-section__title" id="pj-site-heading">Site</h2>
 
         <div class="pj-fields">
@@ -80,10 +113,12 @@
             <strong data-plot-value>0 m&sup2;</strong>
             <span data-plot-note>Needs at least 2,500 m&sup2;</span>
         </p>
+
+        <p class="field-validation-error" data-pj-step-error role="alert" hidden></p>
     </section>
 
     <!-- CLIMATE -->
-    <section class="pj-section bp-card" aria-labelledby="pj-climate-heading">
+    <section class="pj-section bp-card" aria-labelledby="pj-climate-heading" data-pj-step="2">
         <h2 class="pj-section__title" id="pj-climate-heading">Climate</h2>
 
         <div class="pj-fields">
@@ -117,10 +152,12 @@
         </div>
 
         <p class="bp-muted mb-0" data-temp-output aria-live="polite"></p>
+
+        <p class="field-validation-error" data-pj-step-error role="alert" hidden></p>
     </section>
 
     <!-- REGULATORY CODE -->
-    <section class="pj-section bp-card" aria-labelledby="pj-regulatory-heading">
+    <section class="pj-section bp-card" aria-labelledby="pj-regulatory-heading" data-pj-step="3">
         <h2 class="pj-section__title" id="pj-regulatory-heading">Regulatory code</h2>
 
         <div class="pj-choices">
@@ -153,7 +190,7 @@
     </section>
 
     <!-- DIGESTER REGIME -->
-    <section class="pj-section bp-card" aria-labelledby="pj-regime-heading">
+    <section class="pj-section bp-card" aria-labelledby="pj-regime-heading" data-pj-step="4">
         <h2 class="pj-section__title" id="pj-regime-heading">Digester regime</h2>
 
         <div class="pj-choices">
@@ -186,7 +223,7 @@
     </section>
 
     <!-- UPGRADING TECHNOLOGY -->
-    <section class="pj-section bp-card" aria-labelledby="pj-tech-heading">
+    <section class="pj-section bp-card" aria-labelledby="pj-tech-heading" data-pj-step="5">
         <h2 class="pj-section__title" id="pj-tech-heading">Upgrading technology</h2>
 
         <div class="pj-choices">
@@ -221,7 +258,7 @@
     <!-- STATUS (EDIT ONLY) -->
     @if (isEdit)
     {
-        <section class="pj-section bp-card" aria-labelledby="pj-status-heading">
+        <section class="pj-section bp-card" aria-labelledby="pj-status-heading" data-pj-step="6">
             <h2 class="pj-section__title" id="pj-status-heading">Status</h2>
 
             <div class="pj-fields">
@@ -238,7 +275,10 @@
 
     <!-- ACTIONS -->
     <div class="pj-actions">
-        <button type="submit" class="bp-btn bp-btn--primary">
+        <button type="button" class="bp-btn bp-btn--ghost" data-pj-back hidden>Back</button>
+        <button type="button" class="bp-btn bp-btn--primary" data-pj-next hidden>Next</button>
+
+        <button type="submit" class="bp-btn bp-btn--primary" data-pj-submit>
             @(isEdit ? "Save changes" : "Create project")
         </button>
 
@@ -248,5 +288,4 @@
             Cancel
         </a>
     </div>
-
 </form>
