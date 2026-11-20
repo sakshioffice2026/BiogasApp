@@ -1,0 +1,23 @@
+@model BiogasApp.Model.DTOs.UpgradingDto
+
+<section class="sm-panel sm-panel--wide bp-card" id="sm-upgrading" aria-labelledby="sm-up-title">
+    <h2 class="sm-card-title" id="sm-up-title">Upgrading and compression</h2>
+
+    @if (Model.CbgKgDay <= 0 && Model.UpgradingPowerKw <= 0)
+    {
+        <p class="bp-muted mb-0">Not available for this run. Run the simulation again to see these results.</p>
+    }
+    else
+    {
+        <dl class="sm-bubbles">
+            <div class="sm-bubble"><dt>Technology</dt><dd>@Model.Technology</dd></div>
+            <div class="sm-bubble"><dt>Compressed biogas</dt><dd>@Model.CbgNm3Day.ToString("N0") <small>Nm&sup3;/day</small></dd></div>
+            <div class="sm-bubble"><dt>Compressed biogas mass</dt><dd>@Model.CbgKgDay.ToString("N0") <small>kg/day</small></dd></div>
+            <div class="sm-bubble"><dt>Upgrading power</dt><dd>@Model.UpgradingPowerKw.ToString("N1") <small>kW</small></dd></div>
+            <div class="sm-bubble"><dt>Compressor power</dt><dd>@Model.CompressorPowerKw.ToString("N1") <small>kW</small></dd></div>
+            <div class="sm-bubble"><dt>Compressor capacity</dt><dd>@Model.CompressorCapacityNm3Hr.ToString("N0") <small>Nm&sup3;/hr</small></dd></div>
+            <div class="sm-bubble"><dt>Cascade water capacity</dt><dd>@Model.CascadeWaterCapacityLiters.ToString("N0") <small>litres</small></dd></div>
+            <div class="sm-bubble"><dt>Cascade banks (3,000 L)</dt><dd>@Model.CascadeBanks3000L</dd></div>
+        </dl>
+    }
+</section>

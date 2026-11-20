@@ -87,6 +87,23 @@ public static class EngineeringConstants
     public const double ExcavationDepthM = 2.5;
     public const double RebarKgPerM3Concrete = 120.0;
 
+
+    // ---------- Stage 2 Pre-treatment ----------
+    public const double ShredderOperatingHoursPerDay = 16.0;
+    public const double ShredderCapacityFactor = 1.25;
+    public const double ShredderSpecificEnergyKwhPerTon = 4.0;
+    public const double MixTankResidenceHours = 2.0;
+    public const double MixTankPowerDensityWPerM3 = 8.0;
+    public const double WaterDensityTPerM3 = 1.0;
+
+    // ---------- Stage 6 CBG dispatch ----------
+    public const double CbgTankerPayloadKg = 1000.0;
+    public const double PlantOperatingDaysPerYear = 330.0;
+    public static readonly double CascadeStoredKgPerM3Water =
+        (CascadePressureBar * StandardTempK) /
+        (StandardPressureBar * CascadeCompressibilityZ * CascadeActualTempK) *
+        CbgDensityKgPerNm3;
+
     // ---------- 5. DXF shell development ----------
     public const double SheetLengthMm = 8000.0;
     public const double SheetHeightMm = 2000.0;

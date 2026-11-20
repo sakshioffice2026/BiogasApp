@@ -10,6 +10,17 @@ namespace BiogasApp.Repositories.Repositories;
 public class SimulationRepository : ISimulationRepository
 {
     private const double SlurryDensityTPerM3 = 1.02; // same density the blending step uses
+    private const string UpgradingSkidSuffix = "_UPGRADING_SKID";
+
+    // EquipmentType values written by SimulationController.BuildEquipment.
+    public const string HeatExchangerType = "HEAT_EXCHANGER";
+    public const string CompressorType = "HIGH_PRESSURE_COMPRESSOR";
+    public const string CascadeType = "CASCADE_STORAGE_BANK";
+    public const string ShredderType = "SHREDDER";
+    public const string MixTankType = "SLURRY_MIX_TANK";
+    public const string DigestateType = "DIGESTATE_SEPARATOR";
+    public const string CivilType = "CIVIL_WORKS";
+    public const string DispatchType = "CBG_DISPATCH";
 
     private readonly ApplicationDbContext _db;
 
@@ -96,9 +107,11 @@ public class SimulationRepository : ISimulationRepository
 
     /// <summary>
     /// Builds the API/UI result for a stored run.
-    /// DilutionWaterRequiredTpd and TotalSlurryFlowM3Day are not stored in simulation_runs,
-    /// so they are derived from stored values: Q = VS(kg/day) / (OLR * HRT), and
-    /// dilution water = Q * density - total feed (never below 0).
+    /// Dilution water and slurry flow are read from the saved slurry mix tank row when it exists.
+    /// Older runs without that row fall back to values derived from stored data:
+    /// Q = VS(kg/day) / (OLR * HRT), and dilution water = Q * density - total feed (never below 0).
+    /// Thermal, upgrading, digestate, civil, pre-treatment and dispatch sections are read from
+    /// the saved equipment rows; sections missing from an older run stay at zero.
     /// </summary>
     public async Task<SimulationResultDto?> GetResultDtoAsync(Guid runId, CancellationToken cancellationToken = default)
     {
@@ -106,14 +119,29 @@ public class SimulationRepository : ISimulationRepository
         if (run is null) return null;
 
         var equipment = await GetEquipmentAsync(runId, cancellationToken);
+        var items = equipment.Select(e => new EquipmentSizingDto
+        {
+            EquipmentTag = e.EquipmentTag,
+            EquipmentType = e.EquipmentType,
+            Quantity = e.Quantity,
+            GeometryParams = ParseObject(e.GeometryParamsJson),
+            ProcessDuty = ParseObject(e.ProcessDutyJson),
+            UnitCost = e.UnitCost,
+            TotalCost = e.TotalCost
+        }).ToList();
 
         var vsKgDay = (double)run.BlendedVsTpd * 1000.0;
         var olr = (double)run.OlrKgVsM3Day;
         var hrt = (double)run.HrtDays;
         var totalFeed = (double)run.TotalFeedTpd;
 
-        var slurryFlowM3Day = olr > 0 && hrt > 0 ? vsKgDay / (olr * hrt) : 0.0;
-        var dilutionWaterTpd = Math.Max(0.0, (slurryFlowM3Day * SlurryDensityTPerM3) - totalFeed);
+        var mix = items.FirstOrDefault(e => e.EquipmentType == MixTankType);
+
+        var slurryFlowM3Day = Num(mix?.ProcessDuty, "slurryFlowM3Day")
+            ?? (olr > 0 && hrt > 0 ? vsKgDay / (olr * hrt) : 0.0);
+        var dilutionWaterTpd = Num(mix?.ProcessDuty, "dilutionWaterTpd")
+            ?? Math.Max(0.0, (slurryFlowM3Day * SlurryDensityTPerM3) - totalFeed);
+        var dilutionWaterM3Day = Num(mix?.ProcessDuty, "dilutionWaterM3Day") ?? dilutionWaterTpd;
 
         return new SimulationResultDto
         {
@@ -125,6 +153,7 @@ public class SimulationRepository : ISimulationRepository
                 TotalFeedTpd = totalFeed,
                 BlendedTsPercent = (double)run.BlendedTsPercent,
                 DilutionWaterRequiredTpd = Math.Round(dilutionWaterTpd, 2),
+                DilutionWaterM3Day = Math.Round(dilutionWaterM3Day, 2),
                 TotalSlurryFlowM3Day = Math.Round(slurryFlowM3Day, 2),
                 BlendedCnRatio = (double)run.BlendedCnRatio,
                 VsTotalKgDay = vsKgDay
@@ -139,18 +168,157 @@ public class SimulationRepository : ISimulationRepository
                 H2sPpm = (double)run.H2sPpm,
                 NetCbgKgDay = (double)run.NetCbgKgDay
             },
-            EquipmentSizing = equipment.Select(e => new EquipmentSizingDto
-            {
-                EquipmentTag = e.EquipmentTag,
-                EquipmentType = e.EquipmentType,
-                Quantity = e.Quantity,
-                GeometryParams = ParseObject(e.GeometryParamsJson),
-                ProcessDuty = ParseObject(e.ProcessDutyJson),
-                UnitCost = e.UnitCost,
-                TotalCost = e.TotalCost
-            }).ToList(),
+            PreTreatment = BuildPreTreatment(items),
+            Thermal = BuildThermal(items),
+            Upgrading = BuildUpgrading(items),
+            Digestate = BuildDigestate(items),
+            Dispatch = BuildDispatch(items),
+            EquipmentSizing = items,
             Warnings = ParseStringList(run.WarningsJson)
         };
+    }
+
+    // ------------------------------------------------------------------ Section builders
+
+    private static PreTreatmentDto BuildPreTreatment(List<EquipmentSizingDto> items)
+    {
+        var shredder = items.FirstOrDefault(e => e.EquipmentType == ShredderType);
+        var mix = items.FirstOrDefault(e => e.EquipmentType == MixTankType);
+
+        return new PreTreatmentDto
+        {
+            ShredderCapacityTph = Num(shredder?.ProcessDuty, "capacityTph") ?? 0,
+            ShredderPowerKw = Num(shredder?.ProcessDuty, "powerKw") ?? 0,
+            MixTankVolumeM3 = Num(mix?.GeometryParams, "volumeM3") ?? 0,
+            MixerPowerKw = Num(mix?.ProcessDuty, "mixerPowerKw") ?? 0,
+            DilutionWaterM3Day = Num(mix?.ProcessDuty, "dilutionWaterM3Day") ?? 0
+        };
+    }
+
+    private static ThermalMechanicalDto BuildThermal(List<EquipmentSizingDto> items)
+    {
+        var digester = items.FirstOrDefault(e => e.EquipmentType == DashboardRepository.DigesterEquipmentType);
+        var hx = items.FirstOrDefault(e => e.EquipmentType == HeatExchangerType);
+
+        var tankCount = digester?.Quantity ?? hx?.Quantity ?? 0;
+        var dutyPerTank = Num(hx?.ProcessDuty, "thermalDutyKw") ?? 0;
+
+        var specified = NumList(digester?.GeometryParams, "shellThicknessMmArray");
+        var calculated = NumList(digester?.GeometryParams, "shellCalculatedMmArray");
+
+        var courses = new List<ShellCourseDto>();
+        for (var i = 0; i < specified.Count; i++)
+        {
+            courses.Add(new ShellCourseDto
+            {
+                CourseIndex = i + 1,
+                CalculatedMm = i < calculated.Count ? calculated[i] : 0,
+                SpecifiedMm = specified[i]
+            });
+        }
+
+        return new ThermalMechanicalDto
+        {
+            TankCount = tankCount,
+            FeedHeatingKwPerTank = Num(hx?.ProcessDuty, "feedHeatingKw") ?? 0,
+            TransmissionLossKwPerTank = Num(hx?.ProcessDuty, "transmissionLossKw") ?? 0,
+            TotalThermalDutyKwPerTank = dutyPerTank,
+            TotalThermalDutyKw = dutyPerTank * Math.Max(tankCount, 0),
+            HeatExchangerAreaM2PerTank = Num(hx?.GeometryParams, "areaM2") ?? 0,
+            TotalMixingPowerKwPerTank = Num(digester?.ProcessDuty, "mixingPowerKw") ?? 0,
+            AgitatorCountPerTank = (int)(Num(digester?.ProcessDuty, "agitatorCount") ?? 0),
+            PowerPerAgitatorKw = Num(digester?.ProcessDuty, "powerPerAgitatorKw") ?? 0,
+            ShellCourses = courses
+        };
+    }
+
+    private static UpgradingDto BuildUpgrading(List<EquipmentSizingDto> items)
+    {
+        var skid = items.FirstOrDefault(e => e.EquipmentType.EndsWith(UpgradingSkidSuffix, StringComparison.Ordinal));
+        var compressor = items.FirstOrDefault(e => e.EquipmentType == CompressorType);
+        var cascade = items.FirstOrDefault(e => e.EquipmentType == CascadeType);
+
+        var technology = skid is null
+            ? string.Empty
+            : skid.EquipmentType[..^UpgradingSkidSuffix.Length];
+
+        return new UpgradingDto
+        {
+            Technology = technology,
+            CbgNm3Day = Num(skid?.ProcessDuty, "cbgNm3Day") ?? 0,
+            CbgKgDay = Num(skid?.ProcessDuty, "cbgKgDay") ?? 0,
+            UpgradingPowerKw = Num(skid?.ProcessDuty, "upgradingPowerKw") ?? 0,
+            CompressorPowerKw = Num(compressor?.ProcessDuty, "compressorPowerKw") ?? 0,
+            CompressorCapacityNm3Hr = Num(compressor?.ProcessDuty, "capacityNm3Hr") ?? 0,
+            CascadeWaterCapacityLiters = Num(cascade?.ProcessDuty, "totalWaterCapacityLiters") ?? 0,
+            CascadeBanks3000L = cascade?.Quantity ?? 0
+        };
+    }
+
+    private static DigestateCivilDto BuildDigestate(List<EquipmentSizingDto> items)
+    {
+        var digestate = items.FirstOrDefault(e => e.EquipmentType == DigestateType);
+        var civil = items.FirstOrDefault(e => e.EquipmentType == CivilType);
+
+        return new DigestateCivilDto
+        {
+            SolidCakeTpd = Num(digestate?.ProcessDuty, "solidCakeTpd") ?? 0,
+            LiquidLfomTpd = Num(digestate?.ProcessDuty, "liquidLfomTpd") ?? 0,
+            ExcavationM3 = Num(civil?.ProcessDuty, "excavationM3") ?? 0,
+            RccConcreteM3 = Num(civil?.ProcessDuty, "rccConcreteM3") ?? 0,
+            SteelRebarTons = Num(civil?.ProcessDuty, "steelRebarTons") ?? 0
+        };
+    }
+
+    private static CbgDispatchDto BuildDispatch(List<EquipmentSizingDto> items)
+    {
+        var dispatch = items.FirstOrDefault(e => e.EquipmentType == DispatchType);
+
+        return new CbgDispatchDto
+        {
+            CbgTonnesPerDay = Num(dispatch?.ProcessDuty, "cbgTonnesPerDay") ?? 0,
+            CbgTonnesPerYear = Num(dispatch?.ProcessDuty, "cbgTonnesPerYear") ?? 0,
+            TankerPayloadKg = Num(dispatch?.ProcessDuty, "tankerPayloadKg") ?? 0,
+            TankerLoadsPerDay = (int)(Num(dispatch?.ProcessDuty, "tankerLoadsPerDay") ?? 0),
+            FillTimeHoursPerTanker = Num(dispatch?.ProcessDuty, "fillTimeHoursPerTanker") ?? 0,
+            BufferHoursAvailable = Num(dispatch?.ProcessDuty, "bufferHoursAvailable") ?? 0
+        };
+    }
+
+    // ------------------------------------------------------------------ JSON helpers
+
+    private static double? Num(IDictionary<string, object?>? values, string key) =>
+        DashboardRepository.ReadNumber(values, key);
+
+    private static List<double> NumList(IDictionary<string, object?>? values, string key)
+    {
+        var result = new List<double>();
+        if (values is null) return result;
+
+        foreach (var pair in values)
+        {
+            if (!string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (pair.Value is IEnumerable<object?> list)
+            {
+                foreach (var item in list)
+                {
+                    result.Add(item switch
+                    {
+                        long l => l,
+                        int i => i,
+                        double d => d,
+                        decimal m => (double)m,
+                        _ => 0.0
+                    });
+                }
+            }
+
+            break;
+        }
+
+        return result;
     }
 
     private static Dictionary<string, object?> ParseObject(string? json)

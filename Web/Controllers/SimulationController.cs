@@ -216,6 +216,11 @@ public class SimulationController : Controller
             Kpis = kpis,
             MassBalance = result.MassBalance,
             DigesterKinetics = result.DigesterKinetics,
+            PreTreatment = result.PreTreatment,
+            Thermal = result.Thermal,
+            Upgrading = result.Upgrading,
+            Digestate = result.Digestate,
+            Dispatch = result.Dispatch,
             Equipment = result.EquipmentSizing,
             Warnings = result.Warnings
         };
@@ -374,6 +379,7 @@ public class SimulationController : Controller
             ["liquidHeightM"] = r.Digester.LiquidHeightM,
             ["totalHeightM"] = r.Digester.TotalHeightM,
             ["shellThicknessMmArray"] = r.Mechanical.ShellCourses.Select(c => c.SpecifiedMm).ToArray(),
+            ["shellCalculatedMmArray"] = r.Mechanical.ShellCourses.Select(c => c.CalculatedMm).ToArray(),
             ["domeHeightM"] = Math.Round(r.Digester.DiameterM * 0.15, 1)
         };
         var digesterDuty = new Dictionary<string, object?>
@@ -381,6 +387,7 @@ public class SimulationController : Controller
             ["workingVolumeM3"] = Math.Round(r.Digester.VWorkingPerTankM3, 1),
             ["mixingPowerKw"] = r.Mechanical.TotalMixingPowerKw,
             ["agitatorCount"] = r.Mechanical.AgitatorCount,
+            ["powerPerAgitatorKw"] = r.Mechanical.PowerPerAgitatorKw,
             ["heatingThermalKw"] = r.Heat.QTotalThermalDutyKw
         };
         list.Add(Equipment(runId, "D-101", "PRIMARY_DIGESTER_CSTR", r.Digester.NumTanks,
@@ -388,7 +395,12 @@ public class SimulationController : Controller
 
         list.Add(Equipment(runId, "HX-101", "HEAT_EXCHANGER", r.Digester.NumTanks,
             new Dictionary<string, object?> { ["areaM2"] = r.Heat.HeatExchangerAreaM2 },
-            new Dictionary<string, object?> { ["thermalDutyKw"] = r.Heat.QTotalThermalDutyKw },
+            new Dictionary<string, object?>
+            {
+                ["thermalDutyKw"] = r.Heat.QTotalThermalDutyKw,
+                ["feedHeatingKw"] = r.Heat.QFeedHeatingKw,
+                ["transmissionLossKw"] = r.Heat.QTransmissionLossKw
+            },
             0m));
 
         list.Add(Equipment(runId, "UPG-101", $"{tech.ToString().ToUpperInvariant()}_UPGRADING_SKID", 1,
@@ -401,7 +413,9 @@ public class SimulationController : Controller
             new Dictionary<string, object?>
             {
                 ["rawBiogasInletNm3Hr"] = Math.Round(r.Gas.QBiogasNm3Hr, 1),
-                ["upgradingPowerKw"] = r.Upgrading.UpgradingPowerKw
+                ["upgradingPowerKw"] = r.Upgrading.UpgradingPowerKw,
+                ["cbgNm3Day"] = r.Upgrading.QCbgNm3Day,
+                ["cbgKgDay"] = r.Upgrading.MCbgKgDay
             },
             UpgradingSkidUnitCost));
 
@@ -417,6 +431,60 @@ public class SimulationController : Controller
         list.Add(Equipment(runId, "CSC-101", "CASCADE_STORAGE_BANK", Math.Max(r.Upgrading.NumCascadeBanks3000L, 1),
             new Dictionary<string, object?> { ["waterCapacityLitersPerBank"] = 3000 },
             new Dictionary<string, object?> { ["totalWaterCapacityLiters"] = r.Upgrading.CascadeWaterCapacityLiters },
+            0m));
+
+        // Stage 2 pre-treatment
+        list.Add(Equipment(runId, "PRE-101", "SHREDDER", 1,
+            new Dictionary<string, object?>(),
+            new Dictionary<string, object?>
+            {
+                ["capacityTph"] = r.PreTreatment.ShredderCapacityTph,
+                ["powerKw"] = r.PreTreatment.ShredderPowerKw
+            },
+            0m));
+
+        list.Add(Equipment(runId, "MIX-101", "SLURRY_MIX_TANK", 1,
+            new Dictionary<string, object?> { ["volumeM3"] = r.PreTreatment.MixTankVolumeM3 },
+            new Dictionary<string, object?>
+            {
+                ["mixerPowerKw"] = r.PreTreatment.MixerPowerKw,
+                ["dilutionWaterM3Day"] = r.PreTreatment.DilutionWaterM3Day,
+                ["dilutionWaterTpd"] = r.Blending.MWaterTpd,
+                ["slurryFlowM3Day"] = r.Blending.QSlurryM3Day
+            },
+            0m));
+
+        // Stage 6 digestate, civil and dispatch
+        list.Add(Equipment(runId, "DIG-101", "DIGESTATE_SEPARATOR", 1,
+            new Dictionary<string, object?>(),
+            new Dictionary<string, object?>
+            {
+                ["solidCakeTpd"] = r.Bom.DigestateSolidCakeTpd,
+                ["liquidLfomTpd"] = r.Bom.DigestateLiquidLfomTpd
+            },
+            0m));
+
+        list.Add(Equipment(runId, "CIV-101", "CIVIL_WORKS", 1,
+            new Dictionary<string, object?>(),
+            new Dictionary<string, object?>
+            {
+                ["excavationM3"] = r.Bom.CivilExcavationM3,
+                ["rccConcreteM3"] = r.Bom.CivilRccConcreteM3,
+                ["steelRebarTons"] = r.Bom.StructuralSteelRebarTons
+            },
+            0m));
+
+        list.Add(Equipment(runId, "DSP-101", "CBG_DISPATCH", 1,
+            new Dictionary<string, object?>(),
+            new Dictionary<string, object?>
+            {
+                ["cbgTonnesPerDay"] = r.Dispatch.CbgTonnesPerDay,
+                ["cbgTonnesPerYear"] = r.Dispatch.CbgTonnesPerYear,
+                ["tankerPayloadKg"] = r.Dispatch.TankerPayloadKg,
+                ["tankerLoadsPerDay"] = r.Dispatch.TankerLoadsPerDay,
+                ["fillTimeHoursPerTanker"] = r.Dispatch.FillTimeHoursPerTanker,
+                ["bufferHoursAvailable"] = r.Dispatch.BufferHoursAvailable
+            },
             0m));
 
         return list;

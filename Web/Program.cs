@@ -70,6 +70,8 @@ builder.Services.AddScoped<HeatBalanceService>();
 builder.Services.AddScoped<MechanicalSizingService>();
 builder.Services.AddScoped<UpgradingService>();
 builder.Services.AddScoped<DigestateBomService>();
+builder.Services.AddScoped<PreTreatmentService>();
+builder.Services.AddScoped<CbgDispatchService>();
 builder.Services.AddScoped<ICalculationEngine, CalculationEngine>();
 
 var app = builder.Build();

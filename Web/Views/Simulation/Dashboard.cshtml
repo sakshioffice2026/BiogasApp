@@ -6,6 +6,7 @@
     ViewData["RunId"] = Model.SimulationRunId;
     var mb = Model.MassBalance;
     var dk = Model.DigesterKinetics;
+    var pt = Model.PreTreatment;
     var warnings = Model.Warnings.Count > 0 ? Model.Warnings : Model.Kpis.Warnings;
     var totalCost = Model.Equipment.Sum(e => e.TotalCost);
     var other = Math.Max(0d, 100d - dk.Ch4Percent - dk.Co2Percent);
@@ -31,7 +32,7 @@
         <h1>Simulation results</h1>
         <p class="bp-muted mb-0">
             <strong>@Model.ProjectName</strong>
-            <span class="bp-chip bp-chip--simulated">Run v@Model.RunVersion</span>
+            <span class="bp-chip bp-chip--simulated">Run v@(Model.RunVersion)</span>
             <span class="bp-chip bp-chip--@(Model.ProjectStatus.Css())">@Model.ProjectStatus.Label()</span>
         </p>
     </div>
@@ -67,8 +68,8 @@
 <partial name="_TechToggle" model="Model" />
 
 <div class="sm-columns">
-    <section class="sm-panel bp-card" aria-labelledby="sm-mb-title">
-        <h2 class="sm-card-title" id="sm-mb-title">Mass balance</h2>
+    <section class="sm-panel bp-card" id="sm-massbalance" aria-labelledby="sm-mb-title">
+        <h2 class="sm-card-title" id="sm-mb-title">Mass balance and pre-treatment</h2>
         <dl class="sm-bubbles">
             <div class="sm-bubble"><dt>Total feed</dt><dd>@mb.TotalFeedTpd.ToString("N1") <small>TPD</small></dd></div>
             <div class="sm-bubble"><dt>Blended TS</dt><dd>@mb.BlendedTsPercent.ToString("N1") <small>%</small></dd></div>
@@ -76,10 +77,17 @@
             <div class="sm-bubble"><dt>Slurry flow</dt><dd>@mb.TotalSlurryFlowM3Day.ToString("N1") <small>m&sup3;/day</small></dd></div>
             <div class="sm-bubble"><dt>Blended C:N</dt><dd>@mb.BlendedCnRatio.ToString("N1")</dd></div>
             <div class="sm-bubble"><dt>Volatile solids</dt><dd>@mb.VsTotalKgDay.ToString("N0") <small>kg/day</small></dd></div>
+            @if (pt.ShredderPowerKw > 0 || pt.MixerPowerKw > 0)
+            {
+                <div class="sm-bubble"><dt>Shredder capacity</dt><dd>@pt.ShredderCapacityTph.ToString("N1") <small>t/hr</small></dd></div>
+                <div class="sm-bubble"><dt>Shredder power</dt><dd>@pt.ShredderPowerKw.ToString("N0") <small>kW</small></dd></div>
+                <div class="sm-bubble"><dt>Slurry mix tank</dt><dd>@pt.MixTankVolumeM3.ToString("N0") <small>m&sup3;</small></dd></div>
+                <div class="sm-bubble"><dt>Mix tank agitator</dt><dd>@pt.MixerPowerKw.ToString("N0") <small>kW</small></dd></div>
+            }
         </dl>
     </section>
 
-    <section class="sm-panel bp-card" aria-labelledby="sm-dk-title">
+    <section class="sm-panel bp-card" id="sm-digester" aria-labelledby="sm-dk-title">
         <h2 class="sm-card-title" id="sm-dk-title">Digester performance</h2>
         <dl class="sm-bubbles">
             <div class="sm-bubble"><dt>Retention time</dt><dd>@dk.HrtDays.ToString("N1") <small>days</small></dd></div>
@@ -96,6 +104,12 @@
         </div>
     </section>
 </div>
+
+<partial name="_ThermalCard" model="Model.Thermal" />
+
+<partial name="_UpgradingCard" model="Model.Upgrading" />
+
+<partial name="_DigestateCard" model="(Model.Digestate, Model.Dispatch)" />
 
 <section class="sm-section" aria-labelledby="sm-eq-title">
     <div class="sm-section__head">

@@ -16,6 +16,11 @@ public class SimulationDashboardViewModel
     public DashboardDto Kpis { get; set; } = new();
     public MassBalanceDto MassBalance { get; set; } = new();
     public DigesterKineticsDto DigesterKinetics { get; set; } = new();
+    public PreTreatmentDto PreTreatment { get; set; } = new();
+    public ThermalMechanicalDto Thermal { get; set; } = new();
+    public UpgradingDto Upgrading { get; set; } = new();
+    public DigestateCivilDto Digestate { get; set; } = new();
+    public CbgDispatchDto Dispatch { get; set; } = new();
     public List<EquipmentSizingDto> Equipment { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
 }

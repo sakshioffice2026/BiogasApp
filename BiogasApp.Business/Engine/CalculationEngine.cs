@@ -9,6 +9,8 @@ public class CalculationEngine : ICalculationEngine
     private readonly MechanicalSizingService _mechanical;
     private readonly UpgradingService _upgrading;
     private readonly DigestateBomService _bom;
+    private readonly PreTreatmentService _preTreatment;
+    private readonly CbgDispatchService _dispatch;
 
     public CalculationEngine(
         FeedstockBlendingService blending,
@@ -17,7 +19,9 @@ public class CalculationEngine : ICalculationEngine
         HeatBalanceService heat,
         MechanicalSizingService mechanical,
         UpgradingService upgrading,
-        DigestateBomService bom)
+        DigestateBomService bom,
+        PreTreatmentService preTreatment,
+        CbgDispatchService dispatch)
     {
         _blending = blending;
         _digester = digester;
@@ -26,6 +30,8 @@ public class CalculationEngine : ICalculationEngine
         _mechanical = mechanical;
         _upgrading = upgrading;
         _bom = bom;
+        _preTreatment = preTreatment;
+        _dispatch = dispatch;
     }
 
     public CalculationResult Run(CalculationInput input)
@@ -70,6 +76,17 @@ public class CalculationEngine : ICalculationEngine
             digester.TotalHeightM,
             digester.NumTanks);
 
+        // 3.8 Pre-treatment (stage 2)
+        var preTreatment = _preTreatment.Calculate(
+            blending.MFeedTotalTpd,
+            blending.MWaterTpd,
+            blending.QSlurryM3Day);
+
+        // 3.9 CBG dispatch (stage 6)
+        var dispatch = _dispatch.Calculate(
+            upgrading.MCbgKgDay,
+            upgrading.CascadeWaterCapacityLiters);
+
         var parasiticHeatKw = heat.QTotalThermalDutyKw * digester.NumTanks;
         var parasiticPowerKw =
             (mechanical.TotalMixingPowerKw * digester.NumTanks) +
@@ -84,6 +101,8 @@ public class CalculationEngine : ICalculationEngine
             Mechanical: mechanical,
             Upgrading: upgrading,
             Bom: bom,
+            PreTreatment: preTreatment,
+            Dispatch: dispatch,
             ParasiticHeatKw: parasiticHeatKw,
             ParasiticPowerKw: parasiticPowerKw,
             Warnings: blending.Warnings);

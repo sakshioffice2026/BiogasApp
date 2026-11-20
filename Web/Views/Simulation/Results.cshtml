@@ -1,3 +1,4 @@
+@using System.Collections
 @using System.Globalization
 @using System.Text.RegularExpressions
 @model BiogasApp.Model.DTOs.SimulationResultDto
@@ -6,6 +7,7 @@
     ViewData["RunId"] = Model.SimulationRunId;
     var mb = Model.MassBalance;
     var dk = Model.DigesterKinetics;
+    var pt = Model.PreTreatment;
     var inv = CultureInfo.InvariantCulture;
     var other = Math.Max(0d, 100d - dk.Ch4Percent - dk.Co2Percent);
     var totalCost = Model.EquipmentSizing.Sum(e => e.TotalCost);
@@ -34,7 +36,23 @@
         return char.ToUpperInvariant(text[0]) + text.Substring(1);
     }
 
-    static string ValueText(object? value) => value?.ToString() ?? "n/a";
+    static string ValueText(object? value)
+    {
+        if (value is null) return "n/a";
+        if (value is string s) return s;
+        if (value is IEnumerable list)
+        {
+            var parts = new List<string>();
+            foreach (var item in list)
+            {
+                parts.Add(item?.ToString() ?? "n/a");
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        return value.ToString() ?? "n/a";
+    }
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
@@ -44,7 +62,7 @@
 <div class="bp-page-head">
     <div>
         <h1>Detailed results</h1>
-        <p class="bp-muted mb-0"><span class="bp-chip bp-chip--simulated">Run v@Model.Version</span></p>
+        <p class="bp-muted mb-0"><span class="bp-chip bp-chip--simulated">Run v@(Model.Version)</span></p>
     </div>
     <div class="sm-actions">
         <a class="bp-btn bp-btn--primary" asp-action="Dashboard" asp-route-runId="@Model.SimulationRunId">Dashboard</a>
@@ -73,19 +91,27 @@
 }
 
 <div class="sm-columns">
-    <section class="sm-panel bp-card" aria-labelledby="sm-mb-title">
-        <h2 class="sm-card-title" id="sm-mb-title">Mass balance</h2>
+    <section class="sm-panel bp-card" id="sm-massbalance" aria-labelledby="sm-mb-title">
+        <h2 class="sm-card-title" id="sm-mb-title">Mass balance and pre-treatment</h2>
         <dl class="sm-bubbles">
             <div class="sm-bubble"><dt>Total feed</dt><dd>@mb.TotalFeedTpd.ToString("N2") <small>TPD</small></dd></div>
             <div class="sm-bubble"><dt>Blended TS</dt><dd>@mb.BlendedTsPercent.ToString("N2") <small>%</small></dd></div>
             <div class="sm-bubble"><dt>Dilution water</dt><dd>@mb.DilutionWaterRequiredTpd.ToString("N2") <small>TPD</small></dd></div>
+            <div class="sm-bubble"><dt>Dilution water volume</dt><dd>@mb.DilutionWaterM3Day.ToString("N2") <small>m&sup3;/day</small></dd></div>
             <div class="sm-bubble"><dt>Slurry flow</dt><dd>@mb.TotalSlurryFlowM3Day.ToString("N2") <small>m&sup3;/day</small></dd></div>
             <div class="sm-bubble"><dt>Blended C:N</dt><dd>@mb.BlendedCnRatio.ToString("N2")</dd></div>
             <div class="sm-bubble"><dt>Volatile solids</dt><dd>@mb.VsTotalKgDay.ToString("N0") <small>kg/day</small></dd></div>
+            @if (pt.ShredderPowerKw > 0 || pt.MixerPowerKw > 0)
+            {
+                <div class="sm-bubble"><dt>Shredder capacity</dt><dd>@pt.ShredderCapacityTph.ToString("N1") <small>t/hr</small></dd></div>
+                <div class="sm-bubble"><dt>Shredder power</dt><dd>@pt.ShredderPowerKw.ToString("N0") <small>kW</small></dd></div>
+                <div class="sm-bubble"><dt>Slurry mix tank</dt><dd>@pt.MixTankVolumeM3.ToString("N0") <small>m&sup3;</small></dd></div>
+                <div class="sm-bubble"><dt>Mix tank agitator</dt><dd>@pt.MixerPowerKw.ToString("N0") <small>kW</small></dd></div>
+            }
         </dl>
     </section>
 
-    <section class="sm-panel bp-card" aria-labelledby="sm-dk-title">
+    <section class="sm-panel bp-card" id="sm-digester" aria-labelledby="sm-dk-title">
         <h2 class="sm-card-title" id="sm-dk-title">Digester kinetics and gas</h2>
         <dl class="sm-bubbles">
             <div class="sm-bubble"><dt>Retention time</dt><dd>@dk.HrtDays.ToString("N1") <small>days</small></dd></div>
@@ -104,6 +130,12 @@
         </div>
     </section>
 </div>
+
+<partial name="_ThermalCard" model="Model.Thermal" />
+
+<partial name="_UpgradingCard" model="Model.Upgrading" />
+
+<partial name="_DigestateCard" model="(Model.Digestate, Model.Dispatch)" />
 
 <section class="sm-section" aria-labelledby="sm-eq-title">
     <div class="sm-section__head">

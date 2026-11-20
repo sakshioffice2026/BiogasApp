@@ -1,0 +1,48 @@
+@model (BiogasApp.Model.DTOs.DigestateCivilDto Digestate, BiogasApp.Model.DTOs.CbgDispatchDto Dispatch)
+@{
+    var d = Model.Digestate;
+    var p = Model.Dispatch;
+    var hasDigestate = d.SolidCakeTpd > 0 || d.LiquidLfomTpd > 0 || d.ExcavationM3 > 0;
+    var hasDispatch = p.CbgTonnesPerDay > 0 || p.TankerLoadsPerDay > 0;
+}
+
+<section class="sm-panel sm-panel--wide bp-card" id="sm-digestate" aria-labelledby="sm-dg-title">
+    <h2 class="sm-card-title" id="sm-dg-title">Digestate, civils and dispatch</h2>
+
+    @if (!hasDigestate && !hasDispatch)
+    {
+        <p class="bp-muted mb-0">Not available for this run. Run the simulation again to see these results.</p>
+    }
+    else
+    {
+        <h3 class="sm-sub-title">Digestate split</h3>
+        <dl class="sm-bubbles">
+            <div class="sm-bubble"><dt>Solid cake</dt><dd>@d.SolidCakeTpd.ToString("N2") <small>TPD</small></dd></div>
+            <div class="sm-bubble"><dt>Liquid (LFOM)</dt><dd>@d.LiquidLfomTpd.ToString("N2") <small>TPD</small></dd></div>
+        </dl>
+
+        <h3 class="sm-sub-title">Civil quantities</h3>
+        <dl class="sm-bubbles">
+            <div class="sm-bubble"><dt>Excavation</dt><dd>@d.ExcavationM3.ToString("N0") <small>m&sup3;</small></dd></div>
+            <div class="sm-bubble"><dt>RCC concrete</dt><dd>@d.RccConcreteM3.ToString("N0") <small>m&sup3;</small></dd></div>
+            <div class="sm-bubble"><dt>Structural steel and rebar</dt><dd>@d.SteelRebarTons.ToString("N0") <small>tons</small></dd></div>
+        </dl>
+
+        <h3 class="sm-sub-title">Compressed biogas dispatch</h3>
+        @if (!hasDispatch)
+        {
+            <p class="bp-muted mb-0">Dispatch data was not saved for this run.</p>
+        }
+        else
+        {
+            <dl class="sm-bubbles">
+                <div class="sm-bubble"><dt>Output per day</dt><dd>@p.CbgTonnesPerDay.ToString("N2") <small>tonnes</small></dd></div>
+                <div class="sm-bubble"><dt>Output per year</dt><dd>@p.CbgTonnesPerYear.ToString("N0") <small>tonnes</small></dd></div>
+                <div class="sm-bubble"><dt>Tanker payload</dt><dd>@p.TankerPayloadKg.ToString("N0") <small>kg</small></dd></div>
+                <div class="sm-bubble"><dt>Tanker loads</dt><dd>@p.TankerLoadsPerDay <small>per day</small></dd></div>
+                <div class="sm-bubble"><dt>Fill time per tanker</dt><dd>@p.FillTimeHoursPerTanker.ToString("N1") <small>hours</small></dd></div>
+                <div class="sm-bubble"><dt>Cascade buffer</dt><dd>@p.BufferHoursAvailable.ToString("N1") <small>hours</small></dd></div>
+            </dl>
+        }
+    }
+</section>

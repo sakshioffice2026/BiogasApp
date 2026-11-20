@@ -18,6 +18,8 @@ public record CalculationResult(
     MechanicalSizingResult Mechanical,
     UpgradingResult Upgrading,
     DigestateBomResult Bom,
+    PreTreatmentResult PreTreatment,
+    CbgDispatchResult Dispatch,
     double ParasiticHeatKw,
     double ParasiticPowerKw,
     IReadOnlyList<string> Warnings);
