@@ -1,0 +1,162 @@
+@model Web.Controllers.RuleAdminViewModel
+@{
+    ViewData["Title"] = "Clearance rules";
+
+    string Badge(object status) => status.ToString() switch
+    {
+        "Official" => "rule-official",
+        "Reference" => "rule-reference",
+        _ => "rule-assumed"
+    };
+
+    string Range(decimal? min, decimal? max)
+    {
+        if (!min.HasValue && !max.HasValue) return "-";
+        if (min.HasValue && max.HasValue) return $"{min:0.##} to {max:0.##} L";
+        return min.HasValue ? $"above {min:0.##} L" : $"up to {max:0.##} L";
+    }
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h4 mb-0">Clearance rules</h1>
+        @if (Model.RuleSet != null)
+        {
+            <div class="text-muted">@Model.RuleSet.Name, version @Model.RuleSet.Version</div>
+        }
+    </div>
+</div>
+
+<div class="alert alert-warning py-2 small">
+    Only a qualified safety engineer should confirm Reference and Assumed rows. A confirmed mark does not make a layout compliant.
+</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success py-2">@ok</div>
+}
+
+@if (Model.RuleSet == null)
+{
+    <div class="alert alert-info">No active rule set found.</div>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-header">Distance rules (metres)</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Capacity</th>
+                        <th class="text-end">Min distance (m)</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Engineer</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rules)
+                    {
+                        <tr>
+                            <td>@r.FromHazardClass</td>
+                            <td>@r.ToHazardClass</td>
+                            <td>@Range(r.CapacityMinL, r.CapacityMaxL)</td>
+                            <td class="text-end">@r.MinDistanceM.ToString("0.##")</td>
+                            <td><span class="badge @Badge(r.Status)">@r.Status</span></td>
+                            <td class="small">
+                                @r.SourceNote
+                                @if (!string.IsNullOrWhiteSpace(r.SourceUrl))
+                                {
+                                    <a href="@r.SourceUrl" target="_blank" rel="noopener noreferrer">link</a>
+                                }
+                            </td>
+                            <td class="small">
+                                @if (r.EngineerConfirmed)
+                                {
+                                    <span class="text-success">Confirmed</span>
+                                    <div class="text-muted">@r.ConfirmedBy, @r.ConfirmedAt?.ToString("dd MMM yyyy")</div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Not confirmed</span>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                <a class="btn btn-sm btn-outline-primary" asp-controller="RuleAdmin" asp-action="Edit" asp-route-kind="Rule" asp-route-id="@r.Id">Edit</a>
+                                @if (!r.EngineerConfirmed)
+                                {
+                                    <form method="post" asp-controller="RuleAdmin" asp-action="Confirm" class="d-inline">
+                                        <input type="hidden" name="kind" value="Rule" />
+                                        <input type="hidden" name="id" value="@r.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-success">Confirm</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Settings</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th class="text-end">Value</th>
+                        <th>Unit</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Engineer</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Settings)
+                    {
+                        <tr>
+                            <td><code>@s.SettingKey</code></td>
+                            <td class="text-end">@s.ValueNum.ToString("0.##")</td>
+                            <td>@s.Unit</td>
+                            <td><span class="badge @Badge(s.Status)">@s.Status</span></td>
+                            <td class="small">@s.SourceNote</td>
+                            <td class="small">
+                                @if (s.EngineerConfirmed)
+                                {
+                                    <span class="text-success">Confirmed</span>
+                                    <div class="text-muted">@s.ConfirmedBy, @s.ConfirmedAt?.ToString("dd MMM yyyy")</div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Not confirmed</span>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                <a class="btn btn-sm btn-outline-primary" asp-controller="RuleAdmin" asp-action="Edit" asp-route-kind="Setting" asp-route-id="@s.Id">Edit</a>
+                                @if (!s.EngineerConfirmed)
+                                {
+                                    <form method="post" asp-controller="RuleAdmin" asp-action="Confirm" class="d-inline">
+                                        <input type="hidden" name="kind" value="Setting" />
+                                        <input type="hidden" name="id" value="@s.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-success">Confirm</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

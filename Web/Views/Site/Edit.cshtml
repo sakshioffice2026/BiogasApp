@@ -1,0 +1,201 @@
+@model BiogasApp.Model.ViewModel.LayoutEditorViewModel
+@{
+    ViewData["Title"] = "Plot and site";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="site-edit"
+     id="siteEdit"
+     data-project-id="@Model.ProjectId"
+     data-save-url="@Url.Action("Save", "Site")"
+     data-receptors-url="@Url.Action("FindReceptors", "Site")"
+     data-import-url="@Url.Action("ImportDxf", "Site")"
+     data-editor-url="@Url.Action("Editor", "Layout", new { projectId = Model.ProjectId })">
+
+    @Html.AntiForgeryToken()
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h4 mb-0">Plot and site</h1>
+            <div class="text-muted">@Model.ProjectName</div>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="@Url.Action("Editor", "Layout", new { projectId = Model.ProjectId })">Go to layout editor</a>
+    </div>
+
+    <div class="alert alert-warning py-2 small">@BiogasApp.Model.ViewModel.LayoutEditorViewModel.DraftNotice</div>
+
+    <div id="siteMessage" class="d-none"></div>
+
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header d-flex flex-wrap gap-2 align-items-center">
+                    <div class="input-group input-group-sm site-latlon">
+                        <span class="input-group-text">Lat</span>
+                        <input type="number" step="any" class="form-control" id="siteLat" />
+                        <span class="input-group-text">Lon</span>
+                        <input type="number" step="any" class="form-control" id="siteLon" />
+                        <button type="button" class="btn btn-outline-primary" id="btnGoLocation">Go</button>
+                    </div>
+                    <div class="btn-group btn-group-sm ms-auto" role="group" aria-label="Map layer">
+                        <button type="button" class="btn btn-outline-secondary active" id="btnLayerSat">Satellite</button>
+                        <button type="button" class="btn btn-outline-secondary" id="btnLayerOsm">Street map</button>
+                    </div>
+                </div>
+                <div id="siteMap" class="site-map"></div>
+                <div class="card-footer small text-muted">
+                    Click the map to set the plot location, then use Draw on map to click each corner in order.
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card mb-3">
+                <div class="card-header">Plot boundary</div>
+                <div class="card-body">
+                    <ul class="nav nav-pills nav-fill mb-3" id="inputModeTabs">
+                        <li class="nav-item"><button type="button" class="nav-link active" data-mode="Map">Draw on map</button></li>
+                        <li class="nav-item"><button type="button" class="nav-link" data-mode="Typed">Type corners</button></li>
+                        <li class="nav-item"><button type="button" class="nav-link" data-mode="Rectangle">Rectangle</button></li>
+                    </ul>
+
+                    <div data-pane="Map">
+                        <div class="d-flex gap-2 mb-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnUndoPoint">Undo last corner</button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="btnClearPlot">Clear</button>
+                        </div>
+                        <div class="small text-muted">Click corners in order around the plot. Click the first corner again to close.</div>
+                    </div>
+
+                    <div data-pane="Typed" class="d-none">
+                        <label class="form-label small" for="cornersText">Corners in metres, one per line as x, y</label>
+                        <textarea id="cornersText" class="form-control font-monospace" rows="6" placeholder="0, 0&#10;40, 0&#10;40, 120&#10;0, 120"></textarea>
+                    </div>
+
+                    <div data-pane="Rectangle" class="d-none">
+                        <div class="row g-2">
+                            <div class="col">
+                                <label class="form-label small" for="rectLength">Length (m)</label>
+                                <input type="number" step="any" min="1" class="form-control" id="rectLength" />
+                            </div>
+                            <div class="col">
+                                <label class="form-label small" for="rectWidth">Width (m)</label>
+                                <input type="number" step="any" min="1" class="form-control" id="rectWidth" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <label class="form-label small" for="dxfFile">Import boundary from DXF (boundary only)</label>
+                    <div class="input-group input-group-sm">
+                        <input type="file" accept=".dxf" class="form-control" id="dxfFile" />
+                        <button type="button" class="btn btn-outline-primary" id="btnImportDxf">Import</button>
+                    </div>
+                    <div class="small text-muted mt-1">Existing buildings, canals and power lines are not read. Add them below as no-build zones.</div>
+
+                    <div class="mt-3">Plot area: <strong id="plotAreaText">0</strong> m&sup2;</div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">Gate and directions</div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small" for="gateEdge" title="Side 0 runs from corner 1 to corner 2">Gate side (0 = corner 1 to 2)</label>
+                            <input type="number" min="0" step="1" class="form-control form-control-sm" id="gateEdge" value="0" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" for="gateOffset">Gate distance from corner (m)</label>
+                            <input type="number" min="0" step="any" class="form-control form-control-sm" id="gateOffset" value="0" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" for="northAngle">North direction (deg)</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="northAngle" value="0" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" for="windFrom">Wind from (deg)</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="windFrom" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" for="slopeDir">Downhill direction (deg)</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="slopeDir" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" for="powerSide">Power supply side (deg)</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="powerSide" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" for="gasSide">Gas offtake side (deg)</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="gasSide" />
+                        </div>
+                    </div>
+                    <div class="small text-muted mt-2">Directions are compass bearings, 0 = north, 90 = east. Gas offtake is where the gas leaves the plant.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>No-build zones</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddNoBuild">Add zone</button>
+        </div>
+        <div class="card-body">
+            <div class="small text-muted mb-2">An area where nothing may be placed, such as a canal, power line corridor or existing building.</div>
+            <div id="noBuildList"></div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span>Nearby receptors</span>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnFindReceptors">Find nearby (500 m)</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddReceptor">Add manually</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="small text-muted mb-2">A receptor is a school, hospital, house, road, canal or power line near the plot. Tick Confirm for the ones that are correct; only confirmed ones are used.</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Name</th>
+                            <th class="text-end">Distance (m)</th>
+                            <th>Source</th>
+                            <th class="text-center">Confirm</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="receptorBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-body">
+            <label class="form-label small" for="siteNotes">Notes</label>
+            <textarea id="siteNotes" class="form-control" rows="2"></textarea>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3 mb-4">
+        <button type="button" class="btn btn-primary" id="btnSaveSite">Save plot and site</button>
+        <a class="btn btn-outline-secondary" href="@Url.Action("Editor", "Layout", new { projectId = Model.ProjectId })">Layout editor</a>
+    </div>
+
+    <script id="siteData" type="application/json">@Json.Serialize(Model.Site)</script>
+</div>
+
+@section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="~/js/site-map.js" asp-append-version="true"></script>
+}

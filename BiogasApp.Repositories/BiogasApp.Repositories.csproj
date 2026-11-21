@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BiogasApp.Database\BiogasApp.Database.csproj" />
+    <ProjectReference Include="..\BiogasApp.Layout\BiogasApp.Layout.csproj" />
     <ProjectReference Include="..\BiogasApp.Model\BiogasApp.Model.csproj" />
   </ItemGroup>
 

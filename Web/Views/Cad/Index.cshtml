@@ -1,0 +1,178 @@
+@model BiogasApp.Model.ViewModel.CadViewModel
+@using BiogasApp.Model.ViewModel
+@{
+    ViewData["Title"] = "CAD drawings";
+    var job = Model.CurrentJob;
+    string jobStatus = job?.Status?.ToUpperInvariant() ?? string.Empty;
+    bool jobActive = jobStatus is "QUEUED" or "RUNNING";
+    bool hasLayout = Model.Layouts.Count > 0;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h4 mb-0">CAD drawings</h1>
+        <div class="text-muted">@Model.ProjectName</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Viewer" asp-route-runId="@Model.SimulationRunId">Viewer</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="History" asp-route-runId="@Model.SimulationRunId">History</a>
+    </div>
+</div>
+
+<div class="alert alert-warning py-2 small">@LayoutEditorViewModel.DraftNotice</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success py-2">@ok</div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger py-2">@err</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">Generate</div>
+            <div class="card-body">
+                @if (!hasLayout)
+                {
+                    <div class="alert alert-info small">
+                        No saved layout yet. Create and save a version in the
+                        <a asp-controller="Layout" asp-action="Editor" asp-route-projectId="@Model.ProjectId">layout editor</a>
+                        before generating the GA drawing.
+                    </div>
+                }
+
+                <form method="post" asp-action="Generate" id="cadForm">
+                    <input type="hidden" name="SimulationRunId" value="@Model.SimulationRunId" />
+
+                    <div class="mb-3">
+                        <label class="form-label small" for="siteLayoutId">Layout version</label>
+                        <select class="form-select form-select-sm" id="siteLayoutId" name="SiteLayoutId" @(hasLayout ? "" : "disabled")>
+                            @foreach (var l in Model.Layouts)
+                            {
+                                <option value="@l.Id" selected="@(Model.SiteLayoutId == l.Id)">
+                                    v@(l.VersionNo) - @l.Origin - rules v@(l.RuleSetVersion) - @l.Warnings.Count warning(s)
+                                </option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-label small mb-1">Output</div>
+                        @foreach (var f in CadViewModel.AvailableFormats)
+                        {
+                            bool enabled = f == "GA_DXF";
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="SelectedFormats" value="@f" id="fmt_@f"
+                                       checked="@enabled" disabled="@(!enabled)" />
+                                <label class="form-check-label" for="fmt_@f">
+                                    @f @(enabled ? "" : "(later)")
+                                </label>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small" for="cadVersion">DXF version</label>
+                            <select class="form-select form-select-sm" id="cadVersion" name="DxfOptions.CadVersion">
+                                <option value="AutoCAD2018" selected="@(Model.DxfOptions.CadVersion == "AutoCAD2018")">AutoCAD 2018</option>
+                                <option value="AutoCAD2013" selected="@(Model.DxfOptions.CadVersion == "AutoCAD2013")">AutoCAD 2013</option>
+                                <option value="AutoCAD2010" selected="@(Model.DxfOptions.CadVersion == "AutoCAD2010")">AutoCAD 2010</option>
+                            </select>
+                        </div>
+                        <div class="col-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="safetyZones" name="DxfOptions.IncludeSafetyZones" value="true"
+                                       checked="@Model.DxfOptions.IncludeSafetyZones" />
+                                <label class="form-check-label small" for="safetyZones">Show safety distances</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-sm" id="btnGenerateCad" @((hasLayout && !jobActive) ? "" : "disabled")>
+                        Generate GA drawing
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card mb-3">
+            <div class="card-header">Current job</div>
+            <div class="card-body" id="cadJobBox"
+                 data-job-id="@job?.JobId"
+                 data-active="@(jobActive ? "1" : "0")"
+                 data-status-url="@(job == null ? "" : Url.Action("Status", "Cad", new { id = job.JobId }))">
+                @if (job == null)
+                {
+                    <div class="text-muted small">No job yet.</div>
+                }
+                else
+                {
+                    <div>
+                        Status: <strong id="cadJobStatus">@job.Status</strong>
+                        @if (jobActive)
+                        {
+                            <span class="spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></span>
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(job.ErrorMessage))
+                    {
+                        <div class="text-danger small mt-1">@job.ErrorMessage</div>
+                    }
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Files</div>
+            <div class="list-group list-group-flush">
+                @if (Model.Artifacts.Count == 0)
+                {
+                    <div class="list-group-item text-muted small">No files yet.</div>
+                }
+                @foreach (var a in Model.Artifacts.OrderByDescending(x => x.CreatedAt))
+                {
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <div>@a.FileName</div>
+                            <div class="small text-muted">@a.ArtifactType, @a.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                        </div>
+                        <a class="btn btn-sm btn-outline-primary" asp-action="Download" asp-route-id="@a.ArtifactId">Download</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var box = document.getElementById('cadJobBox');
+            if (!box || box.dataset.active !== '1' || !box.dataset.statusUrl) return;
+
+            var timer = setInterval(function () {
+                fetch(box.dataset.statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (s) {
+                        if (!s) return;
+                        var status = (s.status || '').toUpperCase();
+                        if (status === 'COMPLETED' || status === 'FAILED') {
+                            clearInterval(timer);
+                            window.location.reload();
+                        }
+                    })
+                    .catch(function () { });
+            }, 3000);
+        })();
+    </script>
+}
