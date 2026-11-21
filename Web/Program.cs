@@ -73,7 +73,6 @@ builder.Services.AddHttpClient<ICadGeneration, CadGenerationRepository>(client =
     client.BaseAddress = new Uri(cadBaseUrl);
     client.Timeout = TimeSpan.FromMinutes(5);
 });
-
 // ---------- Calculation engine ----------
 builder.Services.AddScoped<FeedstockBlendingService>();
 builder.Services.AddScoped<DigesterSizingService>();

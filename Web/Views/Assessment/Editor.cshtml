@@ -1,0 +1,227 @@
+@model BiogasApp.Model.ViewModel.LayoutEditorViewModel
+@using BiogasApp.Model.ViewModel
+@{
+    ViewData["Title"] = "Layout editor";
+    var hazards = new[] { "Cascade", "Compressor", "Dispenser", "GasVessel", "DigesterGas", "Scrubber", "Flare", "Electrical", "Building", "Tank", "OpenYard", "Other" };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="layout-editor"
+     id="layoutEditor"
+     data-project-id="@Model.ProjectId"
+     data-generate-url="@Url.Action("Generate", "Assessment")"
+     data-evaluate-url="@Url.Action("Evaluate", "Assessment")"
+     data-save-url="@Url.Action("SaveVersion", "Assessment")"
+     data-version-url="@Url.Action("Version", "Assessment")"
+     data-delete-version-url="@Url.Action("DeleteVersion", "Assessment")"
+     data-save-equipment-url="@Url.Action("SaveEquipment", "Assessment")"
+     data-delete-equipment-url="@Url.Action("DeleteEquipment", "Assessment")"
+     data-site-url="@Url.Action("Site", "Assessment", new { id = Model.ProjectId })">
+
+    @Html.AntiForgeryToken()
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+        <div>
+            <h1 class="h4 mb-0">Layout editor</h1>
+            <div class="text-muted">@Model.ProjectName</div>
+        </div>
+        <div class="small text-muted text-end">
+            Rule set: <strong>@(string.IsNullOrEmpty(Model.RuleSetName) ? "none" : Model.RuleSetName)</strong>
+            @if (Model.RuleSetVersion > 0)
+            {
+                <span>v@(Model.RuleSetVersion)</span>
+            }
+        </div>
+    </div>
+
+    <div class="alert alert-warning py-2 small mb-2">@LayoutEditorViewModel.DraftNotice</div>
+
+    <div class="d-flex justify-content-end mb-2">
+        <a class="btn btn-outline-success btn-sm" href="@Url.Action("Convert", "Assessment", new { id = Model.ProjectId })">Convert to project</a>
+    </div>
+
+    @if (!Model.IsPlotReady)
+    {
+        <div class="alert alert-info">
+            The plot is not entered yet.
+            <a href="@Url.Action("Site", "Assessment", new { id = Model.ProjectId })">Enter the plot and site</a> first.
+        </div>
+    }
+
+    <div id="layoutMessage" class="d-none"></div>
+
+    <div class="layout-toolbar d-flex flex-wrap gap-2 align-items-center mb-2">
+        <button type="button" class="btn btn-primary btn-sm" id="btnGenerate" @(Model.IsPlotReady ? "" : "disabled")>Generate layout</button>
+        <button type="button" class="btn btn-success btn-sm" id="btnSaveVersion" disabled>Save version</button>
+
+        <div class="vr"></div>
+
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLock" disabled>Lock</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRotate" disabled>Rotate 90&deg;</button>
+
+        <div class="vr"></div>
+
+        <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
+            <button type="button" class="btn btn-outline-secondary" id="btnZoomOut">-</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnZoomFit">Fit</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnZoomIn">+</button>
+        </div>
+
+        <div class="ms-auto d-flex gap-2 align-items-center">
+            <label class="small text-muted mb-0" for="versionSelect">Version</label>
+            <select class="form-select form-select-sm w-auto" id="versionSelect">
+                <option value="">Current (unsaved)</option>
+                @foreach (var v in Model.Versions)
+                {
+                    <option value="@v.Id" selected="@(Model.ActiveLayout?.Id == v.Id)">
+                        v@(v.VersionNo) - @v.Origin - rules v@(v.RuleSetVersion)
+                    </option>
+                }
+            </select>
+            <button type="button" class="btn btn-outline-danger btn-sm" id="btnDeleteVersion" disabled>Delete</button>
+        </div>
+    </div>
+
+    <div class="row g-2">
+        <div class="col-lg-2 order-lg-1 order-2">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Equipment</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnAddCustom">Add</button>
+                </div>
+                <div class="list-group list-group-flush equipment-list" id="equipmentList"></div>
+            </div>
+        </div>
+
+        <div class="col-lg-7 order-lg-2 order-1">
+            <div class="card">
+                <div class="layout-canvas" id="layoutCanvas">
+                    <div class="layout-empty text-muted" id="layoutEmpty">Generate a layout to see it here.</div>
+                </div>
+                <div class="card-footer small d-flex flex-wrap gap-3">
+                    <span><i class="zone-swatch zone-dirty"></i> Dirty (feedstock, manure)</span>
+                    <span><i class="zone-swatch zone-process"></i> Process (digesters, tanks)</span>
+                    <span><i class="zone-swatch zone-gas"></i> Gas (scrubber, compressor, flare)</span>
+                    <span><i class="zone-swatch zone-clean"></i> Clean (admin, parking)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 order-lg-3 order-3">
+            <div class="card mb-2">
+                <div class="card-header">Selected item</div>
+                <div class="card-body small" id="selectedInfo">Click an item on the plan.</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Warnings</span>
+                    <span class="small" id="warningSummary"></span>
+                </div>
+                <div class="warning-list" id="warningList">
+                    <div class="p-3 small text-muted">No layout yet.</div>
+                </div>
+                <div class="card-footer small text-muted">
+                    <span class="badge rule-official">Official</span> law
+                    <span class="badge rule-reference">Reference</span> guidance
+                    <span class="badge rule-assumed">Assumed</span> needs engineer
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="customModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Equipment item</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="ceId" />
+                    <div class="row g-2">
+                        <div class="col-4">
+                            <label class="form-label small" for="ceTag">Tag</label>
+                            <input class="form-control form-control-sm" id="ceTag" maxlength="20" />
+                        </div>
+                        <div class="col-8">
+                            <label class="form-label small" for="ceName">Name</label>
+                            <input class="form-control form-control-sm" id="ceName" maxlength="100" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" for="ceZone">Zone</label>
+                            <select class="form-select form-select-sm" id="ceZone">
+                                @foreach (var z in LayoutEditorViewModel.Zones)
+                                {
+                                    <option value="@z" selected="@(z == "Process")">@z</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small" for="ceHazard">Hazard class</label>
+                            <select class="form-select form-select-sm" id="ceHazard">
+                                @foreach (var h in hazards)
+                                {
+                                    <option value="@h" selected="@(h == "Other")">@h</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small" for="ceShape">Shape</label>
+                            <select class="form-select form-select-sm" id="ceShape">
+                                <option value="Rectangle">Rectangle</option>
+                                <option value="Circle">Circle</option>
+                            </select>
+                        </div>
+                        <div class="col-4 ce-rect">
+                            <label class="form-label small" for="ceWidth">Width (m)</label>
+                            <input type="number" step="any" min="0" class="form-control form-control-sm" id="ceWidth" />
+                        </div>
+                        <div class="col-4 ce-rect">
+                            <label class="form-label small" for="ceLength">Length (m)</label>
+                            <input type="number" step="any" min="0" class="form-control form-control-sm" id="ceLength" />
+                        </div>
+                        <div class="col-8 ce-circle d-none">
+                            <label class="form-label small" for="ceDiameter">Diameter (m)</label>
+                            <input type="number" step="any" min="0" class="form-control form-control-sm" id="ceDiameter" />
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small" for="ceQty">Quantity</label>
+                            <input type="number" step="1" min="1" value="1" class="form-control form-control-sm" id="ceQty" />
+                        </div>
+                        <div class="col-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="ceRoad" checked />
+                                <label class="form-check-label small" for="ceRoad">Needs road access</label>
+                            </div>
+                        </div>
+                        <div class="col-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="ceRotate" checked />
+                                <label class="form-check-label small" for="ceRotate">Can rotate</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="small text-muted mt-2">Custom items apply to this assessment only.</div>
+                    <div id="ceError" class="text-danger small mt-2 d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm d-none" id="ceDelete">Delete</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="ceSave">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script id="layoutData" type="application/json">@Json.Serialize(Model.ActiveLayout)</script>
+    <script id="equipmentData" type="application/json">@Json.Serialize(Model.Equipment)</script>
+    <script id="runData" type="application/json">@Json.Serialize(new { runId = Model.SimulationRunId, plotReady = Model.IsPlotReady })</script>
+</div>
+
+@section Scripts {
+    <script src="~/js/layout-editor.js" asp-append-version="true"></script>
+}

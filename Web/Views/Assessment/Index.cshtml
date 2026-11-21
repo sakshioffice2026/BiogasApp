@@ -1,0 +1,80 @@
+@model List<BiogasApp.Model.DTOs.AssessmentListItemDto>
+@{
+    ViewData["Title"] = "Site assessments";
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Site assessments</h1>
+        <p class="bp-muted mb-0">Check the plot and surroundings first, then convert to a project.</p>
+    </div>
+    <a class="bp-btn bp-btn--flame" asp-action="Create">New site assessment</a>
+</div>
+
+@if (TempData["AssessmentError"] is string err)
+{
+    <div class="alert alert-danger">@err</div>
+}
+
+@if (Model.Count == 0)
+{
+    <div class="bp-card p-4 text-muted">No site assessments yet.</div>
+}
+else
+{
+    <div class="bp-card">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th class="text-end">Capacity (TPD)</th>
+                        <th class="text-end">Plot (m&sup2;)</th>
+                        <th class="text-end">Receptors</th>
+                        <th class="text-end">Layout versions</th>
+                        <th>Created</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model)
+                    {
+                        <tr>
+                            <td>@a.Name</td>
+                            <td>
+                                <span class="badge @(a.Status == "Converted" ? "text-bg-success" : "text-bg-secondary")">@a.Status</span>
+                            </td>
+                            <td class="text-end">@a.CapacityTpd.ToString("0.##")</td>
+                            <td class="text-end">@a.PlotAreaM2.ToString("N0")</td>
+                            <td class="text-end">
+                                @a.ReceptorCount
+                                @if (a.SensitiveReceptorCount > 0)
+                                {
+                                    <span class="badge text-bg-warning" title="School, hospital or house nearby">@a.SensitiveReceptorCount sensitive</span>
+                                }
+                            </td>
+                            <td class="text-end">@a.LayoutVersionCount</td>
+                            <td>@a.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</td>
+                            <td class="text-end text-nowrap">
+                                @if (a.Status == "Converted" && a.ProjectId.HasValue)
+                                {
+                                    <a class="btn btn-sm btn-outline-success" asp-controller="Project" asp-action="Detail" asp-route-id="@a.ProjectId">Open project</a>
+                                }
+                                else
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" asp-action="Site" asp-route-id="@a.Id">Site</a>
+                                    <a class="btn btn-sm btn-outline-primary" asp-action="Editor" asp-route-id="@a.Id">Layout</a>
+                                    <a class="btn btn-sm btn-outline-success" asp-action="Convert" asp-route-id="@a.Id">Convert</a>
+                                    <form method="post" asp-action="Delete" asp-route-id="@a.Id" class="d-inline" onsubmit="return confirm('Delete this assessment?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

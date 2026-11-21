@@ -1,0 +1,37 @@
+@model BiogasApp.Model.DTOs.AssessmentDto
+@{
+    ViewData["Title"] = "New site assessment";
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>New site assessment</h1>
+        <p class="bp-muted mb-0">Next you will pick the plot location and see nearby schools, hospitals and houses.</p>
+    </div>
+</div>
+
+<form method="post" asp-action="Create" class="bp-card p-4" style="max-width: 640px">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+    <div class="mb-3">
+        <label class="form-label" asp-for="Name">Assessment name</label>
+        <input class="form-control" asp-for="Name" maxlength="150" autofocus />
+        <span class="text-danger small" asp-validation-for="Name"></span>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" asp-for="CapacityTpd">Plant capacity (tonnes per day)</label>
+        <input class="form-control" asp-for="CapacityTpd" type="number" step="any" min="1" />
+        <span class="text-danger small" asp-validation-for="CapacityTpd"></span>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" asp-for="Notes">Notes</label>
+        <textarea class="form-control" asp-for="Notes" rows="2"></textarea>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Create and pick location</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+    </div>
+</form>
