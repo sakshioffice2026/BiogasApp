@@ -1,0 +1,120 @@
+@model Web.Controllers.RuleEditModel
+@{
+    ViewData["Title"] = "Edit " + (Model.Kind == "Setting" ? "setting" : "rule");
+    bool isRule = Model.Kind != "Setting";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="mb-3">
+    <h1 class="h4 mb-0">Edit @(isRule ? "distance rule" : "setting")</h1>
+    <div class="text-muted">@Model.Title</div>
+</div>
+
+<div class="alert alert-warning py-2 small">
+    Saving clears the engineer confirmation. Confirm again from the rules list after review.
+</div>
+
+<form method="post" asp-controller="RuleAdmin" asp-action="Edit" class="card card-body" style="max-width: 720px;">
+    <div asp-validation-summary="ModelOnly" class="text-danger small"></div>
+
+    <input type="hidden" asp-for="Kind" />
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="Title" />
+    <input type="hidden" asp-for="FromHazardClass" />
+    <input type="hidden" asp-for="ToHazardClass" />
+    <input type="hidden" asp-for="SettingKey" />
+
+    <div class="row g-3">
+        @if (isRule)
+        {
+            <div class="col-6">
+                <label class="form-label small">From</label>
+                <input class="form-control form-control-sm" value="@Model.FromHazardClass" disabled />
+            </div>
+            <div class="col-6">
+                <label class="form-label small">To</label>
+                <input class="form-control form-control-sm" value="@Model.ToHazardClass" disabled />
+            </div>
+        }
+        else
+        {
+            <div class="col-12">
+                <label class="form-label small">Key</label>
+                <input class="form-control form-control-sm" value="@Model.SettingKey" disabled />
+            </div>
+        }
+
+        <div class="col-6">
+            <label class="form-label small" asp-for="Value">@(isRule ? "Minimum distance (m)" : "Value")</label>
+            <input asp-for="Value" type="number" step="any" min="0" class="form-control form-control-sm" />
+            <span asp-validation-for="Value" class="text-danger small"></span>
+        </div>
+
+        @if (isRule)
+        {
+            <div class="col-6">
+                <label class="form-label small" asp-for="Status">Status</label>
+                <select asp-for="Status" class="form-select form-select-sm">
+                    @foreach (var s in Web.Controllers.RuleEditModel.Statuses)
+                    {
+                        <option value="@s" selected="@(Model.Status == s)">@s</option>
+                    }
+                </select>
+                <span asp-validation-for="Status" class="text-danger small"></span>
+            </div>
+
+            <div class="col-6">
+                <label class="form-label small" asp-for="CapacityMinL">Capacity from (litres, optional)</label>
+                <input asp-for="CapacityMinL" type="number" step="any" min="0" class="form-control form-control-sm" />
+            </div>
+            <div class="col-6">
+                <label class="form-label small" asp-for="CapacityMaxL">Capacity up to (litres, optional)</label>
+                <input asp-for="CapacityMaxL" type="number" step="any" min="0" class="form-control form-control-sm" />
+                <span asp-validation-for="CapacityMaxL" class="text-danger small"></span>
+            </div>
+        }
+        else
+        {
+            <div class="col-3">
+                <label class="form-label small" asp-for="Unit">Unit</label>
+                <input asp-for="Unit" class="form-control form-control-sm" maxlength="20" />
+            </div>
+            <div class="col-3">
+                <label class="form-label small" asp-for="Status">Status</label>
+                <select asp-for="Status" class="form-select form-select-sm">
+                    @foreach (var s in Web.Controllers.RuleEditModel.Statuses)
+                    {
+                        <option value="@s" selected="@(Model.Status == s)">@s</option>
+                    }
+                </select>
+                <span asp-validation-for="Status" class="text-danger small"></span>
+            </div>
+        }
+
+        <div class="col-12">
+            <label class="form-label small" asp-for="SourceNote">Source note (required)</label>
+            <textarea asp-for="SourceNote" class="form-control form-control-sm" rows="3" required></textarea>
+            <span asp-validation-for="SourceNote" class="text-danger small"></span>
+        </div>
+
+        @if (isRule)
+        {
+            <div class="col-12">
+                <label class="form-label small" asp-for="SourceUrl">Source link (optional)</label>
+                <input asp-for="SourceUrl" type="url" class="form-control form-control-sm" />
+            </div>
+        }
+    </div>
+
+    <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary btn-sm">Save</button>
+        <a class="btn btn-outline-secondary btn-sm" asp-controller="RuleAdmin" asp-action="Index">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

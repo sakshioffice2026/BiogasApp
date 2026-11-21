@@ -28,4 +28,7 @@ public class CadViewModel
 
     public CadJobStatusDto? CurrentJob { get; set; }
     public List<ArtifactDto> Artifacts { get; set; } = new();
+
+    public Guid? SiteLayoutId { get; set; }
+    public List<LayoutDto> Layouts { get; set; } = new();
 }

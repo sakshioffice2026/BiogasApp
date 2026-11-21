@@ -5,6 +5,7 @@ using BiogasApp.Repositories.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
+using netDxf.Collections;
 
 namespace Web.Controllers;
 
@@ -16,6 +17,7 @@ public class CadController : Controller
     private readonly ISimulationRepository _simulations;
     private readonly IProjectRepository _projects;
     private readonly IArtifactStorage _storage;
+    private readonly ISiteLayoutRepository _layouts;
     private readonly ApplicationDbContext _db;
     private readonly ILogger<CadController> _logger;
 
@@ -24,6 +26,7 @@ public class CadController : Controller
         ISimulationRepository simulations,
         IProjectRepository projects,
         IArtifactStorage storage,
+        ISiteLayoutRepository layouts,
         ApplicationDbContext db,
         ILogger<CadController> logger)
     {
@@ -32,6 +35,7 @@ public class CadController : Controller
         _projects = projects;
         _storage = storage;
         _db = db;
+        _layouts = layouts;
         _logger = logger;
     }
 
@@ -80,11 +84,17 @@ public class CadController : Controller
             return RedirectToAction(nameof(Index), new { runId = model.SimulationRunId });
         }
 
+        if (!model.SiteLayoutId.HasValue)
+        {
+            TempData["Error"] = "Select a saved layout version first.";
+            return RedirectToAction(nameof(Index), new { runId = model.SimulationRunId });
+        }
         try
         {
             var status = await _cad.QueueJobAsync(new CadJobRequestDto
             {
                 SimulationRunId = model.SimulationRunId,
+                SiteLayoutId = model.SiteLayoutId,
                 ExportFormats = formats,
                 DxfOptions = model.DxfOptions ?? new DxfOptionsDto()
             }, cancellationToken);
@@ -196,6 +206,8 @@ public class CadController : Controller
             current = await _cad.GetJobStatusAsync(latestJob.Id, cancellationToken);
         }
 
+        var layouts = await _layouts.GetVersionsAsync(project.Id, cancellationToken);
+
         return new CadViewModel
         {
             ProjectId = project.Id,
@@ -205,7 +217,10 @@ public class CadController : Controller
                 ? tab
                 : CadViewModel.ViewerTabs[0],
             CurrentJob = current,
-            Artifacts = artifacts.Artifacts
+            Artifacts = artifacts.Artifacts,
+            Layouts = layouts,
+            SiteLayoutId = latestJob?.SiteLayoutId
+                ?? layouts.OrderByDescending(l => l.VersionNo).Select(l => l.Id).FirstOrDefault()
         };
     }
 

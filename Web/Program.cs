@@ -44,6 +44,13 @@ builder.Services.AddScoped<ExceptionHandlerRepository>();
 builder.Services.AddScoped<IEnquiryRepository, EnquiryRepository>();
 builder.Services.AddScoped<IEnquiryProposalRepository, EnquiryProposalRepository>();
 builder.Services.AddScoped<IEnquiryInviteRepository, EnquiryInviteRepository>();
+builder.Services.AddScoped<ISiteRepository, SiteRepository>();
+builder.Services.AddScoped<IClearanceRuleRepository, ClearanceRuleRepository>();
+builder.Services.AddScoped<ISiteLayoutRepository, SiteLayoutRepository>();
+builder.Services.AddHttpClient<IReceptorProvider, OsmReceptorProvider>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(40);
+});
 // ---------- Artifact storage (local disk) ----------
 var artifactRoot = builder.Configuration["ArtifactStorage:RootPath"];
 if (string.IsNullOrWhiteSpace(artifactRoot))
