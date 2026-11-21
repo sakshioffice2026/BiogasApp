@@ -1,0 +1,120 @@
+@model List<BiogasApp.Database.Entities.CadJob>
+@using System.Text.Json
+@{
+    ViewData["Title"] = "CAD history";
+
+    Guid runId = ViewData["SimulationRunId"] is Guid r ? r : Guid.Empty;
+    Guid projectId = ViewData["ProjectId"] is Guid p ? p : Guid.Empty;
+
+    string StatusClass(string status) => status.ToUpperInvariant() switch
+    {
+        "COMPLETED" => "bg-success",
+        "FAILED" => "bg-danger",
+        "RUNNING" => "bg-primary",
+        _ => "bg-secondary"
+    };
+
+    string Formats(string json)
+    {
+        try
+        {
+            var list = JsonSerializer.Deserialize<List<string>>(json);
+            return list == null || list.Count == 0 ? "-" : string.Join(", ", list);
+        }
+        catch (JsonException)
+        {
+            return "-";
+        }
+    }
+
+    string Duration(DateTime start, DateTime? end)
+    {
+        if (!end.HasValue) return "-";
+        var span = end.Value - start;
+        if (span.TotalSeconds < 0) return "-";
+        return span.TotalMinutes >= 1
+            ? $"{(int)span.TotalMinutes} min {span.Seconds} s"
+            : $"{span.TotalSeconds:0} s";
+    }
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h4 mb-0">CAD history</h1>
+        <div class="text-muted">All generation jobs for this simulation run, newest first</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-runId="@runId">Generate</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Viewer" asp-route-runId="@runId">Viewer</a>
+        @if (projectId != Guid.Empty)
+        {
+            <a class="btn btn-outline-secondary btn-sm" asp-controller="Layout" asp-action="Editor" asp-route-projectId="@projectId">Layout editor</a>
+        }
+    </div>
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="alert alert-info">
+        No CAD jobs yet. Use <a asp-action="Index" asp-route-runId="@runId">Generate</a> to create the first GA drawing.
+    </div>
+}
+else
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th>Output</th>
+                        <th>Layout version</th>
+                        <th>Time taken</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var job in Model)
+                    {
+                        var status = job.Status.ToString();
+                        <tr>
+                            <td>@job.CreatedAt.ToString("dd MMM yyyy HH:mm")</td>
+                            <td><span class="badge @StatusClass(status)">@status</span></td>
+                            <td>@Formats(job.ExportFormatsJson)</td>
+                            <td class="small text-muted">
+                                @if (job.SiteLayoutId.HasValue)
+                                {
+                                    <span title="@job.SiteLayoutId.Value">@job.SiteLayoutId.Value.ToString()[..8]</span>
+                                }
+                                else
+                                {
+                                    <span>-</span>
+                                }
+                            </td>
+                            <td>@Duration(job.CreatedAt, job.CompletedAt)</td>
+                            <td class="small">
+                                @if (!string.IsNullOrWhiteSpace(job.ErrorMessage))
+                                {
+                                    <span class="text-danger">@job.ErrorMessage</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="small text-muted mt-2">
+        Downloads for finished jobs are on the <a asp-action="Viewer" asp-route-runId="@runId">Viewer</a> page.
+    </div>
+}

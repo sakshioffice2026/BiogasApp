@@ -1,0 +1,232 @@
+@model BiogasApp.Model.ViewModel.CadViewModel
+@using BiogasApp.Model.ViewModel
+@{
+    ViewData["Title"] = "CAD viewer";
+
+    bool hasLayout = Model.Layouts.Count > 0;
+    Guid? activeLayoutId = Model.SiteLayoutId
+        ?? Model.Layouts.OrderByDescending(l => l.VersionNo).Select(l => l.Id).FirstOrDefault();
+
+    var gaFiles = Model.Artifacts
+        .Where(a => a.ArtifactType == "GA_DXF")
+        .OrderByDescending(a => a.CreatedAt)
+        .ToList();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h4 mb-0">CAD viewer</h1>
+        <div class="text-muted">@Model.ProjectName</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-runId="@Model.SimulationRunId">Generate</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="History" asp-route-runId="@Model.SimulationRunId">History</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-controller="Layout" asp-action="Editor" asp-route-projectId="@Model.ProjectId">Layout editor</a>
+    </div>
+</div>
+
+<div class="alert alert-warning py-2 small">@LayoutEditorViewModel.DraftNotice</div>
+
+<ul class="nav nav-tabs mb-3">
+    @foreach (var tab in CadViewModel.ViewerTabs)
+    {
+        bool isGa = tab == "GA Site Plan";
+        <li class="nav-item">
+            @if (isGa)
+            {
+                <a class="nav-link active" asp-action="Viewer" asp-route-runId="@Model.SimulationRunId" asp-route-tab="@tab">@tab</a>
+            }
+            else
+            {
+                <span class="nav-link disabled" title="Planned for a later release">@tab (later)</span>
+            }
+        </li>
+    }
+</ul>
+
+@if (!hasLayout)
+{
+    <div class="alert alert-info">
+        No saved layout yet. Create and save a version in the
+        <a asp-controller="Layout" asp-action="Editor" asp-route-projectId="@Model.ProjectId">layout editor</a>
+        to see the site plan here.
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="small mb-0" for="viewerLayoutSelect">Layout version</label>
+                        <select class="form-select form-select-sm" id="viewerLayoutSelect" style="width:auto;">
+                            @foreach (var l in Model.Layouts.OrderByDescending(x => x.VersionNo))
+                            {
+                                <option value="@l.Id" selected="@(activeLayoutId == l.Id)">
+                                    v@(l.VersionNo) - @l.Origin - rules v@(l.RuleSetVersion)
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
+                        <button type="button" class="btn btn-outline-secondary" id="zoomOut">-</button>
+                        <button type="button" class="btn btn-outline-secondary" id="zoomFit">Fit</button>
+                        <button type="button" class="btn btn-outline-secondary" id="zoomIn">+</button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="planBox" style="overflow:auto; max-height:75vh; min-height:320px; background:#fff;"
+                         data-version-url="@Url.Action("Version", "Layout")"
+                         data-initial-id="@activeLayoutId">
+                        <div class="text-muted small p-3" id="planMessage">Loading site plan...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card mb-3">
+                <div class="card-header">Warnings</div>
+                <div class="list-group list-group-flush" id="warningList">
+                    <div class="list-group-item text-muted small">Loading...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">GA drawing files</div>
+                <div class="list-group list-group-flush">
+                    @if (gaFiles.Count == 0)
+                    {
+                        <div class="list-group-item text-muted small">
+                            No DXF yet. Use Generate to create the GA drawing.
+                        </div>
+                    }
+                    @foreach (var a in gaFiles)
+                    {
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <div>@a.FileName</div>
+                                <div class="small text-muted">@a.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                            </div>
+                            <a class="btn btn-sm btn-outline-primary" asp-action="Download" asp-route-id="@a.ArtifactId">Download</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            var box = document.getElementById('planBox');
+            if (!box) return;
+
+            var select = document.getElementById('viewerLayoutSelect');
+            var message = document.getElementById('planMessage');
+            var warnings = document.getElementById('warningList');
+            var versionUrl = box.dataset.versionUrl;
+            var zoom = 100;
+
+            function badgeClass(status) {
+                if (status === 'Official') return 'rule-official';
+                if (status === 'Reference') return 'rule-reference';
+                return 'rule-assumed';
+            }
+
+            function applyZoom() {
+                var svg = box.querySelector('svg');
+                if (!svg) return;
+                svg.style.width = zoom + '%';
+                svg.style.height = 'auto';
+            }
+
+            function showWarnings(list) {
+                warnings.innerHTML = '';
+                if (!list || list.length === 0) {
+                    var none = document.createElement('div');
+                    none.className = 'list-group-item text-muted small';
+                    none.textContent = 'No warnings for this version.';
+                    warnings.appendChild(none);
+                    return;
+                }
+                list.forEach(function (w) {
+                    var row = document.createElement('div');
+                    row.className = 'list-group-item small';
+
+                    if (w.ruleStatus) {
+                        var badge = document.createElement('span');
+                        badge.className = 'badge me-2 ' + badgeClass(w.ruleStatus);
+                        badge.textContent = w.ruleStatus;
+                        row.appendChild(badge);
+                    }
+
+                    var text = document.createElement('span');
+                    text.textContent = w.message || w.code || '';
+                    row.appendChild(text);
+
+                    if (w.requiredDistanceM != null && w.actualDistanceM != null) {
+                        var dist = document.createElement('div');
+                        dist.className = 'text-muted';
+                        dist.textContent = 'Required ' + Number(w.requiredDistanceM).toFixed(1) +
+                            ' m, actual ' + Number(w.actualDistanceM).toFixed(1) + ' m';
+                        row.appendChild(dist);
+                    }
+
+                    if (w.sourceNote) {
+                        var src = document.createElement('div');
+                        src.className = 'text-muted';
+                        src.textContent = w.sourceNote;
+                        row.appendChild(src);
+                    }
+
+                    warnings.appendChild(row);
+                });
+            }
+
+            function load(id) {
+                if (!id) return;
+                message.textContent = 'Loading site plan...';
+                box.innerHTML = '';
+                box.appendChild(message);
+
+                fetch(versionUrl + '?id=' + encodeURIComponent(id), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (layout) {
+                        if (!layout) {
+                            message.textContent = 'Could not load this layout version.';
+                            showWarnings([]);
+                            return;
+                        }
+                        if (layout.svgMarkup) {
+                            box.innerHTML = layout.svgMarkup;
+                            zoom = 100;
+                            applyZoom();
+                        } else {
+                            message.textContent = 'No preview available for this version.';
+                        }
+                        showWarnings(layout.warnings);
+                    })
+                    .catch(function () {
+                        message.textContent = 'Could not load this layout version.';
+                    });
+            }
+
+            if (select) {
+                select.addEventListener('change', function () { load(select.value); });
+            }
+
+            document.getElementById('zoomIn').addEventListener('click', function () { zoom = Math.min(zoom + 25, 400); applyZoom(); });
+            document.getElementById('zoomOut').addEventListener('click', function () { zoom = Math.max(zoom - 25, 25); applyZoom(); });
+            document.getElementById('zoomFit').addEventListener('click', function () { zoom = 100; applyZoom(); });
+
+            load(box.dataset.initialId);
+        })();
+    </script>
+}

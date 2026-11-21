@@ -3,6 +3,8 @@ namespace BiogasApp.Model.DTOs;
 public class CadJobRequestDto
 {
     public Guid SimulationRunId { get; set; }
+
+    public Guid? SiteLayoutId { get; set; }
     public List<string> ExportFormats { get; set; } = new();
     public DxfOptionsDto DxfOptions { get; set; } = new();
 }

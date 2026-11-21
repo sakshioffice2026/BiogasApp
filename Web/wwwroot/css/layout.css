@@ -1,0 +1,203 @@
+/* ==========================================================================
+   PLANT LAYOUT (Site/Edit and Layout/Editor)
+   Depends on global.css variables and Bootstrap.
+   ========================================================================== */
+
+/* ---------- Site map ---------- */
+.site-map {
+    height: 520px;
+    width: 100%;
+    background: #e9eef7;
+}
+
+    .site-map.is-drawing,
+    .site-map.is-drawing .leaflet-grab {
+        cursor: crosshair;
+    }
+
+.site-latlon {
+    max-width: 440px;
+}
+
+.site-edit .nav-pills .nav-link {
+    font-size: .85rem;
+    padding: .4rem .5rem;
+}
+
+.nobuild-row {
+    padding: .6rem 0;
+    border-bottom: 1px solid var(--bp-line, #c9d6f2);
+}
+
+    .nobuild-row:last-child {
+        border-bottom: 0;
+    }
+
+    .nobuild-row .nb-draw.is-active {
+        background: var(--bp-indigo, #5b5bf0);
+        border-color: var(--bp-indigo, #5b5bf0);
+        color: #fff;
+    }
+
+.receptor-empty,
+.nobuild-empty {
+    color: var(--bp-ink-mute, #5a6c99);
+    font-size: .85rem;
+}
+
+/* ---------- Layout editor ---------- */
+.layout-canvas {
+    position: relative;
+    height: 72vh;
+    min-height: 420px;
+    background: #f4f6fb;
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+}
+
+    .layout-canvas.is-panning {
+        cursor: grabbing;
+    }
+
+    .layout-canvas .layout-svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+.layout-empty {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    text-align: center;
+}
+
+.layout-svg .item {
+    cursor: move;
+}
+
+    .layout-svg .item.locked {
+        cursor: not-allowed;
+    }
+
+        .layout-svg .item.locked polygon,
+        .layout-svg .item.locked circle {
+            fill-opacity: .55;
+        }
+
+    .layout-svg .item.is-dragging {
+        opacity: .8;
+    }
+
+    .layout-svg .item.selected polygon,
+    .layout-svg .item.selected circle {
+        stroke: #111;
+        stroke-width: 1;
+        stroke-dasharray: 2 1;
+    }
+
+.equipment-list {
+    max-height: 72vh;
+    overflow-y: auto;
+}
+
+    .equipment-list .list-group-item {
+        padding: .45rem .6rem;
+        font-size: .82rem;
+        cursor: pointer;
+    }
+
+        .equipment-list .list-group-item.is-disabled {
+            opacity: .55;
+        }
+
+        .equipment-list .list-group-item.is-selected {
+            background: #eef1ff;
+        }
+
+.eq-tag {
+    font-weight: 600;
+}
+
+.eq-size {
+    color: var(--bp-ink-mute, #5a6c99);
+    font-size: .75rem;
+}
+
+.warning-list {
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.warning-item {
+    padding: .5rem .75rem;
+    border-bottom: 1px solid var(--bp-line, #c9d6f2);
+    font-size: .82rem;
+    cursor: pointer;
+}
+
+    .warning-item:last-child {
+        border-bottom: 0;
+    }
+
+    .warning-item:hover,
+    .warning-item.is-selected {
+        background: #fff6e5;
+    }
+
+/* ---------- Zone swatches (match the plan colours) ---------- */
+.zone-swatch {
+    display: inline-block;
+    width: .85rem;
+    height: .85rem;
+    border-radius: 2px;
+    vertical-align: -2px;
+    border: 1px solid rgba(0, 0, 0, .25);
+}
+
+.zone-dirty {
+    background: #b5651d;
+}
+
+.zone-process {
+    background: #2e8b57;
+}
+
+.zone-gas {
+    background: #00acc1;
+}
+
+.zone-clean {
+    background: #3f51b5;
+}
+
+/* ---------- Rule status badges ---------- */
+.badge.rule-official {
+    background: #1b8a4b;
+    color: #fff;
+}
+
+.badge.rule-reference {
+    background: #f2a900;
+    color: #1d1d1d;
+}
+
+.badge.rule-assumed {
+    background: #d32f2f;
+    color: #fff;
+}
+
+.badge.rule-none {
+    background: #6c757d;
+    color: #fff;
+}
+
+.layout-editor.is-busy {
+    cursor: progress;
+}
