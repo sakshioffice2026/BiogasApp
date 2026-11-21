@@ -6,6 +6,8 @@ public class CadJob
 {
     public Guid Id { get; set; }
     public Guid SimulationRunId { get; set; }
+
+    public Guid? SiteLayoutId { get; set; }
     public CadJobStatus Status { get; set; } = CadJobStatus.Queued;
     public string ExportFormatsJson { get; set; } = "[]";
     public string? ErrorMessage { get; set; }
@@ -13,4 +15,6 @@ public class CadJob
     public DateTime? CompletedAt { get; set; }
 
     public SimulationRun? SimulationRun { get; set; }
+
+    public SiteLayout? SiteLayout { get; set; }
 }

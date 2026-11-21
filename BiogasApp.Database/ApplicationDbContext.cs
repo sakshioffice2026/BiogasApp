@@ -27,6 +27,15 @@ public class ApplicationDbContext : DbContext
     public DbSet<Enquiry> Enquiries => Set<Enquiry>();
     public DbSet<EnquiryInvite> EnquiryInvites => Set<EnquiryInvite>();
     public DbSet<EnquiryProposal> EnquiryProposals => Set<EnquiryProposal>();
+    public DbSet<ClearanceRuleSet> ClearanceRuleSets => Set<ClearanceRuleSet>();
+    public DbSet<ClearanceRule> ClearanceRules => Set<ClearanceRule>();
+    public DbSet<ClearanceSetting> ClearanceSettings => Set<ClearanceSetting>();
+    public DbSet<ProjectSite> ProjectSites => Set<ProjectSite>();
+    public DbSet<SiteReceptor> SiteReceptors => Set<SiteReceptor>();
+    public DbSet<NoBuildZone> NoBuildZones => Set<NoBuildZone>();
+    public DbSet<ProjectEquipmentItem> ProjectEquipmentItems => Set<ProjectEquipmentItem>();
+    public DbSet<SiteLayout> SiteLayouts => Set<SiteLayout>();
+    public DbSet<SiteLayoutItem> SiteLayoutItems => Set<SiteLayoutItem>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -120,6 +129,86 @@ public class ApplicationDbContext : DbContext
             [CadJobStatus.Running] = "RUNNING",
             [CadJobStatus.Completed] = "COMPLETED",
             [CadJobStatus.Failed] = "FAILED"
+        });
+
+        var hazardClass = EnumToDb(new Dictionary<HazardClass, string>
+        {
+            [HazardClass.Cascade] = "CASCADE",
+            [HazardClass.Compressor] = "COMPRESSOR",
+            [HazardClass.Dispenser] = "DISPENSER",
+            [HazardClass.GasVessel] = "GAS_VESSEL",
+            [HazardClass.DigesterGas] = "DIGESTER_GAS",
+            [HazardClass.Scrubber] = "SCRUBBER",
+            [HazardClass.Flare] = "FLARE",
+            [HazardClass.Electrical] = "ELECTRICAL",
+            [HazardClass.Building] = "BUILDING",
+            [HazardClass.Road] = "ROAD",
+            [HazardClass.Boundary] = "BOUNDARY",
+            [HazardClass.Receptor] = "RECEPTOR",
+            [HazardClass.Tank] = "TANK",
+            [HazardClass.OpenYard] = "OPEN_YARD",
+            [HazardClass.Other] = "OTHER"
+        });
+
+        var ruleStatus = EnumToDb(new Dictionary<RuleStatus, string>
+        {
+            [RuleStatus.Official] = "Official",
+            [RuleStatus.Reference] = "Reference",
+            [RuleStatus.Assumed] = "Assumed"
+        });
+
+        var receptorType = EnumToDb(new Dictionary<ReceptorType, string>
+        {
+            [ReceptorType.School] = "SCHOOL",
+            [ReceptorType.Hospital] = "HOSPITAL",
+            [ReceptorType.House] = "HOUSE",
+            [ReceptorType.Road] = "ROAD",
+            [ReceptorType.Canal] = "CANAL",
+            [ReceptorType.PowerLine] = "POWER_LINE",
+            [ReceptorType.Other] = "OTHER"
+        });
+
+        var receptorSource = EnumToDb(new Dictionary<ReceptorSource, string>
+        {
+            [ReceptorSource.MapData] = "MAP_DATA",
+            [ReceptorSource.UserAdded] = "USER_ADDED"
+        });
+
+        var noBuildReason = EnumToDb(new Dictionary<NoBuildReason, string>
+        {
+            [NoBuildReason.HighTensionLine] = "HIGH_TENSION_LINE",
+            [NoBuildReason.Canal] = "CANAL",
+            [NoBuildReason.Pipeline] = "PIPELINE",
+            [NoBuildReason.Easement] = "EASEMENT",
+            [NoBuildReason.RoadSetback] = "ROAD_SETBACK",
+            [NoBuildReason.Other] = "OTHER"
+        });
+
+        var equipmentZone = EnumToDb(new Dictionary<EquipmentZone, string>
+        {
+            [EquipmentZone.Dirty] = "DIRTY",
+            [EquipmentZone.Process] = "PROCESS",
+            [EquipmentZone.Gas] = "GAS",
+            [EquipmentZone.Clean] = "CLEAN"
+        });
+
+        var equipmentShape = EnumToDb(new Dictionary<EquipmentShape, string>
+        {
+            [EquipmentShape.Circle] = "CIRCLE",
+            [EquipmentShape.Rectangle] = "RECTANGLE"
+        });
+
+        var sizeSource = EnumToDb(new Dictionary<SizeSource, string>
+        {
+            [SizeSource.Simulation] = "SIMULATION",
+            [SizeSource.Standard] = "STANDARD",
+            [SizeSource.UserOverride] = "USER_OVERRIDE"
+        });
+
+        var layoutOrigin = EnumToDb(new Dictionary<LayoutOrigin, string>
+        {
+            [LayoutOrigin.Auto] = "AUTO",
+            [LayoutOrigin.Manual] = "MANUAL"
         });
 
         // ---------- feedstocks ----------
@@ -273,6 +362,11 @@ public class ApplicationDbContext : DbContext
                 .WithMany(r => r.CadJobs)
                 .HasForeignKey(x => x.SimulationRunId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.SiteLayout)
+                .WithMany()
+                .HasForeignKey(x => x.SiteLayoutId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ---------- enquiries ----------
@@ -412,6 +506,189 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.RequestPath).HasMaxLength(500);
         });
 
+        // ---------- clearance_rule_sets ----------
+        modelBuilder.Entity<ClearanceRuleSet>(e =>
+        {
+            e.ToTable("clearance_rule_sets");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.Property(x => x.RegulatoryStandard).HasConversion(regulatoryStandard).HasMaxLength(30).IsRequired();
+            e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasIndex(x => new { x.Name, x.Version }).IsUnique();
+        });
+
+        // ---------- clearance_rules ----------
+        modelBuilder.Entity<ClearanceRule>(e =>
+        {
+            e.ToTable("clearance_rules");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.FromHazardClass).HasConversion(hazardClass).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ToHazardClass).HasConversion(hazardClass).HasMaxLength(30).IsRequired();
+            e.Property(x => x.MinDistanceM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.CapacityMinL).HasColumnType("decimal(12,2)");
+            e.Property(x => x.CapacityMaxL).HasColumnType("decimal(12,2)");
+            e.Property(x => x.Status).HasConversion(ruleStatus).HasMaxLength(20).IsRequired();
+            e.Property(x => x.SourceNote).HasMaxLength(500).IsRequired();
+            e.Property(x => x.SourceUrl).HasMaxLength(500);
+            e.Property(x => x.ConfirmedBy).HasMaxLength(150);
+            e.Property(x => x.ConfirmedAt).HasColumnType("timestamp");
+            e.HasIndex(x => new { x.RuleSetId, x.FromHazardClass, x.ToHazardClass });
+
+            e.HasOne(x => x.RuleSet)
+                .WithMany(s => s.Rules)
+                .HasForeignKey(x => x.RuleSetId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- clearance_settings ----------
+        modelBuilder.Entity<ClearanceSetting>(e =>
+        {
+            e.ToTable("clearance_settings");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.SettingKey).HasMaxLength(60).IsRequired();
+            e.Property(x => x.ValueNum).HasColumnType("decimal(12,2)");
+            e.Property(x => x.Unit).HasMaxLength(10).IsRequired();
+            e.Property(x => x.Status).HasConversion(ruleStatus).HasMaxLength(20).IsRequired();
+            e.Property(x => x.SourceNote).HasMaxLength(500).IsRequired();
+            e.Property(x => x.ConfirmedBy).HasMaxLength(150);
+            e.Property(x => x.ConfirmedAt).HasColumnType("timestamp");
+            e.HasIndex(x => new { x.RuleSetId, x.SettingKey }).IsUnique();
+
+            e.HasOne(x => x.RuleSet)
+                .WithMany(s => s.Settings)
+                .HasForeignKey(x => x.RuleSetId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- project_sites ----------
+        modelBuilder.Entity<ProjectSite>(e =>
+        {
+            e.ToTable("project_sites");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Latitude).HasColumnType("decimal(9,6)");
+            e.Property(x => x.Longitude).HasColumnType("decimal(9,6)");
+            e.Property(x => x.PlotCornersJson).HasColumnType("json").IsRequired();
+            e.Property(x => x.PlotAreaM2).HasColumnType("decimal(12,2)");
+            e.Property(x => x.GateOffsetM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.NorthAngleDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.WindFromDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.SlopeDirectionDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.PowerSideDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.GasOfftakeSideDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.Notes).HasColumnType("text");
+            e.Property(x => x.UpdatedAt).HasColumnType("timestamp");
+            e.HasIndex(x => x.ProjectId).IsUnique();
+
+            e.HasOne(x => x.Project)
+                .WithOne()
+                .HasForeignKey<ProjectSite>(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- site_receptors ----------
+        modelBuilder.Entity<SiteReceptor>(e =>
+        {
+            e.ToTable("site_receptors");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Type).HasConversion(receptorType).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Latitude).HasColumnType("decimal(9,6)");
+            e.Property(x => x.Longitude).HasColumnType("decimal(9,6)");
+            e.Property(x => x.DistanceFromPlotM).HasColumnType("decimal(10,2)");
+            e.Property(x => x.Source).HasConversion(receptorSource).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => x.ProjectId);
+
+            e.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- no_build_zones ----------
+        modelBuilder.Entity<NoBuildZone>(e =>
+        {
+            e.ToTable("no_build_zones");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Reason).HasConversion(noBuildReason).HasMaxLength(30).IsRequired();
+            e.Property(x => x.PolygonJson).HasColumnType("json").IsRequired();
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => x.ProjectId);
+
+            e.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- project_equipment_items ----------
+        modelBuilder.Entity<ProjectEquipmentItem>(e =>
+        {
+            e.ToTable("project_equipment_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Tag).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            e.Property(x => x.HazardClass).HasConversion(hazardClass).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Zone).HasConversion(equipmentZone).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Shape).HasConversion(equipmentShape).HasMaxLength(20).IsRequired();
+            e.Property(x => x.WidthM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.LengthM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.DiameterM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.SizeSource).HasConversion(sizeSource).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => new { x.ProjectId, x.Tag }).IsUnique();
+
+            e.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- site_layouts ----------
+        modelBuilder.Entity<SiteLayout>(e =>
+        {
+            e.ToTable("site_layouts");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Origin).HasConversion(layoutOrigin).HasMaxLength(10).IsRequired();
+            e.Property(x => x.WarningsJson).HasColumnType("json").IsRequired();
+            e.Property(x => x.CreatedBy).HasMaxLength(150);
+            e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasIndex(x => new { x.SimulationRunId, x.VersionNo }).IsUnique();
+
+            e.HasOne(x => x.SimulationRun)
+                .WithMany()
+                .HasForeignKey(x => x.SimulationRunId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.RuleSet)
+                .WithMany()
+                .HasForeignKey(x => x.RuleSetId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ---------- site_layout_items ----------
+        modelBuilder.Entity<SiteLayoutItem>(e =>
+        {
+            e.ToTable("site_layout_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.X).HasColumnType("decimal(10,2)");
+            e.Property(x => x.Y).HasColumnType("decimal(10,2)");
+            e.Property(x => x.RotationDeg).HasColumnType("decimal(6,2)");
+            e.HasIndex(x => x.SiteLayoutId);
+
+            e.HasOne(x => x.SiteLayout)
+                .WithMany(l => l.Items)
+                .HasForeignKey(x => x.SiteLayoutId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.EquipmentItem)
+                .WithMany()
+                .HasForeignKey(x => x.EquipmentItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
         // ---------- snake_case column names for every property ----------
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
