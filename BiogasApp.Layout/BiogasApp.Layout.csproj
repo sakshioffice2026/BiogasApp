@@ -10,4 +10,15 @@
     <PackageReference Include="netDxf" Version="2023.11.10" />
   </ItemGroup>
 
+
+	<ItemGroup>
+		<ProjectReference Include="..\BiogasApp.Database\BiogasApp.Database.csproj" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <Folder Include="Models\DTOs\" />
+	  <Folder Include="Models\ViewModel\" />
+	</ItemGroup>
+
 </Project>
