@@ -36,6 +36,12 @@ public class ApplicationDbContext : DbContext
     public DbSet<ProjectEquipmentItem> ProjectEquipmentItems => Set<ProjectEquipmentItem>();
     public DbSet<SiteLayout> SiteLayouts => Set<SiteLayout>();
     public DbSet<SiteLayoutItem> SiteLayoutItems => Set<SiteLayoutItem>();
+    public DbSet<SiteAssessment> SiteAssessments => Set<SiteAssessment>();
+    public DbSet<AssessmentReceptor> AssessmentReceptors => Set<AssessmentReceptor>();
+    public DbSet<AssessmentNoBuildZone> AssessmentNoBuildZones => Set<AssessmentNoBuildZone>();
+    public DbSet<AssessmentEquipmentItem> AssessmentEquipmentItems => Set<AssessmentEquipmentItem>();
+    public DbSet<AssessmentLayout> AssessmentLayouts => Set<AssessmentLayout>();
+    public DbSet<AssessmentLayoutItem> AssessmentLayoutItems => Set<AssessmentLayoutItem>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -209,6 +215,12 @@ public class ApplicationDbContext : DbContext
         {
             [LayoutOrigin.Auto] = "AUTO",
             [LayoutOrigin.Manual] = "MANUAL"
+        });
+
+        var assessmentStatus = EnumToDb(new Dictionary<AssessmentStatus, string>
+        {
+            [AssessmentStatus.Draft] = "DRAFT",
+            [AssessmentStatus.Converted] = "CONVERTED"
         });
 
         // ---------- feedstocks ----------
@@ -689,6 +701,142 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(x => x.EquipmentItemId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+        // ---------- site_assessments ----------
+        modelBuilder.Entity<SiteAssessment>(e =>
+        {
+            e.ToTable("site_assessments");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Status).HasConversion(assessmentStatus).HasMaxLength(20).IsRequired();
+            e.Property(x => x.CapacityTpd).HasColumnType("decimal(8,2)");
+            e.Property(x => x.Latitude).HasColumnType("decimal(9,6)");
+            e.Property(x => x.Longitude).HasColumnType("decimal(9,6)");
+            e.Property(x => x.PlotCornersJson).HasColumnType("json").IsRequired();
+            e.Property(x => x.PlotAreaM2).HasColumnType("decimal(12,2)");
+            e.Property(x => x.GateOffsetM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.NorthAngleDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.WindFromDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.SlopeDirectionDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.PowerSideDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.GasOfftakeSideDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.Notes).HasColumnType("text");
+            e.Property(x => x.CreatedBy).HasMaxLength(150);
+            e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.Property(x => x.UpdatedAt).HasColumnType("timestamp");
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.EnquiryId);
+
+            e.HasOne(x => x.Enquiry)
+                .WithMany()
+                .HasForeignKey(x => x.EnquiryId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ---------- assessment_receptors ----------
+        modelBuilder.Entity<AssessmentReceptor>(e =>
+        {
+            e.ToTable("assessment_receptors");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Type).HasConversion(receptorType).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.Latitude).HasColumnType("decimal(9,6)");
+            e.Property(x => x.Longitude).HasColumnType("decimal(9,6)");
+            e.Property(x => x.DistanceFromPlotM).HasColumnType("decimal(10,2)");
+            e.Property(x => x.Source).HasConversion(receptorSource).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => x.AssessmentId);
+
+            e.HasOne(x => x.Assessment)
+                .WithMany(a => a.Receptors)
+                .HasForeignKey(x => x.AssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- assessment_no_build_zones ----------
+        modelBuilder.Entity<AssessmentNoBuildZone>(e =>
+        {
+            e.ToTable("assessment_no_build_zones");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Reason).HasConversion(noBuildReason).HasMaxLength(30).IsRequired();
+            e.Property(x => x.PolygonJson).HasColumnType("json").IsRequired();
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => x.AssessmentId);
+
+            e.HasOne(x => x.Assessment)
+                .WithMany(a => a.NoBuildZones)
+                .HasForeignKey(x => x.AssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- assessment_equipment_items ----------
+        modelBuilder.Entity<AssessmentEquipmentItem>(e =>
+        {
+            e.ToTable("assessment_equipment_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Tag).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            e.Property(x => x.HazardClass).HasConversion(hazardClass).HasMaxLength(30).IsRequired();
+            e.Property(x => x.Zone).HasConversion(equipmentZone).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Shape).HasConversion(equipmentShape).HasMaxLength(20).IsRequired();
+            e.Property(x => x.WidthM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.LengthM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.DiameterM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.SizeSource).HasConversion(sizeSource).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => new { x.AssessmentId, x.Tag }).IsUnique();
+
+            e.HasOne(x => x.Assessment)
+                .WithMany(a => a.Equipment)
+                .HasForeignKey(x => x.AssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- assessment_layouts ----------
+        modelBuilder.Entity<AssessmentLayout>(e =>
+        {
+            e.ToTable("assessment_layouts");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Origin).HasConversion(layoutOrigin).HasMaxLength(10).IsRequired();
+            e.Property(x => x.WarningsJson).HasColumnType("json").IsRequired();
+            e.Property(x => x.CreatedBy).HasMaxLength(150);
+            e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasIndex(x => new { x.AssessmentId, x.VersionNo }).IsUnique();
+
+            e.HasOne(x => x.Assessment)
+                .WithMany(a => a.Layouts)
+                .HasForeignKey(x => x.AssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.RuleSet)
+                .WithMany()
+                .HasForeignKey(x => x.RuleSetId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ---------- assessment_layout_items ----------
+        modelBuilder.Entity<AssessmentLayoutItem>(e =>
+        {
+            e.ToTable("assessment_layout_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.X).HasColumnType("decimal(10,2)");
+            e.Property(x => x.Y).HasColumnType("decimal(10,2)");
+            e.Property(x => x.RotationDeg).HasColumnType("decimal(6,2)");
+            e.HasIndex(x => x.AssessmentLayoutId);
+
+            e.HasOne(x => x.AssessmentLayout)
+                .WithMany(l => l.Items)
+                .HasForeignKey(x => x.AssessmentLayoutId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.EquipmentItem)
+                .WithMany()
+                .HasForeignKey(x => x.EquipmentItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // ---------- snake_case column names for every property ----------
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {

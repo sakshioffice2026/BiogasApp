@@ -47,6 +47,9 @@ builder.Services.AddScoped<IEnquiryInviteRepository, EnquiryInviteRepository>();
 builder.Services.AddScoped<ISiteRepository, SiteRepository>();
 builder.Services.AddScoped<IClearanceRuleRepository, ClearanceRuleRepository>();
 builder.Services.AddScoped<ISiteLayoutRepository, SiteLayoutRepository>();
+builder.Services.AddScoped<IAssessmentRepository, AssessmentRepository>();
+// ---------- CAD generation (built-in layout engine) ----------
+builder.Services.AddScoped<ICadGeneration, CadGenerationRepository>();
 builder.Services.AddHttpClient<IReceptorProvider, OsmReceptorProvider>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(40);
