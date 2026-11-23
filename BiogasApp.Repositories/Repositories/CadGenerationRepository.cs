@@ -30,6 +30,8 @@ public class CadGenerationRepository : ICadGeneration
 
     private const string GaFormat = "GA_DXF";
 
+    private const string PfdFormat = "PFD_DXF";
+
     private static readonly Dictionary<ArtifactType, string> ArtifactToApi = new()
     {
         [ArtifactType.GaDxf] = "GA_DXF",
@@ -97,15 +99,24 @@ public class CadGenerationRepository : ICadGeneration
 
         try
         {
-            if (!formats.Contains(GaFormat))
-                throw new InvalidOperationException("Only GA_DXF is available for now. Select GA_DXF to generate.");
+            bool wantGa = formats.Contains(GaFormat);
+            bool wantPfd = formats.Contains(PfdFormat);
 
-            if (!request.SiteLayoutId.HasValue)
-                throw new InvalidOperationException("Select a saved layout version first.");
+            if (!wantGa && !wantPfd)
+                throw new InvalidOperationException("Only GA_DXF and PFD_DXF are available for now. Select one of them to generate.");
 
-            await GenerateGaAsync(job, run, project, request.SiteLayoutId.Value, cancellationToken);
+            if (wantGa)
+            {
+                if (!request.SiteLayoutId.HasValue)
+                    throw new InvalidOperationException("Select a saved layout version first.");
 
-            var skipped = formats.Where(f => f != GaFormat).ToList();
+                await GenerateGaAsync(job, run, project, request.SiteLayoutId.Value, cancellationToken);
+            }
+
+            if (wantPfd)
+                await GeneratePfdAsync(job, run, project, cancellationToken);
+
+            var skipped = formats.Where(f => f != GaFormat && f != PfdFormat).ToList();
 
             job.Status = CadJobStatus.Completed;
             job.CompletedAt = DateTime.UtcNow;
@@ -252,6 +263,51 @@ public class CadGenerationRepository : ICadGeneration
         });
     }
 
+    private async Task GeneratePfdAsync(
+        CadJob job,
+        SimulationRun run,
+        Project project,
+        CancellationToken cancellationToken)
+    {
+        var site = await _sites.GetByProjectAsync(project.Id, cancellationToken)
+            ?? throw new InvalidOperationException("Enter the plot first.");
+
+        var equipment = await _sites.GetEquipmentAsync(project.Id, cancellationToken);
+        var input = BuildInput(site, equipment);
+
+        var info = new TitleBlockInfo(
+            ProjectName: project.Name,
+            Location: $"{project.LocationCountry} ({site.Latitude:0.0000}, {site.Longitude:0.0000})",
+            CapacityText: $"{run.NetCbgKgDay / 1000m:0.#} TPD CBG ({run.TotalFeedTpd:0.#} TPD feed)",
+            DrawingNo: $"PFD-{project.Id.ToString()[..8].ToUpperInvariant()}-R0",
+            Revision: "R0",
+            Date: DateTime.UtcNow,
+            RuleSetName: string.Empty,
+            RuleSetVersion: 0,
+            LayoutOriginText: string.Empty,
+            WarningSummary: string.Empty);
+
+        var bytes = PfdDxfWriter.Write(input.Equipment, info);
+        var fileName = $"PFD_{SafeName(project.Name)}_{DateTime.UtcNow:yyyyMMddHHmm}.dxf";
+
+        await using var content = new MemoryStream(bytes);
+        var fileUrl = await _storage.SaveAsync(job.SimulationRunId, fileName, content, cancellationToken);
+
+        await using var saved = await _storage.OpenReadAsync(fileUrl, cancellationToken)
+            ?? throw new IOException($"Saved artifact '{fileUrl}' could not be read back.");
+
+        var checksum = await _storage.ComputeSha256Async(saved, cancellationToken);
+
+        _db.GeneratedArtifacts.Add(new GeneratedArtifact
+        {
+            Id = Guid.NewGuid(),
+            SimulationRunId = job.SimulationRunId,
+            ArtifactType = ArtifactType.PfdDxf,
+            FileUrl = fileUrl,
+            Checksum = checksum,
+            CreatedAt = DateTime.UtcNow
+        });
+    }
     private static LayoutInput BuildInput(SiteDto site, List<EquipmentItemDto> equipment)
     {
         var geo = new GeoProjection(site.Latitude, site.Longitude);

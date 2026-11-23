@@ -40,6 +40,7 @@
     <div class="alert alert-warning py-2 small mb-2">@LayoutEditorViewModel.DraftNotice</div>
 
     <div class="d-flex justify-content-end gap-2 mb-2">
+        <a class="btn btn-outline-secondary btn-sm" href="@Url.Action("Site", "Assessment", new { id = Model.ProjectId })">Edit site</a>
         <a class="btn btn-outline-primary btn-sm" href="@Url.Action("Proposal", "Assessment", new { id = Model.ProjectId })">Create proposal</a>
         @if (Model.ProposalApproved)
         {

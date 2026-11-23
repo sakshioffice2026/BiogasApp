@@ -67,7 +67,7 @@
                         <div class="form-label small mb-1">Output</div>
                         @foreach (var f in CadViewModel.AvailableFormats)
                         {
-                            bool enabled = f == "GA_DXF";
+                            bool enabled = f == "GA_DXF" || f == "PFD_DXF";
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="SelectedFormats" value="@f" id="fmt_@f"
                                        checked="@enabled" disabled="@(!enabled)" />
@@ -97,7 +97,7 @@
                     </div>
 
                     <button type="submit" class="btn btn-primary btn-sm" id="btnGenerateCad" @((hasLayout && !jobActive) ? "" : "disabled")>
-                        Generate GA drawing
+                        Generate drawings
                     </button>
                 </form>
             </div>

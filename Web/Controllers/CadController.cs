@@ -40,6 +40,22 @@ public class CadController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> Projects(CancellationToken cancellationToken)
+    {
+        var model = await _projects.GetIndexAsync(null, null, cancellationToken);
+
+        var latestRuns = new Dictionary<Guid, Guid?>();
+        foreach (var p in model.Projects)
+        {
+            var run = await _simulations.GetLatestRunAsync(p.Id, cancellationToken);
+            latestRuns[p.Id] = run?.Id;
+        }
+
+        ViewData["LatestRuns"] = latestRuns;
+        return View(model);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Index(Guid runId, CancellationToken cancellationToken)
     {
         var model = await BuildViewModelAsync(runId, null, cancellationToken);

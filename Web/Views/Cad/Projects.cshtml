@@ -1,0 +1,49 @@
+@model BiogasApp.Model.ViewModel.ProjectIndexViewModel
+@using BiogasApp.Model.ViewModel
+@{
+    ViewData["Title"] = "Drawings";
+    var latestRuns = ViewData["LatestRuns"] as Dictionary<Guid, Guid?> ?? new Dictionary<Guid, Guid?>();
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="mb-3">
+    <h1 class="h4 mb-0">Drawings</h1>
+    <div class="text-muted">GA site plan and PFD for each project</div>
+</div>
+
+<div class="alert alert-warning py-2 small">@LayoutEditorViewModel.DraftNotice</div>
+
+<div class="card">
+    <div class="list-group list-group-flush">
+        @if (Model.Projects.Count == 0)
+        {
+            <div class="list-group-item text-muted small">No projects yet.</div>
+        }
+        @foreach (var p in Model.Projects)
+        {
+            latestRuns.TryGetValue(p.Id, out var runId);
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <div>@p.Name</div>
+                    <div class="small text-muted">@p.LocationCountry, @p.Status, @p.RunCount run(s)</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-secondary"
+                       asp-controller="Layout" asp-action="Editor" asp-route-projectId="@p.Id">Layout editor</a>
+                    @if (runId.HasValue)
+                    {
+                        <a class="btn btn-sm btn-primary"
+                           asp-controller="Cad" asp-action="Index" asp-route-runId="@runId.Value">CAD drawings</a>
+                    }
+                    else
+                    {
+                        <span class="small text-muted align-self-center">Run a simulation first</span>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
