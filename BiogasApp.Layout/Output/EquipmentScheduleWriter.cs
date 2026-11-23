@@ -12,7 +12,7 @@ public static class EquipmentScheduleWriter
     private const double TextHeight = 2.0;
 
     private static readonly double[] ColWidths = { 12, 22, 70, 22, 34, 14 };
-    private static readonly string[] Headers = { "S.NO", "TAG", "DESCRIPTION", "ZONE", "SIZE", "QTY" };
+    private static readonly string[] Headers = { "S.NO", "TAG", "DESCRIPTION", "ZONE", "SIZE (m)", "QTY" };
 
     public static void Write(DxfDocument doc, IReadOnlyList<PlacedItem> items, double x, double y)
     {

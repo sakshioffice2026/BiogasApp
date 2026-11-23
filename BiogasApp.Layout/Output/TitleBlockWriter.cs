@@ -38,6 +38,7 @@ public static class TitleBlockWriter
             ("DATE", info.Date.ToString("dd-MMM-yyyy").ToUpperInvariant()),
             ("RULE SET", $"{info.RuleSetName} V{info.RuleSetVersion}"),
             ("LAYOUT TYPE", info.LayoutOriginText),
+             ("UNITS", "METRES (m)"),
             ("WARNINGS", info.WarningSummary)
         };
 

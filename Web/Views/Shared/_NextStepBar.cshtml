@@ -30,10 +30,10 @@
         label = "Next: Digester performance";
         href = "#sm-digester";
     }
-    else if ((Is("Proposal", "Financials") || Is("Proposal", "Bom")) && runId.HasValue)
+    else if ((Is("Proposal", "Financials") || Is("Proposal", "Bom")) && ViewData["ProjectId"] is Guid layoutProjectId)
     {
-        label = "CAD drawings";
-        href = Url.Action("Index", "Cad", new { runId = runId.Value });
+        label = "Generate layout";
+        href = Url.Action("Editor", "Layout", new { projectId = layoutProjectId });
     }
 }
 

@@ -7,8 +7,9 @@ public sealed record PlotImportResult(
     bool Success,
     List<Point2D> Corners,
     double ScaleApplied,
-    string Message);
-
+    string Message,
+    double? Latitude = null,
+    double? Longitude = null);
 public static class DxfPlotImporter
 {
     private const double MmThresholdM = 5000.0;
@@ -55,6 +56,18 @@ public static class DxfPlotImporter
 
         var (min, max) = PolygonOps.BoundingBox(best);
         double extent = Math.Max(max.X - min.X, max.Y - min.Y);
+
+        bool geographic = extent > 0 && extent <= 1.0
+            && min.X >= -180 && max.X <= 180 && min.Y >= -90 && max.Y <= 90;
+
+        if (geographic)
+        {
+            var proj = new GeoProjection(min.Y, min.X);
+            var geo = PolygonOps.EnsureCounterClockwise(best.Select(p => proj.ToMetres(p.Y, p.X)).ToList());
+            return new PlotImportResult(true, geo, 1.0,
+                "DXF had map coordinates: boundary and plot location imported. Please check the area.", min.Y, min.X);
+        }
+
         double scale = extent > MmThresholdM ? 0.001 : 1.0;
 
         var corners = best

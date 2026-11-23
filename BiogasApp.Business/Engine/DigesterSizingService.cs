@@ -44,8 +44,8 @@ public class DigesterSizingService
         var numTanks = (int)Math.Ceiling(vGrossTotal / maxSingleTankVolM3);
         var vGrossPerTank = vGrossTotal / numTanks;
 
-        // V = (pi * D^3) / 8 for H/D = 0.5  =>  D = (8 * V / pi)^(1/3)
-        var diameterM = Math.Pow((8.0 * vGrossPerTank) / Math.PI, 1.0 / 3.0);
+        // V = (pi / 4) * (H/D) * D^3  =>  D = (4 * V / (pi * H/D))^(1/3)
+        var diameterM = Math.Pow((4.0 * vGrossPerTank) / (Math.PI * EngineeringConstants.DigesterAspectRatioHd), 1.0 / 3.0);
 
         // Round diameter up to the nearest 0.5 m for standard manufacturing
         diameterM = Math.Ceiling(diameterM / EngineeringConstants.DiameterRoundingStepM)

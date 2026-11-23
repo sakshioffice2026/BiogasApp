@@ -114,6 +114,8 @@ public class SiteController : Controller
             success = result.Success,
             message = result.Message,
             scaleApplied = result.ScaleApplied,
+            latitude = result.Latitude,
+            longitude = result.Longitude,
             corners = result.Corners.Select(c => new PointDto { X = c.X, Y = c.Y })
         });
     }

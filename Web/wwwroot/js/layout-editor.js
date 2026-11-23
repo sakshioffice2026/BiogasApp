@@ -31,6 +31,7 @@
         zoomFit: $('btnZoomFit'),
         versionSelect: $('versionSelect'),
         deleteVersion: $('btnDeleteVersion'),
+        downloadDxf: $('btnDownloadDxf'),
         addCustom: $('btnAddCustom'),
         equipmentList: $('equipmentList'),
         selectedInfo: $('selectedInfo'),
@@ -166,6 +167,7 @@
         el.rotate.disabled = busy || !item;
         el.lock.textContent = item && item.isLocked ? 'Unlock' : 'Lock';
         el.deleteVersion.disabled = busy || !(layout && layout.id);
+        el.downloadDxf.disabled = busy || !(layout && layout.id);
     }
 
     /* ---------- view (zoom and pan) ---------- */
@@ -498,6 +500,24 @@
             el.versionSelect.value = '';
             renderLayout();
             showMessage('Version deleted.', 'success');
+        }).catch(function () {
+            setBusy(false);
+            showMessage('Could not reach the server. Try again.', 'danger');
+        });
+    });
+
+    el.downloadDxf.addEventListener('click', function () {
+        if (!layout || !layout.id) return;
+
+        setBusy(true);
+        post(URLS.deleteVersion.replace(/DeleteVersion/i, 'DownloadDxf') + '?id=' + encodeURIComponent(layout.id), {}).then(function (res) {
+            setBusy(false);
+            if (!res.ok || !res.data || !res.data.success) {
+                showMessage((res.data && res.data.message) || failText(res, 'Could not generate the DXF'), 'danger');
+                return;
+            }
+            window.location.href = res.data.downloadUrl;
+            showMessage('DXF generated: ' + res.data.fileName, 'success');
         }).catch(function () {
             setBusy(false);
             showMessage('Could not reach the server. Try again.', 'danger');

@@ -62,17 +62,6 @@ if (string.IsNullOrWhiteSpace(artifactRoot))
 }
 builder.Services.AddSingleton<IArtifactStorage>(_ => new LocalArtifactStorage(artifactRoot));
 
-// ---------- CAD microservice (Python FastAPI) ----------
-var cadBaseUrl = builder.Configuration["CadService:BaseUrl"] ?? "http://localhost:8000/";
-if (!cadBaseUrl.EndsWith('/'))
-{
-    cadBaseUrl += "/";
-}
-builder.Services.AddHttpClient<ICadGeneration, CadGenerationRepository>(client =>
-{
-    client.BaseAddress = new Uri(cadBaseUrl);
-    client.Timeout = TimeSpan.FromMinutes(5);
-});
 // ---------- Calculation engine ----------
 builder.Services.AddScoped<FeedstockBlendingService>();
 builder.Services.AddScoped<DigesterSizingService>();

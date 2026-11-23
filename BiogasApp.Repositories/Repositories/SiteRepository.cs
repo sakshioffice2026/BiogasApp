@@ -1,12 +1,13 @@
-﻿using System.Text.Json;
-using BiogasApp.Database;
+﻿using BiogasApp.Database;
 using BiogasApp.Database.Entities;
 using BiogasApp.Database.Enums;
 using BiogasApp.Layout.Geometry;
+using BiogasApp.Layout.Sizing;
 using BiogasApp.Model.DTOs;
 using BiogasApp.Repositories.Contracts;
 using Microsoft.EntityFrameworkCore;
-
+using System.Text.Json;
+using BiogasApp.Layout.Sizing;
 namespace BiogasApp.Repositories.Repositories;
 
 public class SiteRepository : ISiteRepository
@@ -260,7 +261,83 @@ public class SiteRepository : ISiteRepository
         _db.ProjectEquipmentItems.Remove(e);
         await _db.SaveChangesAsync(cancellationToken);
     }
+    public async Task<int> ImportEquipmentFromRunAsync(
+    Guid projectId,
+    Guid runId,
+    CancellationToken cancellationToken = default)
+    {
+        if (await _db.ProjectEquipmentItems.AnyAsync(e => e.ProjectId == projectId, cancellationToken))
+            return 0;
 
+        var digester = await _db.SizedEquipment.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.SimulationRunId == runId && s.EquipmentType == "PRIMARY_DIGESTER_CSTR", cancellationToken);
+
+        var plan = new (string Key, int Qty)[]
+        {
+            ("digester", Math.Max(1, digester?.Quantity ?? 1)),
+            ("mixing_tank", 2), ("feed_tank", 1), ("digestate_tank", 2),
+            ("pump_house_5x5", 2), ("pump_house_9x6", 1), ("pump_house_5_5x5", 2),
+            ("process_water_tank", 1), ("process_water_pump_house", 1), ("sls_building", 1),
+            ("digestate_lagoon", 1), ("windrow_yard", 1), ("feedstock_area", 1), ("manure_bagging", 1),
+            ("scrubber_upgrading", 1), ("compressor_filling", 1), ("flare", 1), ("hot_water_generator", 1),
+            ("mcc_room", 1), ("transformer_dg", 1), ("security", 1),
+            ("fire_water_tank", 1), ("fire_water_pump_house", 1),
+            ("weigh_bridge", 1), ("admin_building", 1), ("parking", 1)
+        };
+
+        var counters = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        int added = 0;
+
+        foreach (var (key, qty) in plan)
+        {
+            var f = StandardFootprints.Find(key);
+            if (f == null) continue;
+
+            counters[f.TagPrefix] = counters.GetValueOrDefault(f.TagPrefix) + 1;
+
+            bool isCircle = f.Shape == EquipmentShape.Circle;
+            double? simDia = key == "digester" ? ReadDiameter(digester?.GeometryParamsJson) : null;
+            double dia = simDia ?? f.DiameterM;
+
+            _db.ProjectEquipmentItems.Add(new ProjectEquipmentItem
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = projectId,
+                Tag = $"{f.TagPrefix}-{counters[f.TagPrefix]:00}",
+                Name = f.Name,
+                HazardClass = f.HazardClass,
+                Zone = f.Zone,
+                Shape = f.Shape,
+                WidthM = isCircle ? null : (decimal)f.WidthM,
+                LengthM = isCircle ? null : (decimal)f.LengthM,
+                DiameterM = isCircle ? (decimal)dia : null,
+                SizeSource = simDia.HasValue ? SizeSource.Simulation : SizeSource.Standard,
+                Quantity = qty,
+                IsEnabled = true,
+                IsCustom = false,
+                AllowRotation = true,
+                NeedsRoadAccess = f.NeedsRoadAccess
+            });
+            added++;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return added;
+    }
+
+    private static double? ReadDiameter(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("diameterM", out var p) && p.TryGetDouble(out var d) && d > 0 ? d : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
     private static List<PointDto> ReadPoints(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return new();

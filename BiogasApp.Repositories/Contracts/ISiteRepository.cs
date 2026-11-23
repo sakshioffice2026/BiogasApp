@@ -27,4 +27,9 @@ public interface ISiteRepository
         CancellationToken cancellationToken = default);
 
     Task DeleteEquipmentItemAsync(Guid id, CancellationToken cancellationToken = default);
+
+    Task<int> ImportEquipmentFromRunAsync(
+    Guid projectId,
+    Guid runId,
+    CancellationToken cancellationToken = default);
 }

@@ -17,8 +17,8 @@ public static class EngineeringConstants
     public const double OlrMesophilicKgVsM3Day = 3.5;
     public const double OlrThermophilicKgVsM3Day = 5.0;
     public const double HeadspaceFactor = 0.12;
-    public const double MaxSingleTankVolumeM3 = 5000.0;
-    public const double DigesterAspectRatioHd = 0.5;
+    public const double MaxSingleTankVolumeM3 = 6800.0;
+    public const double DigesterAspectRatioHd = 0.29;
     public const double DiameterRoundingStepM = 0.5;
 
     // ---------- 3.3 Gas yield ----------
@@ -64,7 +64,7 @@ public static class EngineeringConstants
 
     // ---------- 3.6 Upgrading & compression ----------
     public const double CbgDensityKgPerNm3 = 0.72;
-    public const double CompressorSpecificEnergyKwhPerNm3 = 0.12;
+    public const double CompressorSpecificEnergyKwhPerNm3 = 0.25;
     public const double CompressorSurgeFactor = 1.2;
     public const double CascadeBufferFraction = 0.50;
     public const double CascadePressureBar = 250.0;

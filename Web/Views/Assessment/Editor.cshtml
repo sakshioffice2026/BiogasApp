@@ -85,6 +85,7 @@
                     </option>
                 }
             </select>
+            <button type="button" class="btn btn-outline-dark btn-sm" id="btnDownloadDxf" data-url="@Url.Action("DownloadDxf", "Assessment")">Download DXF</button>
             <button type="button" class="btn btn-outline-danger btn-sm" id="btnDeleteVersion" disabled>Delete</button>
         </div>
     </div>
@@ -228,4 +229,14 @@
 
 @section Scripts {
     <script src="~/js/layout-editor.js" asp-append-version="true"></script>
+    <script>
+        document.getElementById('btnDownloadDxf').addEventListener('click', function () {
+            var id = document.getElementById('versionSelect').value;
+            if (!id) {
+                alert('Save the layout as a version first, then download the DXF.');
+                return;
+            }
+            window.location.href = this.getAttribute('data-url') + '/' + encodeURIComponent(id);
+        });
+    </script>
 }

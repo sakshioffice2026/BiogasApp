@@ -45,9 +45,10 @@ public sealed class PlacementEngine
         }
 
         var pending = all.Where(i => !i.IsLocked)
-            .OrderBy(i => ZoneOrder(i.Zone))
-            .ThenByDescending(i => i.WidthM * i.LengthM)
-            .ToList();
+    .OrderBy(i => IsWeighbridge(i) ? 0 : 1)
+    .ThenBy(i => ZoneOrder(i.Zone))
+    .ThenByDescending(i => i.WidthM * i.LengthM)
+    .ToList();
 
         foreach (var item in pending)
         {
@@ -88,7 +89,7 @@ public sealed class PlacementEngine
 
         if (Search(input, net, geos, item, anchor, rots, false)) return;
         if (Search(input, net, geos, item, anchor, rots, true)) return;
-
+        if (SearchGrid(input, net, geos, item, anchor, rots)) return;
         item.X = anchor.X;
         item.Y = anchor.Y;
         item.RotationDeg = rots[0];
@@ -144,7 +145,50 @@ public sealed class PlacementEngine
         }
         return found;
     }
+    private bool SearchGrid(LayoutInput input, RoadNetwork net, List<Geo> geos, PlacedItem item,
+    Point2D anchor, double[] rots)
+    {
+        const double step = 3.0;
+        var (bbMin, bbMax) = PolygonOps.BoundingBox(input.PlotCorners);
 
+        double bestCost = double.MaxValue;
+        double bx = 0, by = 0, br = 0;
+        bool found = false;
+
+        for (double x = bbMin.X; x <= bbMax.X; x += step)
+        {
+            for (double y = bbMin.Y; y <= bbMax.Y; y += step)
+            {
+                foreach (var rot in rots)
+                {
+                    item.X = x;
+                    item.Y = y;
+                    item.RotationDeg = rot;
+
+                    double cost = CandidateCost(input, net, geos, item, true);
+                    if (double.IsNaN(cost)) continue;
+                    cost += new Point2D(x, y).DistanceTo(anchor);
+
+                    if (cost < bestCost)
+                    {
+                        bestCost = cost;
+                        bx = x;
+                        by = y;
+                        br = rot;
+                        found = true;
+                    }
+                }
+            }
+        }
+
+        if (found)
+        {
+            item.X = bx;
+            item.Y = by;
+            item.RotationDeg = br;
+        }
+        return found;
+    }
     private double CandidateCost(LayoutInput input, RoadNetwork net, List<Geo> geos, PlacedItem item, bool relaxRoads)
     {
         var fp = item.GetFootprint();
@@ -246,9 +290,9 @@ public sealed class PlacementEngine
 
     private static int ZoneOrder(EquipmentZone zone) => zone switch
     {
-        EquipmentZone.Gas => 0,
-        EquipmentZone.Process => 1,
-        EquipmentZone.Dirty => 2,
+        EquipmentZone.Dirty => 0,
+        EquipmentZone.Gas => 1,
+        EquipmentZone.Process => 2,
         _ => 3
     };
 

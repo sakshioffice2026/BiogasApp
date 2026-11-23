@@ -210,6 +210,54 @@ public class AssessmentController : Controller
         return Json(new { success = true });
     }
 
+    [HttpGet]
+    public async Task<IActionResult> DownloadDxf(Guid id, CancellationToken cancellationToken)
+    {
+        var layout = await _assessments.GetLayoutAsync(id, cancellationToken);
+        if (layout == null) return NotFound();
+
+        var a = await _assessments.GetAsync(layout.ProjectId, cancellationToken);
+        if (a == null) return NotFound();
+
+        var errors = PlotValidator.Validate(a.Site.PlotCorners.Select(c => new Point2D(c.X, c.Y)).ToList());
+        if (errors.Count > 0) return BadRequest(string.Join(" ", errors));
+
+        var provider = await _rules.CreateProviderAsync(layout.RuleSetId, cancellationToken);
+        var input = BuildInput(a.Site, a.Equipment, new List<LockedPlacement>());
+        var items = ToPlaced(layout.Items, a.Equipment);
+        var result = new PlacementEngine(provider).Evaluate(input, items);
+        var roads = RoadPlanner.Plan(input, ZoneAssigner.Assign(input), provider).Roads;
+
+        int official = result.Warnings.Count(w => w.RuleStatus == RuleStatus.Official);
+        int reference = result.Warnings.Count(w => w.RuleStatus == RuleStatus.Reference);
+        int assumed = result.Warnings.Count(w => w.RuleStatus == RuleStatus.Assumed);
+        var summary = result.Warnings.Count == 0
+            ? "No warnings"
+            : $"{result.Warnings.Count} warning(s): {official} Official, {reference} Reference, {assumed} Assumed";
+
+        var info = new TitleBlockInfo(
+            ProjectName: a.Name,
+            Location: $"India ({a.Site.Latitude:0.0000}, {a.Site.Longitude:0.0000})",
+            CapacityText: $"{a.CapacityTpd:0.#} TPD CBG",
+            DrawingNo: $"GA-{a.Id.GetValueOrDefault().ToString()[..8].ToUpperInvariant()}-V{layout.VersionNo}",
+            Revision: $"R{layout.VersionNo}",
+            Date: DateTime.UtcNow,
+            RuleSetName: $"Clearance rules v{provider.RuleSetVersion}",
+            RuleSetVersion: provider.RuleSetVersion,
+            LayoutOriginText: string.Equals(layout.Origin, "Manual", StringComparison.OrdinalIgnoreCase)
+                ? "Manually edited layout"
+                : "Auto-generated layout",
+            WarningSummary: summary);
+
+        var bytes = SiteDxfWriter.Write(input, result, roads, info);
+
+        var safe = new string(a.Name.Select(c => char.IsLetterOrDigit(c) ? c : '_').ToArray()).Trim('_');
+        if (safe.Length == 0) safe = "Assessment";
+        if (safe.Length > 40) safe = safe[..40];
+
+        return File(bytes, "application/dxf", $"GA_{safe}_V{layout.VersionNo}_{DateTime.UtcNow:yyyyMMddHHmm}.dxf");
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveEquipment([FromBody] EquipmentItemDto item, CancellationToken cancellationToken)

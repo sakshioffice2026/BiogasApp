@@ -38,7 +38,7 @@
         </p>
     </div>
     <div class="sm-actions">
-        <a class="bp-btn bp-btn--ghost" asp-controller="Cad" asp-action="Index" asp-route-runId="@Model.SimulationRunId">CAD drawings</a>
+        <a class="bp-btn bp-btn--ghost" asp-controller="Layout" asp-action="Editor" asp-route-projectId="@Model.ProjectId">Generate layout</a>
         <a class="bp-btn bp-btn--ghost" asp-action="Results" asp-route-runId="@Model.SimulationRunId">Full results</a>
         <a class="bp-btn bp-btn--ghost" asp-action="Mixer" asp-route-projectId="@Model.ProjectId">Adjust mixer</a>
         <a class="bp-btn bp-btn--ghost" asp-action="History" asp-route-projectId="@Model.ProjectId">History</a>

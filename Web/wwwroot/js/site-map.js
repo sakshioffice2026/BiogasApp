@@ -690,6 +690,10 @@
             el.cornersText.value = formatPoints(corners);
             setMode('Typed');
 
+            if (res.data.latitude != null && res.data.longitude != null) {
+                setOrigin(res.data.latitude, res.data.longitude, true);
+            }
+
             var lines = [res.data.message || 'Boundary imported.'];
             if (!hasOrigin()) lines.push('Set the plot location on the map so the boundary can be placed.');
             showMessage(lines, 'success');

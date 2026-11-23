@@ -28,19 +28,21 @@ public class LayoutController : Controller
     private readonly IClearanceRuleRepository _rules;
     private readonly IProjectRepository _projects;
     private readonly ISimulationRepository _simulations;
+    private readonly ICadGeneration _cad;
 
     public LayoutController(
         ISiteRepository sites,
         ISiteLayoutRepository layouts,
         IClearanceRuleRepository rules,
         IProjectRepository projects,
-        ISimulationRepository simulations)
-    {
+        ISimulationRepository simulations,
+        ICadGeneration cad)    {
         _sites = sites;
         _layouts = layouts;
         _rules = rules;
         _projects = projects;
         _simulations = simulations;
+        _cad = cad;
     }
 
     [HttpGet]
@@ -50,6 +52,8 @@ public class LayoutController : Controller
         if (project == null) return NotFound();
 
         var run = await _simulations.GetLatestRunAsync(projectId, cancellationToken);
+        if (run != null)
+            await _sites.ImportEquipmentFromRunAsync(projectId, run.Id, cancellationToken);
         var ruleSet = await _rules.GetActiveRuleSetAsync(cancellationToken);
 
         var model = new LayoutEditorViewModel
@@ -143,6 +147,33 @@ public class LayoutController : Controller
     {
         await _layouts.DeleteAsync(id, cancellationToken);
         return Json(new { success = true });
+    }
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DownloadDxf(Guid id, CancellationToken cancellationToken)
+    {
+        var layout = await _layouts.GetByIdAsync(id, cancellationToken);
+        if (layout == null) return NotFound();
+
+        if (layout.SimulationRunId == Guid.Empty)
+            return Json(new { success = false, message = "Run a simulation first, then save the layout version again." });
+
+        var status = await _cad.QueueJobAsync(new CadJobRequestDto
+        {
+            SimulationRunId = layout.SimulationRunId,
+            SiteLayoutId = id,
+            ExportFormats = new List<string> { "GA_DXF" }
+        }, cancellationToken);
+
+        if (!string.Equals(status.Status, "COMPLETED", StringComparison.OrdinalIgnoreCase))
+            return Json(new { success = false, message = status.ErrorMessage ?? "DXF could not be generated." });
+
+        var artifacts = await _cad.GetArtifactsAsync(layout.SimulationRunId, cancellationToken);
+        var ga = artifacts.Artifacts.FirstOrDefault(a => a.ArtifactType == "GA_DXF");
+        if (ga == null)
+            return Json(new { success = false, message = "DXF file was not found after generation." });
+
+        return Json(new { success = true, downloadUrl = ga.DownloadUrl, fileName = ga.FileName });
     }
 
     [HttpGet]

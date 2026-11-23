@@ -5,6 +5,7 @@ using BiogasApp.Layout.Placement;
 using netDxf;
 using netDxf.Entities;
 using netDxf.Tables;
+using netDxf.Units;
 
 namespace BiogasApp.Layout.Output;
 
@@ -17,12 +18,14 @@ public static class SiteDxfWriter
         TitleBlockInfo info)
     {
         var doc = new DxfDocument();
+        doc.DrawingVariables.InsUnits = DrawingUnits.Meters;
         var layers = CreateLayers(doc);
 
         DrawPlot(doc, layers, input);
         DrawNoBuild(doc, layers, input);
         DrawRoads(doc, layers, roads);
         DrawItems(doc, layers, result);
+        DrawDimensions(doc, layers, input, result);
         DrawReceptors(doc, layers, input);
         DrawGate(doc, layers, input, result);
         DrawWarnings(doc, layers, result);
@@ -44,7 +47,7 @@ public static class SiteDxfWriter
         {
             ("PLOT", 1), ("NOBUILD", 6), ("ROAD", 8), ("ROAD_CL", 2),
             ("DIRTY", 30), ("PROCESS", 3), ("GAS", 4), ("CLEAN", 5),
-            ("TEXT", 7), ("RECEPTORS", 40), ("GATE", 2), ("WARNINGS", 1), ("TITLE", 7)
+            ("TEXT", 7), ("RECEPTORS", 40), ("GATE", 2), ("WARNINGS", 1), ("TITLE", 7), ("DIM", 3)
         };
 
         var map = new Dictionary<string, Layer>();
@@ -186,7 +189,73 @@ public static class SiteDxfWriter
             Add(doc, layers, new Circle(new Vector2(item.X, item.Y), radius), "WARNINGS");
         }
     }
+    private static void DrawDimensions(DxfDocument doc, Dictionary<string, Layer> layers, LayoutInput input, LayoutResult result)
+    {
+        var plotStyle = new DimensionStyle("BIOGAS_PLOT")
+        {
+            TextHeight = 1.5,
+            ArrowSize = 1.2,
+            ExtLineOffset = 0.5,
+            ExtLineExtend = 0.8,
+            TextOffset = 0.6,
+            LengthPrecision = 1
+        };
 
+        var itemStyle = new DimensionStyle("BIOGAS_ITEM")
+        {
+            TextHeight = 1.0,
+            ArrowSize = 0.8,
+            ExtLineOffset = 0.3,
+            ExtLineExtend = 0.5,
+            TextOffset = 0.4,
+            LengthPrecision = 1
+        };
+
+        var pts = input.PlotCorners;
+        for (int i = 0; i < pts.Count; i++)
+        {
+            var a = pts[i];
+            var b = pts[(i + 1) % pts.Count];
+            double len = a.DistanceTo(b);
+            if (len < 1.0) continue;
+
+            var d = (b - a) * (1.0 / len);
+            var left = new Point2D(-d.Y, d.X);
+            var mid = (a + b) * 0.5;
+            double off = PolygonOps.Contains(pts, mid + left * 0.5) ? -8.0 : 8.0;
+            Add(doc, layers, new AlignedDimension(V(a), V(b), off, plotStyle), "DIM");
+        }
+
+        foreach (var item in result.Items)
+        {
+            if (Math.Min(item.WidthM, item.LengthM) < 2.0) continue;
+
+            if (item.Shape == EquipmentShape.Circle)
+            {
+                double r = item.WidthM / 2.0;
+                var refPt = new Vector2(item.X + r * Math.Cos(Math.PI / 4), item.Y + r * Math.Sin(Math.PI / 4));
+                Add(doc, layers, new DiametricDimension(new Vector2(item.X, item.Y), refPt, itemStyle), "DIM");
+                continue;
+            }
+
+            var fp = item.GetFootprint();
+            if (fp.Count < 4) continue;
+
+            for (int e = 0; e < 2; e++)
+            {
+                var a = fp[e];
+                var b = fp[e + 1];
+                double len = a.DistanceTo(b);
+                if (len < 1.0) continue;
+
+                var d = (b - a) * (1.0 / len);
+                var left = new Point2D(-d.Y, d.X);
+                var mid = (a + b) * 0.5;
+                double off = PolygonOps.Contains(fp, mid + left * 0.3) ? -1.5 : 1.5;
+                Add(doc, layers, new AlignedDimension(V(a), V(b), off, itemStyle), "DIM");
+            }
+        }
+    }
     private static void DrawNorthArrow(DxfDocument doc, Dictionary<string, Layer> layers, LayoutInput input, Point2D bbMax)
     {
         var origin = new Point2D(bbMax.X + 10, bbMax.Y - 10);
