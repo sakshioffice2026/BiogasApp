@@ -18,6 +18,7 @@ public class AssessmentListItemDto
     public int ReceptorCount { get; set; }
     public int SensitiveReceptorCount { get; set; }
     public int LayoutVersionCount { get; set; }
+    public bool ProposalApproved { get; set; }
 
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

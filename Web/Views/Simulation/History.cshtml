@@ -70,10 +70,10 @@ else
             {
                 var warns = WarningCount(run.WarningsJson);
                 <li class="sm-run @(run.Id == latestId ? "is-latest" : null)">
-                    <span class="sm-run__node" aria-hidden="true">v@run.RunVersion</span>
+                    <span class="sm-run__node" aria-hidden="true">v@(run.RunVersion)</span>
                     <article class="sm-run__card bp-card">
                         <header class="sm-run__head">
-                            <h2 class="sm-run__title">Run v@run.RunVersion</h2>
+                            <h2 class="sm-run__title">Run v@(run.RunVersion)</h2>
                             @if (run.Id == latestId)
                             {
                                 <span class="bp-chip bp-chip--approved">
@@ -109,11 +109,11 @@ else
                                 <div class="sm-run__pick">
                                     <label class="sm-pick">
                                         <input type="radio" name="runA" value="@run.Id" required />
-                                        <span><span class="visually-hidden">Use run v@run.RunVersion as </span>A</span>
+                                        <span><span class="visually-hidden">Use run v@(run.RunVersion) as </span>A</span>
                                     </label>
                                     <label class="sm-pick">
                                         <input type="radio" name="runB" value="@run.Id" required />
-                                        <span><span class="visually-hidden">Use run v@run.RunVersion as </span>B</span>
+                                        <span><span class="visually-hidden">Use run v@(run.RunVersion) as </span>B</span>
                                     </label>
                                 </div>
                             }

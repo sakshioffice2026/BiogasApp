@@ -30,6 +30,12 @@ public class EnquiryProposalController : Controller
             return NotFound();
         }
 
+        if (model.AssessmentId == null)
+        {
+            TempData["Error"] = "Create a site assessment for this enquiry first.";
+            return RedirectToAction("Details", "Enquiry", new { id = enquiryId });
+        }
+
         return View(model);
     }
 
@@ -155,6 +161,7 @@ public class EnquiryProposalController : Controller
         model.EndUseRequested = fresh.EndUseRequested;
         model.NextVersion = fresh.NextVersion;
         model.ProjectId = fresh.ProjectId;
+        model.AssessmentId = fresh.AssessmentId;
         model.AvailableFeedstocks = fresh.AvailableFeedstocks;
 
         if (model.FeedstockLines.Count == 0)

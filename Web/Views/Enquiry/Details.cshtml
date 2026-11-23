@@ -2,10 +2,14 @@
 @using BiogasApp.Repositories.Contracts
 @model BiogasApp.Model.ViewModel.EnquiryDetailsViewModel
 @inject IEnquiryProposalRepository ProposalRepo
+@inject IAssessmentRepository AssessmentRepo
 @{
     ViewData["Title"] = Model.EnquiryNo;
 
     var proposals = await ProposalRepo.GetByEnquiryAsync(Model.Id);
+    var assessment = (await AssessmentRepo.GetListAsync()).FirstOrDefault(a => a.EnquiryId == Model.Id);
+    var latestProposal = proposals.OrderByDescending(x => x.Version).FirstOrDefault();
+    var assessmentConverted = assessment != null && assessment.Status == "Converted";
 
     string ProposalCss(ProposalStatus s) => s switch
     {
@@ -49,9 +53,16 @@
     <div class="d-flex gap-2">
         <a class="bp-btn bp-btn--ghost" asp-action="Index">Back to enquiries</a>
         <a class="bp-btn bp-btn--primary" asp-action="Edit" asp-route-id="@Model.Id">Edit</a>
-        <a class="bp-btn bp-btn--flame" asp-controller="EnquiryProposal" asp-action="Create" asp-route-enquiryId="@Model.Id">
-            @(proposals.Count == 0 ? "Create Proposal" : "Revise Proposal")
-        </a>
+        @if (assessment == null)
+        {
+            <a class="bp-btn bp-btn--flame" asp-controller="Assessment" asp-action="Create" asp-route-enquiryId="@Model.Id">Create site assessment</a>
+        }
+        else if (!assessmentConverted)
+        {
+            <a class="bp-btn bp-btn--flame" asp-controller="EnquiryProposal" asp-action="Create" asp-route-enquiryId="@Model.Id">
+                @(proposals.Count == 0 ? "Create Proposal" : "Revise Proposal")
+            </a>
+        }
     </div>
 </div>
 
@@ -104,6 +115,66 @@
                 <dt class="col-sm-4">Message</dt>
                 <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Message) ? "-" : Model.Message)</dd>
             </dl>
+        </section>
+
+        <section class="bp-card p-4 mt-3">
+            <h2 class="h5 mb-3">Site assessment</h2>
+            @if (assessment == null)
+            {
+                <p class="mb-2">No site assessment yet.</p>
+                <p class="bp-muted mb-3">Next step: create the site assessment (location, plot, receptors, layout). The proposal is created after that.</p>
+                <a class="bp-btn bp-btn--primary" asp-controller="Assessment" asp-action="Create" asp-route-enquiryId="@Model.Id">Create site assessment</a>
+            }
+            else
+            {
+                <dl class="row mb-3">
+                    <dt class="col-sm-4">Assessment</dt>
+                    <dd class="col-sm-8">@assessment.Name</dd>
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8"><span class="bp-chip bp-chip--@(assessmentConverted ? "approved" : "draft")">@assessment.Status</span></dd>
+                    <dt class="col-sm-4">Plot</dt>
+                    <dd class="col-sm-8">@(assessment.PlotAreaM2 > 0 ? assessment.PlotAreaM2.ToString("N0") + " m2" : "Not entered")</dd>
+                    <dt class="col-sm-4">Receptors</dt>
+                    <dd class="col-sm-8">@assessment.ReceptorCount (@assessment.SensitiveReceptorCount sensitive)</dd>
+                    <dt class="col-sm-4">Layout versions</dt>
+                    <dd class="col-sm-8">@assessment.LayoutVersionCount</dd>
+                    <dt class="col-sm-4">Proposal</dt>
+                    <dd class="col-sm-8">@(latestProposal == null ? "Not created" : latestProposal.ProposalNo + " (" + latestProposal.Status + ")")</dd>
+                </dl>
+
+                @if (assessmentConverted)
+                {
+                    <p class="bp-muted mb-3">Next step: continue in the project.</p>
+                    @if (assessment.ProjectId.HasValue)
+                    {
+                        <a class="bp-btn bp-btn--primary" asp-controller="Project" asp-action="Detail" asp-route-id="@assessment.ProjectId">Open project</a>
+                    }
+                }
+                else if (assessment.ProposalApproved)
+                {
+                    <p class="bp-muted mb-3">Next step: the proposal is approved, convert the assessment to a project.</p>
+                    <a class="bp-btn bp-btn--primary" asp-controller="Assessment" asp-action="Convert" asp-route-id="@assessment.Id">Convert to project</a>
+                }
+                else if (latestProposal == null)
+                {
+                    <p class="bp-muted mb-3">Next step: finish the site and layout, then create the proposal.</p>
+                    <div class="d-flex gap-2">
+                        <a class="bp-btn bp-btn--ghost" asp-controller="Assessment" asp-action="Site" asp-route-id="@assessment.Id">Site</a>
+                        <a class="bp-btn bp-btn--ghost" asp-controller="Assessment" asp-action="Editor" asp-route-id="@assessment.Id">Layout</a>
+                        <a class="bp-btn bp-btn--primary" asp-controller="EnquiryProposal" asp-action="Create" asp-route-enquiryId="@Model.Id">Create Proposal</a>
+                    </div>
+                }
+                else if (latestProposal.Status == ProposalStatus.Rejected)
+                {
+                    <p class="bp-muted mb-3">Next step: the proposal was rejected, revise it.</p>
+                    <a class="bp-btn bp-btn--primary" asp-controller="EnquiryProposal" asp-action="Create" asp-route-enquiryId="@Model.Id">Revise Proposal</a>
+                }
+                else
+                {
+                    <p class="bp-muted mb-3">Next step: wait for the proposal to be Approved.</p>
+                    <a class="bp-btn bp-btn--primary" asp-controller="EnquiryProposal" asp-action="Details" asp-route-id="@latestProposal.Id">Open proposal</a>
+                }
+            }
         </section>
 
         <section class="bp-card p-4 mt-3">

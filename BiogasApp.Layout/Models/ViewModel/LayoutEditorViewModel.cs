@@ -23,6 +23,7 @@ public class LayoutEditorViewModel
     public Guid? RuleSetId { get; set; }
     public string RuleSetName { get; set; } = string.Empty;
     public int RuleSetVersion { get; set; }
+    public bool ProposalApproved { get; set; }
 
     public bool IsPlotReady => Site.PlotCorners.Count >= 3;
     public bool HasLayout => ActiveLayout != null && ActiveLayout.Items.Count > 0;

@@ -34,7 +34,7 @@ public class EnquiryProposalFormViewModel
     public string FeedstockRequested { get; set; } = string.Empty;
     public decimal QuantityRequestedTpd { get; set; }
     public string EndUseRequested { get; set; } = string.Empty;
-
+    public Guid? AssessmentId { get; set; }
     public Guid? ProjectId { get; set; }
     public int NextVersion { get; set; } = 1;
 

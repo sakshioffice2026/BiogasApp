@@ -84,6 +84,12 @@ public class AssessmentRepository : IAssessmentRepository
             .Select(g => new { AssessmentId = g.Key, Count = g.Count() })
             .ToListAsync(cancellationToken);
 
+        var approvedIds = await _db.EnquiryProposals.AsNoTracking()
+            .Where(p => p.AssessmentId != null && p.Status == ProposalStatus.Approved)
+            .Select(p => p.AssessmentId!.Value)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         return rows.Select(a => new AssessmentListItemDto
         {
             Id = a.Id,
@@ -98,6 +104,7 @@ public class AssessmentRepository : IAssessmentRepository
             ReceptorCount = receptorTypes.Count(r => r.AssessmentId == a.Id),
             SensitiveReceptorCount = receptorTypes.Count(r => r.AssessmentId == a.Id && SensitiveTypes.Contains(r.Type)),
             LayoutVersionCount = layoutCounts.FirstOrDefault(c => c.AssessmentId == a.Id)?.Count ?? 0,
+            ProposalApproved = a.Status != AssessmentStatus.Converted && approvedIds.Contains(a.Id),
             CreatedAt = a.CreatedAt,
             UpdatedAt = a.UpdatedAt
         }).ToList();
@@ -566,22 +573,17 @@ public class AssessmentRepository : IAssessmentRepository
         if (ReadPoints(a.PlotCornersJson).Count < 3)
             throw new InvalidOperationException("Enter the plot before converting to a project.");
 
+        var approved = await _db.EnquiryProposals
+            .Where(p => p.AssessmentId == a.Id && p.Status == ProposalStatus.Approved)
+            .OrderByDescending(p => p.Version)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new InvalidOperationException("Convert is available only after the proposal is Approved.");
+
         await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
 
-        var project = new Project
-        {
-            Id = Guid.NewGuid(),
-            Name = request.ProjectName.Trim(),
-            LocationCountry = string.IsNullOrWhiteSpace(request.LocationCountry) ? "India" : request.LocationCountry.Trim(),
-            RegulatoryStandard = ParseEnum(request.RegulatoryStandard, RegulatoryStandard.PesoIndia),
-            AmbientTempMinC = request.AmbientTempMinC,
-            AmbientTempMaxC = request.AmbientTempMaxC,
-            DigesterRegime = ParseEnum(request.DigesterRegime, DigesterRegime.Mesophilic),
-            UpgradingTech = ParseEnum(request.UpgradingTech, UpgradingTech.Psa),
-            Status = ProjectStatus.Draft,
-            CreatedAt = DateTime.UtcNow
-        };
-        _db.Projects.Add(project);
+        var project = await _db.Projects.FirstOrDefaultAsync(x => x.Id == approved.ProjectId, cancellationToken)
+            ?? throw new InvalidOperationException("The proposal project was not found.");
+        project.Name = request.ProjectName.Trim();
 
         _db.ProjectSites.Add(new ProjectSite
         {
@@ -662,6 +664,25 @@ public class AssessmentRepository : IAssessmentRepository
 
         return project.Id;
     }
+
+    public async Task LinkEnquiryAsync(Guid assessmentId, Guid enquiryId, CancellationToken cancellationToken = default)
+    {
+        var a = await _db.SiteAssessments.FirstOrDefaultAsync(x => x.Id == assessmentId, cancellationToken)
+            ?? throw new InvalidOperationException("The assessment was not found.");
+
+        if (a.Status == AssessmentStatus.Converted)
+            throw new InvalidOperationException("This assessment is already converted to a project.");
+
+        a.EnquiryId = enquiryId;
+        a.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<bool> HasApprovedProposalAsync(Guid assessmentId, CancellationToken cancellationToken = default) =>
+        _db.EnquiryProposals.AnyAsync(
+            p => p.AssessmentId == assessmentId && p.Status == ProposalStatus.Approved,
+            cancellationToken);
 
     // ------------------------------------------------------------------ helpers
 

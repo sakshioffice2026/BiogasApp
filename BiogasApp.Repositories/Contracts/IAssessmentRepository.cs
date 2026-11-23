@@ -45,4 +45,8 @@ public interface IAssessmentRepository
     Task DeleteLayoutAsync(Guid layoutId, CancellationToken cancellationToken = default);
 
     Task<Guid> ConvertToProjectAsync(ConvertAssessmentDto request, CancellationToken cancellationToken = default);
+
+    Task LinkEnquiryAsync(Guid assessmentId, Guid enquiryId, CancellationToken cancellationToken = default);
+
+    Task<bool> HasApprovedProposalAsync(Guid assessmentId, CancellationToken cancellationToken = default);
 }

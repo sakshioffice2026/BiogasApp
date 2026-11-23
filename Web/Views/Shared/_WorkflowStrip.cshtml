@@ -7,8 +7,7 @@
         ("Digester, gas", "Digestion"),
         ("Thermal, mixing", "Heat, cleaning"),
         ("Upgrading", "250-bar CBG"),
-        ("Digestate, civils", "Dispatch"),
-        ("CAD, BOM, proposal", "Deliverables")
+        ("Digestate, civils", "Dispatch")
     };
 
     // Section ids on the simulation Dashboard and Results pages, indexed by step number (1 based).
@@ -19,8 +18,7 @@
         "sm-digester",
         "sm-thermal",
         "sm-upgrading",
-        "sm-digestate",
-        null
+        "sm-digestate"
     };
 }
 @{
@@ -40,14 +38,7 @@
             var state = i < current ? "is-done" : i == current ? "is-current" : "is-upcoming";
             var anchor = Anchors[i - 1];
             string? href = null;
-            if (i == Steps.Length)
-            {
-                if (linkRunId != null)
-                {
-                    href = Url.Action("Index", "Proposal", new { runId = linkRunId });
-                }
-            }
-            else if (anchor != null)
+            if (anchor != null)
             {
                 if (linkSections)
                 {

@@ -11,9 +11,6 @@
     string? label = null;
     string? href = null;
     var submit = false;
-    string? proposalUrl = runId.HasValue
-        ? Url.Action("Index", "Proposal", new { runId = runId.Value })
-        : null;
 
     if (Is("Project", "Detail") && step == 2)
     {
@@ -33,11 +30,6 @@
         label = "Next: Digester performance";
         href = "#sm-digester";
     }
-    else if ((Is("Simulation", "Results") || Is("Simulation", "History") || Is("Simulation", "Compare")) && proposalUrl != null)
-    {
-        label = "Build proposal";
-        href = proposalUrl;
-    }
     else if ((Is("Proposal", "Financials") || Is("Proposal", "Bom")) && runId.HasValue)
     {
         label = "CAD drawings";
@@ -48,9 +40,9 @@
 @if (label != null)
 {
     <div class="wf-next">
-        <div class="wf-next__card" data-wf-next data-proposal-url="@proposalUrl">
+        <div class="wf-next__card" data-wf-next>
             <div class="wf-next__text">
-                <small data-wf-next-hint>@(step > 0 ? $"Step {step} of 7" : "Next step")</small>
+                <small data-wf-next-hint>@(step > 0 ? $"Step {step} of 6" : "Next step")</small>
                 <strong data-wf-next-label>@label</strong>
             </div>
             @if (submit)

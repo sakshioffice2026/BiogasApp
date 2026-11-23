@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
 
 /* ==========================================================================
    BIOGASAPP - GLOBAL DESIGN SYSTEM
@@ -31,8 +32,8 @@
     --bp-top-h: 70px;
     --bp-rail-w: 94px;
     --bp-ease: cubic-bezier(.2, .7, .2, 1);
-    --bp-font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-    --bp-font-display: Bahnschrift, "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+    --bp-font: "Plus Jakarta Sans", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --bp-font-display: "Space Grotesk", Bahnschrift, "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
 }
 
 /* ==========================================================================

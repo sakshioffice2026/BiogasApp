@@ -19,11 +19,13 @@ public class AssessmentController : Controller
 
     private readonly IAssessmentRepository _assessments;
     private readonly IClearanceRuleRepository _rules;
+    private readonly IEnquiryRepository _enquiries;
 
-    public AssessmentController(IAssessmentRepository assessments, IClearanceRuleRepository rules)
+    public AssessmentController(IAssessmentRepository assessments, IClearanceRuleRepository rules, IEnquiryRepository enquiries)
     {
         _assessments = assessments;
         _rules = rules;
+        _enquiries = enquiries;
     }
 
     // ------------------------------------------------------------------ list, create, delete
@@ -238,6 +240,100 @@ public class AssessmentController : Controller
         return Json(new { success = true });
     }
 
+    // ------------------------------------------------------------------ proposal
+
+    [HttpGet]
+    public async Task<IActionResult> Proposal(Guid id, CancellationToken cancellationToken)
+    {
+        var a = await _assessments.GetAsync(id, cancellationToken);
+        if (a == null) return NotFound();
+
+        if (IsConverted(a))
+        {
+            TempData["AssessmentError"] = "This assessment is already converted to a project.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (a.EnquiryId.HasValue)
+            return RedirectToAction("Create", "EnquiryProposal", new { enquiryId = a.EnquiryId.Value });
+
+        return RedirectToAction(nameof(Customer), new { assessmentId = id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Customer(Guid assessmentId, CancellationToken cancellationToken)
+    {
+        var a = await _assessments.GetAsync(assessmentId, cancellationToken);
+        if (a == null) return NotFound();
+
+        if (IsConverted(a))
+        {
+            TempData["AssessmentError"] = "This assessment is already converted to a project.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (a.EnquiryId.HasValue)
+            return RedirectToAction("Create", "EnquiryProposal", new { enquiryId = a.EnquiryId.Value });
+
+        ViewBag.AssessmentId = assessmentId;
+        ViewBag.AssessmentName = a.Name;
+
+        return View(new EnquiryFormViewModel { Source = EnquirySource.Phone, LocationCountry = "India", EndUse = "CBG" });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Customer(Guid assessmentId, EnquiryFormViewModel model, CancellationToken cancellationToken)
+    {
+        var a = await _assessments.GetAsync(assessmentId, cancellationToken);
+        if (a == null) return NotFound();
+
+        if (IsConverted(a))
+        {
+            TempData["AssessmentError"] = "This assessment is already converted to a project.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (a.EnquiryId.HasValue)
+            return RedirectToAction("Create", "EnquiryProposal", new { enquiryId = a.EnquiryId.Value });
+
+        ViewBag.AssessmentId = assessmentId;
+        ViewBag.AssessmentName = a.Name;
+
+        if (!ModelState.IsValid) return View(model);
+
+        try
+        {
+            var enquiry = new Enquiry
+            {
+                Id = Guid.NewGuid(),
+                CustomerName = model.CustomerName,
+                CompanyName = model.CompanyName,
+                Email = model.Email,
+                Phone = model.Phone,
+                LocationCity = model.LocationCity,
+                LocationState = model.LocationState,
+                LocationCountry = model.LocationCountry,
+                FeedstockType = model.FeedstockType,
+                FeedstockQtyTpd = model.FeedstockQtyTpd,
+                EndUse = model.EndUse,
+                Message = model.Message,
+                Source = EnquirySource.Phone
+            };
+
+            var created = await _enquiries.AddAsync(enquiry, cancellationToken);
+            await _assessments.LinkEnquiryAsync(assessmentId, created.Id, cancellationToken);
+
+            TempData["Success"] = $"Enquiry {created.EnquiryNo} created and linked to this assessment.";
+            return RedirectToAction("Create", "EnquiryProposal", new { enquiryId = created.Id });
+        }
+        catch (InvalidOperationException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return View(model);
+        }
+    }
+
     // ------------------------------------------------------------------ convert to project
 
     [HttpGet]
@@ -248,6 +344,12 @@ public class AssessmentController : Controller
 
         if (IsConverted(a) && a.ProjectId.HasValue)
             return RedirectToAction("Detail", "Project", new { id = a.ProjectId.Value });
+
+        if (!await _assessments.HasApprovedProposalAsync(id, cancellationToken))
+        {
+            TempData["AssessmentError"] = "Convert is available only after the proposal is Approved.";
+            return RedirectToAction(nameof(Index));
+        }
 
         ViewBag.AssessmentName = a.Name;
         return View(new ConvertAssessmentDto { AssessmentId = id, ProjectName = a.Name });
@@ -302,7 +404,8 @@ public class AssessmentController : Controller
             Equipment = a.Equipment,
             RuleSetId = ruleSet?.Id,
             RuleSetName = ruleSet?.Name ?? string.Empty,
-            RuleSetVersion = ruleSet?.Version ?? 0
+            RuleSetVersion = ruleSet?.Version ?? 0,
+            ProposalApproved = !IsConverted(a) && await _assessments.HasApprovedProposalAsync(id, cancellationToken)
         };
 
         if (includeLayouts)

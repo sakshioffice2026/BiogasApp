@@ -15,7 +15,7 @@
     var submitBtn = card ? card.querySelector("[data-wf-submit]") : null;
     var proposalUrl = card ? card.getAttribute("data-proposal-url") : "";
     var CHECK = "M5 12l5 5 9-10";
-    var total = rows.length || 7;
+    var total = rows.length || 6;
 
     function setStep(n) {
         rows.forEach(function (row, i) {

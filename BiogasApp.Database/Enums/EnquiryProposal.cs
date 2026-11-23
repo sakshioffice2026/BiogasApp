@@ -12,6 +12,8 @@ public class EnquiryProposal
     public Guid ProjectId { get; set; }
     public Guid SimulationRunId { get; set; }
 
+    public Guid? AssessmentId { get; set; }
+
     public ProposalStatus Status { get; set; } = ProposalStatus.Draft;
 
     public decimal CapexTotal { get; set; }

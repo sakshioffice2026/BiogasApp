@@ -6,7 +6,7 @@
 <div class="bp-page-head">
     <div>
         <h1>Site assessments</h1>
-        <p class="bp-muted mb-0">Check the plot and surroundings first, then convert to a project.</p>
+        <p class="bp-muted mb-0">Check the plot and surroundings, create the proposal, and convert to a project after it is approved.</p>
     </div>
     <a class="bp-btn bp-btn--flame" asp-action="Create">New site assessment</a>
 </div>
@@ -65,7 +65,11 @@ else
                                 {
                                     <a class="btn btn-sm btn-outline-primary" asp-action="Site" asp-route-id="@a.Id">Site</a>
                                     <a class="btn btn-sm btn-outline-primary" asp-action="Editor" asp-route-id="@a.Id">Layout</a>
-                                    <a class="btn btn-sm btn-outline-success" asp-action="Convert" asp-route-id="@a.Id">Convert</a>
+                                    <a class="btn btn-sm btn-outline-primary" asp-action="Proposal" asp-route-id="@a.Id">Proposal</a>
+                                    @if (a.ProposalApproved)
+                                    {
+                                        <a class="btn btn-sm btn-outline-success" asp-action="Convert" asp-route-id="@a.Id">Convert</a>
+                                    }
                                     <form method="post" asp-action="Delete" asp-route-id="@a.Id" class="d-inline" onsubmit="return confirm('Delete this assessment?');">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
                                     </form>

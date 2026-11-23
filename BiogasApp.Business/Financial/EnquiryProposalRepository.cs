@@ -90,6 +90,15 @@ public class EnquiryProposalRepository : IEnquiryProposalRepository
                 .ToList()
         };
 
+
+        model.AssessmentId = latest?.AssessmentId
+            ?? await _db.SiteAssessments
+                .AsNoTracking()
+                .Where(a => a.EnquiryId == enquiryId)
+                .OrderByDescending(a => a.CreatedAt)
+                .Select(a => (Guid?)a.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
         if (latest != null)
         {
             var project = await _projects.GetByIdAsync(latest.ProjectId, cancellationToken);
@@ -157,10 +166,31 @@ public class EnquiryProposalRepository : IEnquiryProposalRepository
             .ToListAsync(cancellationToken);
 
         var version = (previous.FirstOrDefault()?.Version ?? 0) + 1;
+        var assessmentId = model.AssessmentId
+    ?? await _db.SiteAssessments
+        .Where(a => a.EnquiryId == enquiry.Id)
+        .OrderByDescending(a => a.CreatedAt)
+        .Select(a => (Guid?)a.Id)
+        .FirstOrDefaultAsync(cancellationToken);
 
+        var assessment = assessmentId.HasValue
+            ? await _db.SiteAssessments.FirstOrDefaultAsync(
+                a => a.Id == assessmentId.Value && a.EnquiryId == enquiry.Id, cancellationToken)
+            : null;
+
+        if (assessment == null)
+        {
+            throw new InvalidOperationException("Create a site assessment for this enquiry first.");
+        }
+
+        if (assessment.Status == AssessmentStatus.Converted)
+        {
+            throw new InvalidOperationException("This assessment is already converted to a project.");
+        }
         // 1. pre-sales project (reuse the one from the previous version)
-        var project = await EnsureProjectAsync(enquiry, previous.FirstOrDefault()?.ProjectId, model, cancellationToken);
-
+        var project = await EnsureProjectAsync(enquiry, previous.FirstOrDefault()?.ProjectId ?? assessment.ProjectId, model, cancellationToken);
+        assessment.ProjectId = project.Id;
+        assessment.UpdatedAt = DateTime.UtcNow;
         // 2. feedstock mix
         var mix = lines.Select(l => new ProjectFeedstockMix
         {
@@ -218,6 +248,7 @@ public class EnquiryProposalRepository : IEnquiryProposalRepository
             Version = version,
             ProjectId = project.Id,
             SimulationRunId = run.Id,
+            AssessmentId = assessment.Id,
             Status = ProposalStatus.Draft,
             CapexTotal = (decimal)metrics.CapexTotal,
             OpexAnnual = (decimal)metrics.OpexAnnual,

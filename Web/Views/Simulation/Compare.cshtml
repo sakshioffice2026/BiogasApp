@@ -50,8 +50,8 @@
     <div>
         <h1>Compare runs</h1>
         <p class="bp-muted mb-0">
-            <span class="bp-chip bp-chip--simulated">A: v@a.Version</span>
-            <span class="bp-chip bp-chip--approved">B: v@b.Version</span>
+            <span class="bp-chip bp-chip--simulated">A: v@(a.Version)</span>
+            <span class="bp-chip bp-chip--approved">B: v@(b.Version)</span>
         </p>
     </div>
     <div class="sm-actions">
@@ -115,7 +115,7 @@
         @foreach (var r in new[] { (Tag: "A", Run: a), (Tag: "B", Run: b) })
         {
             <div class="sm-panel bp-card">
-                <h3 class="sm-equip__sub">Run @r.Tag (v@r.Run.Version)</h3>
+                <h3 class="sm-equip__sub">Run @r.Tag (v@(r.Run.Version))</h3>
                 @if (r.Run.Warnings.Count == 0)
                 {
                     <p class="bp-muted mb-0">
