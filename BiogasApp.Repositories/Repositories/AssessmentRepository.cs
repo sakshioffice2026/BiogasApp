@@ -585,24 +585,33 @@ public class AssessmentRepository : IAssessmentRepository
             ?? throw new InvalidOperationException("The proposal project was not found.");
         project.Name = request.ProjectName.Trim();
 
-        _db.ProjectSites.Add(new ProjectSite
+        var site = await _db.ProjectSites.FirstOrDefaultAsync(x => x.ProjectId == project.Id, cancellationToken);
+        if (site == null)
         {
-            Id = Guid.NewGuid(),
-            ProjectId = project.Id,
-            Latitude = a.Latitude,
-            Longitude = a.Longitude,
-            PlotCornersJson = a.PlotCornersJson,
-            PlotAreaM2 = a.PlotAreaM2,
-            GateEdgeIndex = a.GateEdgeIndex,
-            GateOffsetM = a.GateOffsetM,
-            NorthAngleDeg = a.NorthAngleDeg,
-            WindFromDeg = a.WindFromDeg,
-            SlopeDirectionDeg = a.SlopeDirectionDeg,
-            PowerSideDeg = a.PowerSideDeg,
-            GasOfftakeSideDeg = a.GasOfftakeSideDeg,
-            Notes = a.Notes,
-            UpdatedAt = DateTime.UtcNow
-        });
+            site = new ProjectSite { Id = Guid.NewGuid(), ProjectId = project.Id };
+            _db.ProjectSites.Add(site);
+        }
+        site.Latitude = a.Latitude;
+        site.Longitude = a.Longitude;
+        site.PlotCornersJson = a.PlotCornersJson;
+        site.PlotAreaM2 = a.PlotAreaM2;
+        site.GateEdgeIndex = a.GateEdgeIndex;
+        site.GateOffsetM = a.GateOffsetM;
+        site.NorthAngleDeg = a.NorthAngleDeg;
+        site.WindFromDeg = a.WindFromDeg;
+        site.SlopeDirectionDeg = a.SlopeDirectionDeg;
+        site.PowerSideDeg = a.PowerSideDeg;
+        site.GasOfftakeSideDeg = a.GasOfftakeSideDeg;
+        site.Notes = a.Notes;
+        site.UpdatedAt = DateTime.UtcNow;
+
+        var oldReceptors = await _db.SiteReceptors
+            .Where(x => x.ProjectId == project.Id).ToListAsync(cancellationToken);
+        _db.SiteReceptors.RemoveRange(oldReceptors);
+
+        var oldZones = await _db.NoBuildZones
+            .Where(x => x.ProjectId == project.Id).ToListAsync(cancellationToken);
+        _db.NoBuildZones.RemoveRange(oldZones);
 
         foreach (var r in a.Receptors)
         {
@@ -632,8 +641,16 @@ public class AssessmentRepository : IAssessmentRepository
             });
         }
 
+        var existingTags = (await _db.ProjectEquipmentItems
+        .Where(x => x.ProjectId == project.Id)
+        .Select(x => x.Tag)
+        .ToListAsync(cancellationToken))
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         foreach (var e in a.Equipment)
         {
+            if (!existingTags.Add(e.Tag)) continue;
+
             _db.ProjectEquipmentItems.Add(new ProjectEquipmentItem
             {
                 Id = Guid.NewGuid(),

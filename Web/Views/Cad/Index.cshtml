@@ -44,7 +44,7 @@
                     <div class="alert alert-info small">
                         No saved layout yet. Create and save a version in the
                         <a asp-controller="Layout" asp-action="Editor" asp-route-projectId="@Model.ProjectId">layout editor</a>
-                        before generating the GA drawing.
+                        before generating the GA drawing. PFD drawing does not need a saved layout.
                     </div>
                 }
 
@@ -67,12 +67,12 @@
                         <div class="form-label small mb-1">Output</div>
                         @foreach (var f in CadViewModel.AvailableFormats)
                         {
-                            bool enabled = f == "GA_DXF" || f == "PFD_DXF";
+                            bool enabled = (f == "GA_DXF" && hasLayout) || f == "PFD_DXF";
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="SelectedFormats" value="@f" id="fmt_@f"
                                        checked="@enabled" disabled="@(!enabled)" />
                                 <label class="form-check-label" for="fmt_@f">
-                                    @f @(enabled ? "" : "(later)")
+                                    @f @(enabled ? "" : (f == "GA_DXF" ? "(needs saved layout)" : "(later)"))
                                 </label>
                             </div>
                         }
@@ -96,7 +96,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-sm" id="btnGenerateCad" @((hasLayout && !jobActive) ? "" : "disabled")>
+                    <button type="submit" class="btn btn-primary btn-sm" id="btnGenerateCad" @(jobActive ? "disabled" : "")>
                         Generate drawings
                     </button>
                 </form>

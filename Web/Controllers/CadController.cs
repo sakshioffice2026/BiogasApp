@@ -100,7 +100,7 @@ public class CadController : Controller
             return RedirectToAction(nameof(Index), new { runId = model.SimulationRunId });
         }
 
-        if (!model.SiteLayoutId.HasValue)
+        if (formats.Contains("GA_DXF") && !model.SiteLayoutId.HasValue)
         {
             TempData["Error"] = "Select a saved layout version first.";
             return RedirectToAction(nameof(Index), new { runId = model.SimulationRunId });

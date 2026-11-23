@@ -133,9 +133,9 @@ public class CadGenerationRepository : ICadGeneration
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, "GA drawing generation failed for CAD job {JobId}.", job.Id);
+            _logger.LogError(ex, "CAD generation failed for CAD job {JobId}.", job.Id);
             DetachAddedArtifacts();
-            await MarkFailedAsync(job, "Could not generate the GA drawing. See the server log for details.", cancellationToken);
+            await MarkFailedAsync(job, "Could not generate the drawing. See the server log for details.", cancellationToken);
         }
 
         return ToDto(job);
@@ -308,6 +308,7 @@ public class CadGenerationRepository : ICadGeneration
             CreatedAt = DateTime.UtcNow
         });
     }
+
     private static LayoutInput BuildInput(SiteDto site, List<EquipmentItemDto> equipment)
     {
         var geo = new GeoProjection(site.Latitude, site.Longitude);

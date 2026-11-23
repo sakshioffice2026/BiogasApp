@@ -5,6 +5,7 @@
     ViewData["Title"] = "Projects";
     var filtered = !string.IsNullOrWhiteSpace(Model.Search) || Model.StatusFilter.HasValue;
     var count = Model.Projects.Count;
+    var latestRuns = ViewData["LatestRuns"] as Dictionary<Guid, Guid?> ?? new Dictionary<Guid, Guid?>();
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/project.css" asp-append-version="true" />
@@ -71,30 +72,56 @@
 }
 else
 {
-    <ul class="pj-grid" role="list">
-        @foreach (var p in Model.Projects)
-        {
-            <li>
-                <a class="pj-card bp-card bp-card--link" asp-action="Detail" asp-route-id="@p.Id">
-                    <div class="pj-card__tank">
-                        <partial name="_Digester" model="p.Status" />
-                    </div>
-                    <div class="pj-card__body">
-                        <span class="bp-chip bp-chip--@(p.Status.Css())">@p.Status.Label()</span>
-                        <h2 class="pj-card__title">@p.Name</h2>
-                        <p class="pj-card__place">@p.LocationCountry</p>
-                        <dl class="pj-facts">
-                            <div><dt>Regime</dt><dd>@p.DigesterRegime.Label()</dd></div>
-                            <div><dt>Upgrading</dt><dd>@p.UpgradingTech.Label()</dd></div>
-                            <div><dt>Code</dt><dd>@p.RegulatoryStandard.Label()</dd></div>
-                        </dl>
-                        <p class="pj-card__foot">
-                            <span>@p.RunCount @(p.RunCount == 1 ? "simulation run" : "simulation runs")</span>
-                            <span>Created @p.CreatedAt.ToString("dd MMM yyyy")</span>
-                        </p>
-                    </div>
-                </a>
-            </li>
-        }
-    </ul>
+    <div class="bp-card table-responsive p-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">Project</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Checklist</th>
+                    <th scope="col">Layout</th>
+                    <th scope="col">Site</th>
+                    <th scope="col">CAD drawings</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model.Projects)
+                {
+                    latestRuns.TryGetValue(p.Id, out var runId);
+                    <tr>
+                        <td>
+                            <a class="fw-semibold text-decoration-none" asp-action="Detail" asp-route-id="@p.Id">@p.Name</a>
+                            <div class="small bp-muted">@p.LocationCountry</div>
+                        </td>
+                        <td>
+                            <span class="bp-chip bp-chip--@(p.Status.Css())">@p.Status.Label()</span>
+                        </td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-controller="Workflow" asp-action="Checklist" asp-route-projectId="@p.Id">Checklist</a>
+                        </td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-controller="Layout" asp-action="Editor" asp-route-projectId="@p.Id">Layout</a>
+                        </td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-controller="Site" asp-action="Edit" asp-route-projectId="@p.Id">Site</a>
+                        </td>
+                        <td>
+                            @if (runId.HasValue)
+                            {
+                                <a class="btn btn-sm btn-outline-secondary"
+                                   asp-controller="Cad" asp-action="Index" asp-route-runId="@runId.Value">CAD drawings</a>
+                            }
+                            else
+                            {
+                                <span class="small bp-muted">Run a simulation first</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 }

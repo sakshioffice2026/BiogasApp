@@ -11,6 +11,12 @@
         .Where(a => a.ArtifactType == "GA_DXF")
         .OrderByDescending(a => a.CreatedAt)
         .ToList();
+
+    var pfdFiles = Model.Artifacts
+        .Where(a => a.ArtifactType == "PFD_DXF")
+        .OrderByDescending(a => a.CreatedAt)
+        .ToList();
+    bool isPfdTab = Model.ActiveTab == "PFD Flow Sheet";
 }
 
 @section Styles {
@@ -34,11 +40,11 @@
 <ul class="nav nav-tabs mb-3">
     @foreach (var tab in CadViewModel.ViewerTabs)
     {
-        bool isGa = tab == "GA Site Plan";
+        bool isLive = tab == "GA Site Plan" || tab == "PFD Flow Sheet";
         <li class="nav-item">
-            @if (isGa)
+            @if (isLive)
             {
-                <a class="nav-link active" asp-action="Viewer" asp-route-runId="@Model.SimulationRunId" asp-route-tab="@tab">@tab</a>
+                <a class="nav-link @(tab == Model.ActiveTab ? "active" : "")" asp-action="Viewer" asp-route-runId="@Model.SimulationRunId" asp-route-tab="@tab">@tab</a>
             }
             else
             {
@@ -48,7 +54,33 @@
     }
 </ul>
 
-@if (!hasLayout)
+@if (isPfdTab)
+{
+    <div class="card">
+        <div class="card-header">PFD drawing files</div>
+        <div class="list-group list-group-flush">
+            @if (pfdFiles.Count == 0)
+            {
+                <div class="list-group-item text-muted small">
+                    No PFD DXF yet. Use
+                    <a asp-action="Index" asp-route-runId="@Model.SimulationRunId">Generate</a>
+                    and select PFD_DXF.
+                </div>
+            }
+            @foreach (var a in pfdFiles)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <div>@a.FileName</div>
+                        <div class="small text-muted">@a.CreatedAt.ToString("dd MMM yyyy HH:mm")</div>
+                    </div>
+                    <a class="btn btn-sm btn-outline-primary" asp-action="Download" asp-route-id="@a.ArtifactId">Download</a>
+                </div>
+            }
+        </div>
+    </div>
+}
+else if (!hasLayout)
 {
     <div class="alert alert-info">
         No saved layout yet. Create and save a version in the

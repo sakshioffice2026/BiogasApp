@@ -50,13 +50,16 @@ public static class PfdDxfWriter
         public string Label = string.Empty;
         public string Name = string.Empty;
         public string Size = string.Empty;
+        public List<string> NameLines = new();
         public bool Circle;
         public int Qty;
+        public double Radius = CircleR;
+        public double Height = BoxH;
         public double Cx;
         public double Cy;
 
-        public double HalfW => Circle ? CircleR : BoxW / 2.0;
-        public double HalfH => Circle ? CircleR : BoxH / 2.0;
+        public double HalfW => Circle ? Radius : BoxW / 2.0;
+        public double HalfH => Circle ? Radius : Height / 2.0;
         public double Left => Cx - HalfW;
         public double Right => Cx + HalfW;
         public double Top => Cy + HalfH;
@@ -99,7 +102,7 @@ public static class PfdDxfWriter
             for (int j = 0; j < nodes.Count; j++)
             {
                 nodes[j].Cx = x;
-                nodes[j].Cy = (j - (nodes.Count - 1) / 2.0) * StackStep;
+                nodes[j].Cy = (j - (nodes.Count - 1) / 2.0) * StepOf(nodes);
             }
             x += ColStep;
             cols.Add((nodes, i < MainPipes.Length ? MainPipes[i] : PipeGas));
@@ -143,7 +146,7 @@ public static class PfdDxfWriter
             for (int j = 0; j < col.Count; j++)
             {
                 col[j].Cx = dx;
-                col[j].Cy = DigestateRowY + (j - (col.Count - 1) / 2.0) * StackStep;
+                col[j].Cy = DigestateRowY + (j - (col.Count - 1) / 2.0) * StepOf(col);
             }
             dx += ColStep;
         }
@@ -176,7 +179,7 @@ public static class PfdDxfWriter
             var n = Get(p);
             if (n == null) continue;
             n.Cx = (idx % 6) * ColStep;
-            n.Cy = UtilityRowY - (idx / 6) * 50.0;
+            n.Cy = UtilityRowY - (idx / 6) * 70.0;
             idx++;
         }
 
@@ -209,12 +212,17 @@ public static class PfdDxfWriter
 
     private static void CreateLayers(DxfDocument doc)
     {
-        var defs = new (string Name, short Color)[]
+        var defs = new (string Name, AciColor Color, Lineweight Weight)[]
         {
-            ("BOX", 3), (PipeSolid, 30), (PipeLiquid, 5), (PipeGas, 4), ("TEXT", 7), ("TITLE", 7)
+            ("BOX", new AciColor(7), Lineweight.W70),
+            (PipeSolid, new AciColor(110, 55, 0), Lineweight.W50),
+            (PipeLiquid, new AciColor(0, 0, 150), Lineweight.W50),
+            (PipeGas, new AciColor(0, 100, 100), Lineweight.W50),
+            ("TEXT", new AciColor(7), Lineweight.Default),
+            ("TITLE", new AciColor(7), Lineweight.Default)
         };
         foreach (var d in defs)
-            doc.Layers.Add(new Layer(d.Name) { Color = new AciColor(d.Color) });
+            doc.Layers.Add(new Layer(d.Name) { Color = d.Color, Lineweight = d.Weight });
     }
 
     private static Node? BuildNode(IReadOnlyList<EquipmentInput> equipment, string prefix)
@@ -229,7 +237,7 @@ public static class PfdDxfWriter
         bool circle = first.Shape == EquipmentShape.Circle;
         double dia = first.DiameterM > 0 ? first.DiameterM : first.WidthM;
 
-        return new Node
+        var node = new Node
         {
             Prefix = prefix.ToUpperInvariant(),
             Label = qty == 1
@@ -242,6 +250,12 @@ public static class PfdDxfWriter
                 ? $"DIA {Fmt(dia)} m"
                 : $"{Fmt(first.WidthM)} x {Fmt(first.LengthM)} m"
         };
+
+        node.NameLines = Wrap(node.Name, circle ? 18 : 28);
+        int count = node.NameLines.Count + 2;
+        node.Radius = Math.Max(CircleR, count * 3.2 + 4.0);
+        node.Height = Math.Max(BoxH, count * 4.2 + 6.0);
+        return node;
     }
 
     private static string PrefixOf(string? tag)
@@ -249,22 +263,54 @@ public static class PfdDxfWriter
 
     private static string Fmt(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
 
-    private static string Trim(string s, int max)
+    private static List<string> Wrap(string? s, int max)
     {
-        s = (s ?? string.Empty).ToUpperInvariant();
-        return s.Length <= max ? s : s.Substring(0, max - 1) + ".";
+        var lines = new List<string>();
+        var cur = string.Empty;
+
+        foreach (var raw in (s ?? string.Empty).ToUpperInvariant()
+                     .Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var word = raw;
+            while (word.Length > max)
+            {
+                if (cur.Length > 0)
+                {
+                    lines.Add(cur);
+                    cur = string.Empty;
+                }
+                lines.Add(word.Substring(0, max));
+                word = word.Substring(max);
+            }
+
+            if (cur.Length == 0) cur = word;
+            else if (cur.Length + 1 + word.Length <= max) cur += " " + word;
+            else
+            {
+                lines.Add(cur);
+                cur = word;
+            }
+        }
+
+        if (cur.Length > 0) lines.Add(cur);
+        if (lines.Count == 0) lines.Add(string.Empty);
+        return lines;
     }
+
+    private static double StepOf(List<Node> nodes)
+        => Math.Max(StackStep, nodes.Max(n => n.Circle ? n.Radius * 2.0 : n.Height) + 8.0);
 
     private static void DrawNode(DxfDocument doc, Node n)
     {
         string sizeLine = $"{n.Size}  QTY {n.Qty}";
 
+        var lines = new List<(string Text, double H)> { (n.Label, n.Circle ? 2.2 : 2.6) };
+        foreach (var l in n.NameLines) lines.Add((l, n.Circle ? 1.8 : 2.0));
+        lines.Add((sizeLine, 1.8));
+
         if (n.Circle)
         {
-            Add(doc, "BOX", new Circle(new Vector2(n.Cx, n.Cy), CircleR));
-            AddText(doc, "TEXT", n.Label, n.Cx, n.Cy + 5, 2.2, TextAlignment.MiddleCenter);
-            AddText(doc, "TEXT", Trim(n.Name, 20), n.Cx, n.Cy, 1.8, TextAlignment.MiddleCenter);
-            AddText(doc, "TEXT", sizeLine, n.Cx, n.Cy - 5, 1.8, TextAlignment.MiddleCenter);
+            Add(doc, "BOX", new Circle(new Vector2(n.Cx, n.Cy), n.Radius));
         }
         else
         {
@@ -272,9 +318,14 @@ public static class PfdDxfWriter
             {
                 new(n.Left, n.Bottom), new(n.Right, n.Bottom), new(n.Right, n.Top), new(n.Left, n.Top)
             }, true));
-            AddText(doc, "TEXT", n.Label, n.Cx, n.Cy + 6, 2.6, TextAlignment.MiddleCenter);
-            AddText(doc, "TEXT", Trim(n.Name, 28), n.Cx, n.Cy, 2.0, TextAlignment.MiddleCenter);
-            AddText(doc, "TEXT", sizeLine, n.Cx, n.Cy - 7, 1.8, TextAlignment.MiddleCenter);
+        }
+
+        double step = n.Circle ? 3.6 : 4.2;
+        double y = n.Cy + (lines.Count - 1) * step / 2.0;
+        foreach (var (text, h) in lines)
+        {
+            AddText(doc, "TEXT", text, n.Cx, y, h, TextAlignment.MiddleCenter);
+            y -= step;
         }
     }
 

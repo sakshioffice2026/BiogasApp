@@ -32,6 +32,8 @@
                 </div>
                 <div class="d-flex gap-2">
                     <a class="btn btn-sm btn-outline-secondary"
+                       asp-controller="Workflow" asp-action="Checklist" asp-route-projectId="@p.Id">Checklist</a>
+                    <a class="btn btn-sm btn-outline-secondary"
                        asp-controller="Layout" asp-action="Editor" asp-route-projectId="@p.Id">Layout editor</a>
                     @if (runId.HasValue)
                     {

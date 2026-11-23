@@ -34,6 +34,7 @@
 
         <div class="pj-hero__actions">
             <a class="bp-btn bp-btn--flame" asp-controller="Simulation" asp-action="Mixer" asp-route-projectId="@Model.Id">Open feedstock mixer</a>
+            <a class="bp-btn bp-btn--ghost" asp-controller="Workflow" asp-action="Checklist" asp-route-projectId="@Model.Id">Project checklist</a>
             <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="History" asp-route-projectId="@Model.Id">Simulation history</a>
             <a class="bp-btn bp-btn--ghost" asp-action="Edit" asp-route-id="@Model.Id">Edit details</a>
         </div>

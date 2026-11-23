@@ -1,0 +1,117 @@
+@model BiogasApp.Model.ViewModel.ProjectChecklistViewModel
+@using BiogasApp.Model.ViewModel
+@{
+    ViewData["Title"] = "Project checklist";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/layout.css" asp-append-version="true" />
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h4 mb-0">Project checklist</h1>
+        <div class="text-muted">@Model.ProjectName</div>
+    </div>
+    <div class="text-end">
+        <div class="small text-muted mb-1">@Model.DoneCount of @Model.Steps.Count steps done</div>
+        <div class="progress" style="width:160px; height:6px;">
+            <div class="progress-bar bg-success" role="progressbar" style="width:@(Model.ProgressPercent)%"
+                 aria-valuenow="@Model.ProgressPercent" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-warning py-2 small">@LayoutEditorViewModel.DraftNotice</div>
+
+@if (TempData["Success"] is string ok)
+{
+    <div class="alert alert-success py-2">@ok</div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger py-2">@err</div>
+}
+
+<div class="card">
+    <div class="list-group list-group-flush">
+        @foreach (var s in Model.Steps)
+        {
+            bool isDone = s.State == ChecklistState.Done;
+            bool isCurrent = s.State == ChecklistState.Current;
+            string badgeClass = isDone ? "bg-success" : isCurrent ? "bg-primary" : "bg-secondary";
+            string rowClass = isCurrent ? "list-group-item list-group-item-primary" : "list-group-item";
+
+            <div class="@rowClass">
+                <div class="d-flex align-items-start gap-3">
+                    <span class="badge rounded-circle @badgeClass d-flex align-items-center justify-content-center"
+                          style="width:28px; height:28px;">
+                        @(isDone ? "\u2713" : s.Number.ToString())
+                    </span>
+
+                    <div class="flex-grow-1">
+                        <div class="fw-semibold">@s.Number. @s.Title</div>
+                        <div class="small @(isCurrent ? "" : "text-muted")">@s.Detail</div>
+
+                        @if (s.Number == 6)
+                        {
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 bg-white d-flex justify-content-between align-items-center gap-2">
+                                        <div>
+                                            <div class="small fw-semibold">PFD drawing</div>
+                                            <div class="small text-muted">@Model.PfdNote</div>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            @if (Model.PfdReady && Model.GenerateUrl != null)
+                                            {
+                                                <a class="btn btn-sm btn-outline-primary" href="@Model.GenerateUrl">Generate</a>
+                                            }
+                                            @if (Model.HasPfdFile && Model.PfdViewerUrl != null)
+                                            {
+                                                <a class="btn btn-sm btn-outline-secondary" href="@Model.PfdViewerUrl">Files</a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 bg-white d-flex justify-content-between align-items-center gap-2">
+                                        <div>
+                                            <div class="small fw-semibold">GA site plan</div>
+                                            <div class="small text-muted">@Model.GaNote</div>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            @if (Model.GaReady && Model.GenerateUrl != null)
+                                            {
+                                                <a class="btn btn-sm btn-outline-primary" href="@Model.GenerateUrl">Generate</a>
+                                            }
+                                            @if (Model.HasGaFile && Model.GaViewerUrl != null)
+                                            {
+                                                <a class="btn btn-sm btn-outline-secondary" href="@Model.GaViewerUrl">Files</a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(s.ActionUrl) && !string.IsNullOrEmpty(s.ActionText))
+                    {
+                        @if (s.ActionIsPost)
+                        {
+                            <form method="post" action="@s.ActionUrl" class="mb-0">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm @(isCurrent ? "btn-primary" : "btn-outline-secondary")">@s.ActionText</button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a class="btn btn-sm @(isCurrent ? "btn-primary" : "btn-outline-secondary")" href="@s.ActionUrl">@s.ActionText</a>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>

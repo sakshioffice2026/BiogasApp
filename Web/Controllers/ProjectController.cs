@@ -23,6 +23,15 @@ public class ProjectController : Controller
     public async Task<IActionResult> Index(string? search, ProjectStatus? status, CancellationToken cancellationToken)
     {
         var model = await _projects.GetIndexAsync(search, status, cancellationToken);
+
+        var latestRuns = new Dictionary<Guid, Guid?>();
+        foreach (var p in model.Projects)
+        {
+            var run = await _simulations.GetLatestRunAsync(p.Id, cancellationToken);
+            latestRuns[p.Id] = run?.Id;
+        }
+
+        ViewData["LatestRuns"] = latestRuns;
         return View(model);
     }
 
