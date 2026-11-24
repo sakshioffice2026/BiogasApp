@@ -44,7 +44,14 @@
         <a class="btn btn-outline-primary btn-sm" href="@Url.Action("Proposal", "Assessment", new { id = Model.ProjectId })">Create proposal</a>
         @if (Model.ProposalApproved)
         {
-            <a class="btn btn-outline-success btn-sm" href="@Url.Action("Convert", "Assessment", new { id = Model.ProjectId })">Convert to project</a>
+            <a class="btn btn-success btn-sm" href="@Url.Action("Convert", "Assessment", new { id = Model.ProjectId })">Create project</a>
+        }
+        else
+        {
+            <button type="button" class="btn btn-success btn-sm" disabled
+                    title="Available after the proposal is approved">
+                Create project
+            </button>
         }
     </div>
 
@@ -66,6 +73,13 @@
 
         <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLock" disabled>Lock</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRotate" disabled>Rotate 90&deg;</button>
+
+        <div class="vr"></div>
+
+        <div class="btn-group btn-group-sm" role="group" aria-label="Undo and redo">
+            <button type="button" class="btn btn-outline-secondary" id="btnUndo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnRedo" title="Redo (Ctrl+Y)" disabled>Redo</button>
+        </div>
 
         <div class="vr"></div>
 
@@ -229,6 +243,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/undo-redo.js" asp-append-version="true"></script>
     <script src="~/js/layout-editor.js" asp-append-version="true"></script>
     <script>
         document.getElementById('btnDownloadDxf').addEventListener('click', function () {

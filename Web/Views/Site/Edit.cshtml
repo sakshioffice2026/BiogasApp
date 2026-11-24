@@ -57,6 +57,11 @@
             <div class="card mb-3">
                 <div class="card-header">Plot boundary</div>
                 <div class="card-body">
+                    <div class="d-flex gap-2 mb-2" role="group" aria-label="Undo and redo">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnHistUndo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnHistRedo" title="Redo (Ctrl+Y)" disabled>Redo</button>
+                    </div>
+
                     <ul class="nav nav-pills nav-fill mb-3" id="inputModeTabs">
                         <li class="nav-item"><button type="button" class="nav-link active" data-mode="Map">Draw on map</button></li>
                         <li class="nav-item"><button type="button" class="nav-link" data-mode="Typed">Type corners</button></li>
@@ -197,5 +202,6 @@
 
 @section Scripts {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="~/js/undo-redo.js" asp-append-version="true"></script>
     <script src="~/js/site-map.js" asp-append-version="true"></script>
 }

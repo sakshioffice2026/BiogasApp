@@ -67,7 +67,9 @@
         receptorBody: $('receptorBody'),
         findReceptors: $('btnFindReceptors'),
         addReceptor: $('btnAddReceptor'),
-        save: $('btnSaveSite')
+        save: $('btnSaveSite'),
+        histUndo: $('btnHistUndo'),
+        histRedo: $('btnHistRedo')
     };
 
     var state = {
@@ -80,6 +82,8 @@
         receptors: [],
         draw: null
     };
+
+    var hist = null;
 
     /* ---------- helpers ---------- */
 
@@ -234,6 +238,7 @@
             originMarker.on('dragend', function () {
                 var p = originMarker.getLatLng();
                 setOrigin(p.lat, p.lng, false);
+                commitState();
             });
         } else {
             originMarker.setLatLng([lat, lon]);
@@ -390,6 +395,7 @@
     el.addNoBuild.addEventListener('click', function () {
         state.zones.push({ id: null, reason: 'Other', notes: '', points: [], ll: null });
         renderZoneList();
+        commitState();
     });
 
     el.noBuildList.addEventListener('input', function (e) {
@@ -418,6 +424,7 @@
             state.zones.splice(state.zones.indexOf(z), 1);
             renderZoneList();
             renderZoneMap();
+            commitState();
             return;
         }
 
@@ -435,6 +442,7 @@
             z.ll = [];
             updateZoneText(z);
             renderZoneMap();
+            commitState();
             setDraw({ type: 'zone', zone: z });
             showMessage('Click each corner of the zone on the map, then press Done.', 'info');
         }
@@ -500,6 +508,7 @@
         state.receptors.splice(state.receptors.indexOf(r), 1);
         renderReceptorTable();
         renderReceptorMap();
+        commitState();
     });
 
     function addReceptorAt(latlng) {
@@ -515,6 +524,7 @@
         });
         renderReceptorTable();
         renderReceptorMap();
+        commitState();
         showMessage('Receptor added. Choose its type and name in the table.', 'success');
     }
 
@@ -565,6 +575,7 @@
 
             renderReceptorTable();
             renderReceptorMap();
+            commitState();
             showMessage(added + ' receptor(s) found. Tick Confirm for the correct ones.', added ? 'success' : 'info');
         }).catch(function () {
             el.findReceptors.disabled = false;
@@ -593,6 +604,7 @@
                 syncZone(z);
                 updateZoneText(z);
                 renderZoneMap();
+                commitState();
             }
             return;
         }
@@ -600,11 +612,13 @@
         if (state.mode === 'Map' && hasOrigin()) {
             addCorner(e.latlng);
             map.getContainer().classList.toggle('is-drawing', !state.closed);
+            commitState();
             return;
         }
 
         setOrigin(e.latlng.lat, e.latlng.lng, false);
         map.getContainer().classList.toggle('is-drawing', state.mode === 'Map' && !state.closed);
+        commitState();
     });
 
     /* ---------- mode tabs and inputs ---------- */
@@ -629,7 +643,10 @@
 
     el.tabs.addEventListener('click', function (e) {
         var b = e.target.closest('[data-mode]');
-        if (b) setMode(b.getAttribute('data-mode'));
+        if (b) {
+            setMode(b.getAttribute('data-mode'));
+            commitState();
+        }
     });
 
     el.cornersText.addEventListener('input', renderPlot);
@@ -642,6 +659,7 @@
         state.closed = false;
         renderPlot();
         map.getContainer().classList.toggle('is-drawing', hasOrigin());
+        commitState();
     });
 
     el.clear.addEventListener('click', function () {
@@ -649,6 +667,7 @@
         state.closed = false;
         renderPlot();
         map.getContainer().classList.toggle('is-drawing', hasOrigin());
+        commitState();
     });
 
     el.go.addEventListener('click', function () {
@@ -659,6 +678,7 @@
             return;
         }
         setOrigin(lat, lon, true);
+        commitState();
     });
 
     el.layerSat.addEventListener('click', function () { setLayer(true); });
@@ -697,6 +717,7 @@
             var lines = [res.data.message || 'Boundary imported.'];
             if (!hasOrigin()) lines.push('Set the plot location on the map so the boundary can be placed.');
             showMessage(lines, 'success');
+            commitState();
         }).catch(function () {
             el.importDxf.disabled = false;
             showMessage('Could not upload the DXF. Try again.', 'danger');
@@ -807,7 +828,10 @@
                 return;
             }
 
-            if (res.data.site) adoptSaved(res.data.site);
+            if (res.data.site) {
+                adoptSaved(res.data.site);
+                if (hist) hist.reset();
+            }
 
             if (res.ok && res.data.success) {
                 showMessage('Plot and site saved.', 'success');
@@ -891,4 +915,89 @@
     }
 
     load();
+
+    /* ---------- undo and redo ---------- */
+
+    function commitState() {
+        if (hist) hist.commit();
+    }
+
+    function captureState() {
+        return {
+            mode: state.mode,
+            lat: state.lat,
+            lon: state.lon,
+            corners: state.corners,
+            closed: state.closed,
+            zones: state.zones,
+            receptors: state.receptors,
+            form: {
+                cornersText: el.cornersText.value,
+                rectLength: el.rectLength.value,
+                rectWidth: el.rectWidth.value,
+                gateEdge: el.gateEdge.value,
+                gateOffset: el.gateOffset.value,
+                northAngle: el.northAngle.value,
+                windFrom: el.windFrom.value,
+                slopeDir: el.slopeDir.value,
+                powerSide: el.powerSide.value,
+                gasSide: el.gasSide.value,
+                notes: el.notes.value
+            }
+        };
+    }
+
+    function applyState(s) {
+        state.draw = null;
+        state.mode = s.mode;
+        state.corners = s.corners || [];
+        state.closed = !!s.closed;
+        state.zones = s.zones || [];
+        state.receptors = s.receptors || [];
+
+        var f = s.form || {};
+        el.cornersText.value = f.cornersText || '';
+        el.rectLength.value = f.rectLength || '';
+        el.rectWidth.value = f.rectWidth || '';
+        el.gateEdge.value = f.gateEdge || '';
+        el.gateOffset.value = f.gateOffset || '';
+        el.northAngle.value = f.northAngle || '';
+        el.windFrom.value = f.windFrom || '';
+        el.slopeDir.value = f.slopeDir || '';
+        el.powerSide.value = f.powerSide || '';
+        el.gasSide.value = f.gasSide || '';
+        el.notes.value = f.notes || '';
+
+        state.lat = s.lat;
+        state.lon = s.lon;
+
+        if (hasOrigin()) {
+            setOrigin(s.lat, s.lon, false);
+        } else {
+            el.lat.value = '';
+            el.lon.value = '';
+            if (originMarker) {
+                map.removeLayer(originMarker);
+                originMarker = null;
+            }
+            ringLayer.clearLayers();
+        }
+
+        setMode(s.mode);
+        renderZoneList();
+        renderReceptorTable();
+        renderAll();
+        el.addReceptor.textContent = 'Add manually';
+        map.getContainer().classList.toggle('is-drawing', state.mode === 'Map' && hasOrigin() && !state.closed);
+    }
+
+    hist = typeof UndoRedo === 'function' ? UndoRedo({
+        getState: captureState,
+        setState: applyState,
+        undoButton: el.histUndo,
+        redoButton: el.histRedo,
+        limit: 100
+    }) : null;
+
+    root.addEventListener('change', function () { commitState(); });
 })();

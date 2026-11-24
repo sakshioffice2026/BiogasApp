@@ -1,167 +1,147 @@
-@using BiogasApp.Database.Enums
 @model BiogasApp.Model.ViewModel.PidEditorViewModel
+@using BiogasApp.Database.Enums
 @{
     ViewData["Title"] = "P&ID editor";
-    var d = Model.Diagram;
-    var badge = d.Status switch
-    {
-        PidApprovalStatus.Approved => "bg-success",
-        PidApprovalStatus.InReview => "bg-info text-dark",
-        PidApprovalStatus.Rejected => "bg-danger",
-        PidApprovalStatus.Superseded => "bg-dark",
-        _ => "bg-secondary"
-    };
+    var statuses = Enum.GetNames(typeof(PidApprovalStatus));
 }
 
 @section Styles {
     <style>
-        .pid-canvas {
-            height: calc(100vh - 300px);
-            min-height: 480px;
-            border: 1px solid #ced4da;
+        #pidCanvas {
+            height: 70vh;
+            min-height: 420px;
+            border: 1px solid var(--bs-border-color, #dee2e6);
             border-radius: .375rem;
-            background: #fff;
+            background: var(--bs-body-bg, #fff);
             overflow: hidden;
         }
 
-        .pid-side {
-            max-height: calc(100vh - 300px);
-            min-height: 480px;
+            #pidCanvas .pid-node,
+            #pidCanvas .pid-valve,
+            #pidCanvas .pid-instrument,
+            #pidCanvas .pid-line {
+                cursor: pointer;
+            }
+
+        #pidEditor.is-busy {
+            opacity: .7;
+            pointer-events: none;
+        }
+
+        #pidLegend {
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+
+        #pidProps {
+            max-height: 40vh;
             overflow-y: auto;
         }
     </style>
 }
 
 <div id="pidEditor"
-     data-diagram-id="@d.Id"
+     data-diagram-id="@Model.PidDiagramId"
      data-readonly="@(Model.IsReadOnly ? "true" : "false")"
-     data-data-url="@Url.Action("Data", "Pid", new { id = d.Id })"
+     data-data-url="@Url.Action("Data", "Pid")"
      data-save-url="@Url.Action("Save", "Pid")"
      data-status-url="@Url.Action("SetStatus", "Pid")"
      data-revision-url="@Url.Action("NewRevision", "Pid")">
 
     @Html.AntiForgeryToken()
 
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
         <div>
             <h1 class="h4 mb-0">P&amp;ID editor</h1>
             <div class="text-muted">
-                @Model.ProjectName - @d.DrawingNo - Rev @d.RevisionNo
-                <span class="badge @badge ms-1">@d.Status</span>
-                <span class="text-warning small ms-2" id="pidDirty"></span>
+                @Model.ProjectName -
+                <span id="drawingNoText">@Model.Diagram.DrawingNo</span>
+                <span id="revisionText">Rev @Model.Diagram.RevisionNo</span>
+                <span id="statusBadge" class="badge text-bg-secondary">@Model.Diagram.Status</span>
             </div>
         </div>
         <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Back</a>
-            <a class="btn btn-outline-primary btn-sm" asp-action="ExportDxf" asp-route-id="@d.Id">Download DXF</a>
-            <a class="btn btn-outline-danger btn-sm" asp-action="ExportPdf" asp-route-id="@d.Id">Download PDF</a>
-            <a class="btn btn-outline-success btn-sm" asp-action="ExportExcel" asp-route-id="@d.Id">Excel lists</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-controller="Pid"
+               asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Back</a>
+            <a class="btn btn-outline-primary btn-sm" asp-action="ExportExcel" asp-controller="Pid"
+               asp-route-id="@Model.PidDiagramId">Download lists (Excel)</a>
         </div>
     </div>
 
     @if (Model.IsReadOnly)
     {
-        <div class="alert alert-secondary py-2 small mb-2">This revision is approved and read-only. Create a new revision to edit.</div>
+        <div class="alert alert-info py-2 small">
+            This drawing is approved and read-only. Start a new revision to edit it.
+        </div>
     }
 
     <div id="pidMessage" class="d-none"></div>
 
     <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-        <button type="button" class="btn btn-success btn-sm" id="btnSave" @(Model.IsReadOnly ? "disabled" : "")>Save</button>
+        <button type="button" class="btn btn-success btn-sm" id="btnSave" disabled>Save</button>
+
+        <div class="btn-group btn-group-sm" role="group" aria-label="Undo and redo">
+            <button type="button" class="btn btn-outline-secondary" id="btnUndo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnRedo" title="Redo (Ctrl+Y)" disabled>Redo</button>
+        </div>
 
         <div class="vr"></div>
 
-        <select class="form-select form-select-sm w-auto" id="selValveType" aria-label="Valve type">
-            <option value="Gate">Gate</option>
-            <option value="Ball">Ball</option>
-            <option value="Butterfly">Butterfly</option>
-            <option value="Check">Check</option>
-            <option value="Globe">Globe</option>
-            <option value="Relief">Relief</option>
-            <option value="Control">Control</option>
-            <option value="Solenoid">Solenoid</option>
-        </select>
-        <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddValve" disabled>Add valve</button>
-
-        <select class="form-select form-select-sm w-auto" id="selInstrumentType" aria-label="Instrument type">
-            <option value="PT">PT - Pressure</option>
-            <option value="TT">TT - Temperature</option>
-            <option value="FT">FT - Flow</option>
-            <option value="LT">LT - Level</option>
-        </select>
-        <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddInstrument" disabled>Add instrument</button>
-
-        <button type="button" class="btn btn-outline-danger btn-sm" id="btnDeleteItem" disabled>Delete</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnConnect" title="Draw a pipe between two equipment items">Connect</button>
+        <button type="button" class="btn btn-outline-danger btn-sm" id="btnDelete" title="Delete selected (Delete key)" disabled>Delete</button>
 
         <div class="vr"></div>
 
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLockNode" disabled>Lock</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRotate" disabled>Rotate 90&deg;</button>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
+            <button type="button" class="btn btn-outline-secondary" id="btnZoomOut">-</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnZoomFit">Fit</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnZoomIn">+</button>
+        </div>
 
-        <div class="vr"></div>
-
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnZoomOut" aria-label="Zoom out">-</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnZoomIn" aria-label="Zoom in">+</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnFit">Fit</button>
-
-        <div class="vr"></div>
-
-        @if (d.Status == PidApprovalStatus.Draft || d.Status == PidApprovalStatus.Rejected)
-        {
-            <button type="button" class="btn btn-outline-info btn-sm" id="btnSubmitReview">Submit for review</button>
-        }
-        @if (d.Status == PidApprovalStatus.InReview)
-        {
-            <button type="button" class="btn btn-outline-success btn-sm" id="btnApprove">Approve</button>
-            <button type="button" class="btn btn-outline-danger btn-sm" id="btnReject">Reject</button>
-        }
-        @if (d.Status == PidApprovalStatus.Approved || d.Status == PidApprovalStatus.Rejected)
-        {
-            <button type="button" class="btn btn-outline-dark btn-sm" id="btnNewRevision">New revision</button>
-        }
+        <div class="ms-auto" style="min-width: 220px;">
+            <input type="text" class="form-control form-control-sm" id="diagramTitle" maxlength="200" placeholder="Drawing title" value="@Model.Diagram.Title" />
+        </div>
     </div>
 
-    <div class="row g-2">
+    <div class="row g-3">
         <div class="col-lg-9">
-            <div class="pid-canvas" id="pidCanvas"></div>
+            <div id="pidCanvas"></div>
+            <div class="small text-muted mt-1">
+                Drag equipment to move it. Drag a valve along its pipe. Select a pipe, then click a valve symbol to add one.
+                Mouse wheel zooms, drag the background to pan.
+            </div>
         </div>
 
         <div class="col-lg-3">
-            <div class="pid-side">
-                <div class="card mb-2">
-                    <div class="card-body p-2">
-                        <div id="pidProps"></div>
-                    </div>
-                </div>
+            <div class="card mb-3">
+                <div class="card-header py-2">Properties</div>
+                <div class="card-body py-2" id="pidProps"></div>
+            </div>
 
-                <div class="card mb-2">
-                    <div class="card-body p-2">
-                        <div class="fw-semibold mb-2">Legend</div>
-                        <div id="pidLegend"></div>
-                    </div>
-                </div>
+            <div class="card mb-3">
+                <div class="card-header py-2">Symbols @(Model.IsReadOnly ? "" : "(click to add)")</div>
+                <div class="card-body py-2" id="pidLegend"></div>
+            </div>
 
-                <div class="card">
-                    <div class="card-body p-2">
-                        <div class="fw-semibold mb-2">Revisions</div>
-                        @if (Model.Revisions.Count == 0)
-                        {
-                            <div class="text-muted small">No revisions yet.</div>
-                        }
-                        else
-                        {
-                            foreach (var rev in Model.Revisions)
+            <div class="card mb-3">
+                <div class="card-header py-2">Approval</div>
+                <div class="card-body py-2">
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-1" for="statusSelect">Status</label>
+                        <select class="form-select form-select-sm" id="statusSelect">
+                            @foreach (var s in statuses)
                             {
-                                <div class="small border-bottom py-1">
-                                    <strong>Rev @rev.RevisionNo</strong> - @rev.Status
-                                    <div class="text-muted">@rev.ChangedBy, @rev.ChangedAt.ToString("dd MMM yyyy HH:mm")</div>
-                                    @if (!string.IsNullOrWhiteSpace(rev.Remarks))
-                                    {
-                                        <div>@rev.Remarks</div>
-                                    }
-                                </div>
+                                <option value="@s" selected="@(s == Model.Diagram.Status.ToString())">@s</option>
                             }
-                        }
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-1" for="statusRemarks">Remarks</label>
+                        <input type="text" class="form-control form-control-sm" id="statusRemarks" maxlength="500" />
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" id="btnSetStatus">Apply status</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnNewRevision" disabled>New revision</button>
                     </div>
                 </div>
             </div>
@@ -170,6 +150,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/undo-redo.js" asp-append-version="true"></script>
     <script src="~/js/pid-symbols.js" asp-append-version="true"></script>
     <script src="~/js/pid-editor.js" asp-append-version="true"></script>
 }

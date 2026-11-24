@@ -52,7 +52,9 @@
         ceRotate: $('ceRotate'),
         ceError: $('ceError'),
         ceSave: $('ceSave'),
-        ceDelete: $('ceDelete')
+        ceDelete: $('ceDelete'),
+        undo: $('btnUndo'),
+        redo: $('btnRedo')
     };
 
     function readJson(id) {
@@ -73,6 +75,7 @@
     var drag = null;
     var pan = null;
     var busy = false;
+    var hist = null;
 
     /* ---------- helpers ---------- */
 
@@ -168,6 +171,8 @@
         el.lock.textContent = item && item.isLocked ? 'Unlock' : 'Lock';
         el.deleteVersion.disabled = busy || !(layout && layout.id);
         el.downloadDxf.disabled = busy || !(layout && layout.id);
+        if (el.undo) el.undo.disabled = busy || !(hist && hist.canUndo());
+        if (el.redo) el.redo.disabled = busy || !(hist && hist.canRedo());
     }
 
     /* ---------- view (zoom and pan) ---------- */
@@ -381,6 +386,7 @@
                 return;
             }
             adoptLayout(res.data, false);
+            if (hist) hist.commit();
             showMessage('Layout updated. ' + res.data.warnings.length + ' warning(s). Warnings never block the layout.', res.data.warnings.length ? 'warning' : 'success');
         }).catch(function () {
             setBusy(false);
@@ -402,6 +408,7 @@
                 return;
             }
             adoptLayout(res.data, false);
+            if (hist) hist.commit();
             showMessage('Layout generated. ' + res.data.warnings.length + ' warning(s). Locked items were kept in place.',
                 res.data.warnings.length ? 'warning' : 'success');
         }).catch(function () {
@@ -443,6 +450,7 @@
             adoptLayout(res.data, true);
             upsertVersionOption(res.data);
             updateButtons();
+            if (hist) hist.reset();
             showMessage('Saved as version ' + res.data.versionNo + ' (rule set v' + (res.data.ruleSetVersion || '-') + ').', 'success');
         }).catch(function () {
             setBusy(false);
@@ -458,6 +466,7 @@
             if (unsavedLayout) {
                 layout = unsavedLayout;
                 renderLayout();
+                if (hist) hist.reset();
             } else {
                 showMessage('There is no unsaved layout to show.', 'info');
                 el.versionSelect.value = layout && layout.id ? layout.id : '';
@@ -474,6 +483,7 @@
                 return;
             }
             adoptLayout(res.data, true);
+            if (hist) hist.reset();
         }).catch(function () {
             setBusy(false);
             showMessage('Could not reach the server. Try again.', 'danger');
@@ -499,6 +509,7 @@
             selected = null;
             el.versionSelect.value = '';
             renderLayout();
+            if (hist) hist.reset();
             showMessage('Version deleted.', 'success');
         }).catch(function () {
             setBusy(false);
@@ -541,6 +552,7 @@
         }
         renderSelected();
         updateButtons();
+        if (hist) hist.commit();
     });
 
     el.rotate.addEventListener('click', function () {
@@ -870,4 +882,35 @@
     }
 
     renderLayout();
+
+    /* ---------- undo and redo ---------- */
+
+    function restoreLayout(state) {
+        layout = state;
+        if (layout) {
+            layout.warnings = layout.warnings || [];
+            layout.items = layout.items || [];
+            layout.roads = layout.roads || [];
+            if (layout.id) {
+                el.versionSelect.value = layout.id;
+            } else {
+                unsavedLayout = layout;
+                el.versionSelect.value = '';
+            }
+        }
+        if (selected && !findItem(selected.eq, selected.inst)) selected = null;
+        renderLayout();
+    }
+
+    hist = typeof UndoRedo === 'function' ? UndoRedo({
+        getState: function () { return layout; },
+        setState: restoreLayout,
+        onChange: updateButtons,
+        isActive: function () { return !busy; },
+        limit: 50
+    }) : null;
+
+    if (el.undo) el.undo.addEventListener('click', function () { if (hist && !busy) hist.undo(); });
+    if (el.redo) el.redo.addEventListener('click', function () { if (hist && !busy) hist.redo(); });
+    updateButtons();
 })();

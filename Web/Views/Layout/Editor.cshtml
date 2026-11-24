@@ -59,6 +59,13 @@
         <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLock" disabled>Lock</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRotate" disabled>Rotate 90&deg;</button>
 
+        <div class="btn-group btn-group-sm" role="group" aria-label="Undo and redo">
+            <button type="button" class="btn btn-outline-secondary" id="btnUndo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnRedo" title="Redo (Ctrl+Y)" disabled>Redo</button>
+        </div>
+
+        <div class="vr"></div>
+
         <div class="vr"></div>
 
         <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
@@ -220,5 +227,6 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/undo-redo.js" asp-append-version="true"></script>
     <script src="~/js/layout-editor.js" asp-append-version="true"></script>
 }

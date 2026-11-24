@@ -2,12 +2,7 @@
     'use strict';
 
     var root = document.getElementById('pidEditor');
-    if (!root || !window.PidSymbols) return;
-
-    var PS = window.PidSymbols;
-    var NS = 'http://www.w3.org/2000/svg';
-    var GRID = 10;
-    var TOL = 1;
+    if (!root || typeof PidSymbols === 'undefined') return;
 
     var URLS = {
         data: root.getAttribute('data-data-url'),
@@ -16,66 +11,75 @@
         revision: root.getAttribute('data-revision-url')
     };
     var DIAGRAM_ID = root.getAttribute('data-diagram-id');
-    var READONLY = root.getAttribute('data-readonly') === 'true';
+    var READ_ONLY = root.getAttribute('data-readonly') === 'true';
     var tokenInput = root.querySelector('input[name="__RequestVerificationToken"]');
+
+    var DRAG_THRESHOLD_PX = 3;
+    var GRID = 10;
+    var TOL = 1;
+
+    var EQ_PREFIX = { Tank: 'T', Pump: 'P', Blower: 'BL', Flare: 'FL', Digester: 'D', GasHolder: 'GH', Vessel: 'VS' };
+    var EQ_NAME = { Tank: 'Tank', Pump: 'Pump', Blower: 'Blower', Flare: 'Flare', Digester: 'Digester', GasHolder: 'Gas holder', Vessel: 'Vessel' };
+    var MEDIUM_CODE = { Slurry: 'SL', Biogas: 'BG', Cbg: 'CBG', Water: 'W', Digestate: 'DG', Steam: 'ST', Air: 'AIR', Condensate: 'CD', Other: 'OT' };
+    var INSTRUMENT_DEFAULTS = {
+        PT: { unit: 'mbar', min: 0, max: 50, service: 'Pressure' },
+        TT: { unit: 'degC', min: 0, max: 80, service: 'Temperature' },
+        FT: { unit: 'm3/h', min: 0, max: 100, service: 'Flow' },
+        LT: { unit: '%', min: 0, max: 100, service: 'Level' }
+    };
 
     function $(id) { return document.getElementById(id); }
 
     var el = {
         canvas: $('pidCanvas'),
         message: $('pidMessage'),
-        props: $('pidProps'),
-        legend: $('pidLegend'),
-        dirty: $('pidDirty'),
         save: $('btnSave'),
-        addValve: $('btnAddValve'),
-        addInstrument: $('btnAddInstrument'),
-        deleteItem: $('btnDeleteItem'),
-        lockNode: $('btnLockNode'),
-        rotate: $('btnRotate'),
+        undo: $('btnUndo'),
+        redo: $('btnRedo'),
         zoomIn: $('btnZoomIn'),
         zoomOut: $('btnZoomOut'),
-        fit: $('btnFit'),
-        valveType: $('selValveType'),
-        instrumentType: $('selInstrumentType'),
-        submitReview: $('btnSubmitReview'),
-        approve: $('btnApprove'),
-        reject: $('btnReject'),
+        zoomFit: $('btnZoomFit'),
+        connect: $('btnConnect'),
+        del: $('btnDelete'),
+        title: $('diagramTitle'),
+        props: $('pidProps'),
+        legend: $('pidLegend'),
+        statusSelect: $('statusSelect'),
+        statusRemarks: $('statusRemarks'),
+        setStatus: $('btnSetStatus'),
         newRevision: $('btnNewRevision')
     };
 
     var diagram = null;
     var selected = null;
-    var dirty = false;
-    var saving = false;
-    var nodeMap = {};
-    var lineMap = {};
-    var view = { x: 0, y: 0, w: 1200, h: 800 };
     var svg = null;
-    var scene = null;
+    var baseView = null;
+    var view = null;
     var drag = null;
-    var renderQueued = false;
-    var messageTimer = null;
+    var pan = null;
+    var hist = null;
+    var savedSnapshot = '';
+    var connectMode = false;
+    var connectFrom = null;
+    var rafPending = false;
+    var busy = false;
 
     /* ---------- helpers ---------- */
 
     function esc(s) {
         return String(s == null ? '' : s)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function num(v, d) {
-        var n = Number(v);
-        return isNaN(n) ? (d || 0) : n;
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 
     function r2(v) { return Math.round(v * 100) / 100; }
-    function r3(v) { return Math.round(v * 1000) / 1000; }
+
     function snap(v) { return Math.round(v / GRID) * GRID; }
 
-    function uid() {
-        if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    function uuid() {
+        if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
             var r = Math.random() * 16 | 0;
             var v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -83,25 +87,14 @@
         });
     }
 
-    function en(v, map) {
-        return typeof v === 'number' ? (map[v] || v) : v;
-    }
-
-    function setDisabled(elm, flag) {
-        if (elm) elm.disabled = !!flag;
-    }
-
-    function msg(text, type) {
-        if (!el.message) return;
-        el.message.className = 'alert alert-' + (type || 'info') + ' py-2 mb-2';
+    function showMessage(text, type) {
+        el.message.className = 'alert alert-' + (type || 'info') + ' py-2 small';
         el.message.textContent = text;
-        if (messageTimer) clearTimeout(messageTimer);
-        if (type === 'success') {
-            messageTimer = setTimeout(function () {
-                el.message.className = 'd-none';
-                el.message.textContent = '';
-            }, 3000);
-        }
+    }
+
+    function clearMessage() {
+        el.message.className = 'd-none';
+        el.message.textContent = '';
     }
 
     function request(url, opts) {
@@ -120,975 +113,1029 @@
         return request(url, { method: 'POST', headers: headers, body: JSON.stringify(body || {}) });
     }
 
-    function markDirty() {
-        dirty = true;
-        if (el.dirty) el.dirty.textContent = 'Unsaved changes';
-        if (el.save) el.save.classList.add('btn-warning');
+    function failText(res, fallback) {
+        if (res && res.text && res.text.length < 300 && !res.data) return res.text;
+        return fallback + ' (' + (res ? res.status : 'no response') + ').';
     }
 
-    function clearDirty() {
-        dirty = false;
-        if (el.dirty) el.dirty.textContent = '';
-        if (el.save) el.save.classList.remove('btn-warning');
-    }
-
-    /* ---------- data ---------- */
-
-    function normalize(d) {
-        d.status = en(d.status, PS.statusNames);
-        d.nodes = (d.nodes || []).map(function (n) {
-            n.symbolType = en(n.symbolType, PS.symbolNames);
-            n.x = num(n.x); n.y = num(n.y);
-            n.rotationDeg = num(n.rotationDeg);
-            n.isLocked = !!n.isLocked;
-            return n;
-        });
-        d.lines = (d.lines || []).map(function (l) {
-            l.medium = en(l.medium, PS.mediumNames);
-            l.nominalSizeMm = num(l.nominalSizeMm);
-            l.isInsulated = !!l.isInsulated;
-            l.points = (l.points || []).map(function (p) { return { x: num(p.x), y: num(p.y) }; });
-            return l;
-        });
-        d.valves = (d.valves || []).map(function (v) {
-            v.valveType = en(v.valveType, PS.valveNames);
-            v.nominalSizeMm = num(v.nominalSizeMm);
-            v.positionOnLine = num(v.positionOnLine, 0.5);
-            v.x = num(v.x); v.y = num(v.y);
-            v.rotationDeg = num(v.rotationDeg);
-            v.isNormallyOpen = v.isNormallyOpen !== false;
-            return v;
-        });
-        d.instruments = (d.instruments || []).map(function (i) {
-            i.instrumentType = en(i.instrumentType, PS.instrumentNames);
-            i.x = num(i.x); i.y = num(i.y);
-            i.rangeMin = (i.rangeMin === null || i.rangeMin === undefined) ? null : num(i.rangeMin);
-            i.rangeMax = (i.rangeMax === null || i.rangeMax === undefined) ? null : num(i.rangeMax);
-            return i;
-        });
-        return d;
-    }
-
-    function reindex() {
-        nodeMap = {};
-        lineMap = {};
-        diagram.nodes.forEach(function (n) { nodeMap[n.id] = n; });
-        diagram.lines.forEach(function (l) { lineMap[l.id] = l; });
-    }
-
-    function getSelected() {
-        if (!selected || !diagram) return null;
-        var list = {
-            node: diagram.nodes,
-            line: diagram.lines,
-            valve: diagram.valves,
-            instrument: diagram.instruments
-        }[selected.kind] || [];
+    function findIn(list, id) {
         for (var i = 0; i < list.length; i++) {
-            if (list[i].id === selected.id) return list[i];
+            if (list[i].id === id) return list[i];
         }
         return null;
     }
 
-    function nextTag(prefix, existing) {
+    function normalize(d) {
+        d.nodes = d.nodes || [];
+        d.lines = d.lines || [];
+        d.valves = d.valves || [];
+        d.instruments = d.instruments || [];
+        d.lines.forEach(function (l) { l.points = l.points || []; });
+        return d;
+    }
+
+    function isDirty() {
+        return !!diagram && JSON.stringify(diagram) !== savedSnapshot;
+    }
+
+    function commit() {
+        if (hist) hist.commit();
+        updateButtons();
+    }
+
+    function nextTag(prefix, tags) {
         var max = 100;
-        existing.forEach(function (t) {
-            if (!t) return;
-            var s = String(t).trim();
-            var i = s.lastIndexOf('-');
-            if (i <= 0) return;
-            if (s.substring(0, i).toLowerCase() !== prefix.toLowerCase()) return;
-            var n = parseInt(s.substring(i + 1), 10);
-            if (!isNaN(n) && n > max) max = n;
+        tags.forEach(function (t) {
+            var m = /^(.*)-(\d+)$/.exec(String(t || ''));
+            if (m && m[1].toLowerCase() === prefix.toLowerCase()) {
+                var n = parseInt(m[2], 10);
+                if (n > max) max = n;
+            }
         });
         return prefix + '-' + (max + 1);
     }
 
-    /* ---------- geometry ---------- */
-
-    function segLen(a, b) {
-        return Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
-    }
-
-    function pointAt(pts, f) {
-        if (!pts || !pts.length) return { x: 0, y: 0, h: true };
-        if (pts.length === 1) return { x: pts[0].x, y: pts[0].y, h: true };
-        var total = 0, i;
-        for (i = 1; i < pts.length; i++) total += segLen(pts[i - 1], pts[i]);
-        var target = total * Math.min(1, Math.max(0, f));
-        var run = 0;
-        for (i = 1; i < pts.length; i++) {
-            var s = segLen(pts[i - 1], pts[i]);
-            var h = Math.abs(pts[i].y - pts[i - 1].y) < 0.01;
-            if (s > 0 && run + s >= target) {
-                var t = (target - run) / s;
-                return {
-                    x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t,
-                    y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t,
-                    h: h
-                };
+    function nextLineNo(medium, sizeMm) {
+        var max = 100;
+        diagram.lines.forEach(function (l) {
+            var m = /-(\d+)$/.exec(String(l.lineNo || ''));
+            if (m) {
+                var n = parseInt(m[1], 10);
+                if (n > max) max = n;
             }
-            run += s;
-        }
-        var last = pts[pts.length - 1];
-        return { x: last.x, y: last.y, h: true };
+        });
+        return Math.round(sizeMm) + '-' + (MEDIUM_CODE[medium] || 'OT') + '-' + (max + 1);
     }
 
-    function nearest(pts, px, py) {
-        var total = 0, i;
-        for (i = 1; i < pts.length; i++) total += segLen(pts[i - 1], pts[i]);
-        if (pts.length < 2 || total <= 0) {
-            return { x: pts.length ? pts[0].x : px, y: pts.length ? pts[0].y : py, f: 0.5 };
-        }
-        var best = 1e18, bestAt = 0, bx = pts[0].x, by = pts[0].y, run = 0;
-        for (i = 1; i < pts.length; i++) {
-            var a = pts[i - 1], b = pts[i];
-            var dx = b.x - a.x, dy = b.y - a.y;
-            var l2 = dx * dx + dy * dy;
-            var t = l2 > 0 ? ((px - a.x) * dx + (py - a.y) * dy) / l2 : 0;
-            t = Math.max(0, Math.min(1, t));
-            var qx = a.x + dx * t, qy = a.y + dy * t;
-            var d = (px - qx) * (px - qx) + (py - qy) * (py - qy);
-            var s = segLen(a, b);
-            if (d < best) { best = d; bestAt = run + s * t; bx = qx; by = qy; }
-            run += s;
-        }
-        return { x: bx, y: by, f: Math.min(1, Math.max(0, bestAt / total)) };
-    }
+    function nodeTags() { return diagram.nodes.map(function (n) { return n.tag; }); }
 
-    function cleanRoute(pts) {
+    /* ---------- routing (same rules as the server auto layout) ---------- */
+
+    function clean(pts) {
         var i;
         for (i = pts.length - 1; i > 0; i--) {
-            if (pts[i][0] === pts[i - 1][0] && pts[i][1] === pts[i - 1][1]) pts.splice(i, 1);
+            if (pts[i].x === pts[i - 1].x && pts[i].y === pts[i - 1].y) pts.splice(i, 1);
         }
         for (i = pts.length - 2; i > 0; i--) {
-            var p0 = pts[i - 1], p1 = pts[i], p2 = pts[i + 1];
-            if ((p0[0] === p1[0] && p1[0] === p2[0]) || (p0[1] === p1[1] && p1[1] === p2[1])) pts.splice(i, 1);
+            var p0 = pts[i - 1];
+            var p1 = pts[i];
+            var p2 = pts[i + 1];
+            if ((p0.x === p1.x && p1.x === p2.x) || (p0.y === p1.y && p1.y === p2.y)) pts.splice(i, 1);
         }
     }
 
-    function computeRoute(line) {
-        var a = nodeMap[line.fromNodeId];
-        var b = nodeMap[line.toNodeId];
-        if (!a || !b) return null;
+    function routeAll() {
+        var nodes = {};
+        diagram.nodes.forEach(function (n) { nodes[n.id] = n; });
 
-        var sa = PS.size(a.symbolType), sb = PS.size(b.symbolType);
-        var wa = sa[0], ha = sa[1], wb = sb[0], hb = sb[1];
-        var dx = b.x - a.x;
-        var pts = [];
-        var sx = a.x + wa / 2, ex = b.x - wb / 2;
+        var oldMid = {};
+        diagram.lines.forEach(function (l) {
+            oldMid[l.id] = l.points && l.points.length > 1 ? PidSymbols.pointAt(l.points, 0.5) : null;
+        });
 
-        if (dx > TOL && ex > sx + 10) {
-            if (Math.abs(a.y - b.y) <= TOL) {
-                pts.push([sx, a.y]);
-                pts.push([ex, a.y]);
+        var gapCount = {};
+
+        diagram.lines.forEach(function (line) {
+            var a = nodes[line.fromNodeId];
+            var b = nodes[line.toNodeId];
+            if (!a || !b) { line.points = []; return; }
+
+            var sa = PidSymbols.size(a.symbolType);
+            var sb = PidSymbols.size(b.symbolType);
+            var pts = [];
+            var dx = b.x - a.x;
+            var sx;
+            var ex;
+
+            if (dx > TOL) {
+                sx = a.x + sa.w / 2;
+                ex = b.x - sb.w / 2;
+
+                if (Math.abs(a.y - b.y) <= TOL) {
+                    pts.push({ x: sx, y: a.y }, { x: ex, y: a.y });
+                } else {
+                    var k = gapCount[a.stageNo] || 0;
+                    gapCount[a.stageNo] = k + 1;
+                    var mid = sx + (ex - sx) / 2 + ((k % 5) - 2) * 12;
+                    if (mid <= sx + 5 || mid >= ex - 5) mid = sx + (ex - sx) / 2;
+                    pts.push({ x: sx, y: a.y }, { x: mid, y: a.y }, { x: mid, y: b.y }, { x: ex, y: b.y });
+                }
+            } else if (dx >= -TOL) {
+                var down = b.y >= a.y;
+                pts.push(
+                    { x: a.x, y: down ? a.y + sa.h / 2 : a.y - sa.h / 2 },
+                    { x: a.x, y: down ? b.y - sb.h / 2 : b.y + sb.h / 2 });
             } else {
-                var mid = sx + (ex - sx) / 2;
-                pts.push([sx, a.y]);
-                pts.push([mid, a.y]);
-                pts.push([mid, b.y]);
-                pts.push([ex, b.y]);
+                sx = a.x + sa.w / 2;
+                ex = b.x - sb.w / 2;
+                var yMid = Math.max(a.y + sa.h / 2, b.y + sb.h / 2) + 60;
+                pts.push(
+                    { x: sx, y: a.y }, { x: sx + 25, y: a.y }, { x: sx + 25, y: yMid },
+                    { x: ex - 25, y: yMid }, { x: ex - 25, y: b.y }, { x: ex, y: b.y });
             }
-        } else if (Math.abs(dx) <= TOL) {
-            var down = b.y >= a.y;
-            pts.push([a.x, down ? a.y + ha / 2 : a.y - ha / 2]);
-            pts.push([a.x, down ? b.y - hb / 2 : b.y + hb / 2]);
-        } else {
-            var yMid = Math.max(a.y + ha / 2, b.y + hb / 2) + 60;
-            pts.push([sx, a.y]);
-            pts.push([sx + 25, a.y]);
-            pts.push([sx + 25, yMid]);
-            pts.push([ex - 25, yMid]);
-            pts.push([ex - 25, b.y]);
-            pts.push([ex, b.y]);
-        }
 
-        cleanRoute(pts);
-        return pts;
+            clean(pts);
+            line.points = pts.map(function (p) { return { x: r2(p.x), y: r2(p.y) }; });
+        });
+
+        diagram.instruments.forEach(function (ins) {
+            if (!ins.pidLineId) return;
+            var line = findIn(diagram.lines, ins.pidLineId);
+            var before = oldMid[ins.pidLineId];
+            if (!line || !before || line.points.length < 2) return;
+            var after = PidSymbols.pointAt(line.points, 0.5);
+            ins.x = r2(ins.x + (after.x - before.x));
+            ins.y = r2(ins.y + (after.y - before.y));
+        });
+
+        placeValves();
     }
 
-    function placeValve(v) {
-        var line = lineMap[v.pidLineId];
-        if (!line || !line.points || line.points.length < 2) return;
-        var p = pointAt(line.points, v.positionOnLine);
-        v.x = r2(p.x);
-        v.y = r2(p.y);
-        v.rotationDeg = p.h ? 0 : 90;
-    }
-
-    function rerouteLine(line) {
-        var oldMid = pointAt(line.points, 0.5);
-        var pts = computeRoute(line);
-        if (!pts) return;
-        line.points = pts.map(function (p) { return { x: r2(p[0]), y: r2(p[1]) }; });
-        var newMid = pointAt(line.points, 0.5);
-
+    function placeValves() {
         diagram.valves.forEach(function (v) {
-            if (v.pidLineId === line.id) placeValve(v);
-        });
-        diagram.instruments.forEach(function (i) {
-            if (i.pidLineId === line.id && !i.pidEquipmentNodeId) {
-                i.x = r2(i.x + newMid.x - oldMid.x);
-                i.y = r2(i.y + newMid.y - oldMid.y);
-            }
-        });
-    }
-
-    function rerouteNodeLines(nodeId) {
-        diagram.lines.forEach(function (l) {
-            if (l.fromNodeId === nodeId || l.toNodeId === nodeId) rerouteLine(l);
+            var line = findIn(diagram.lines, v.pidLineId);
+            if (!line || line.points.length < 2) return;
+            var p = PidSymbols.pointAt(line.points, v.positionOnLine);
+            v.x = r2(p.x);
+            v.y = r2(p.y);
+            v.rotationDeg = p.horizontal ? 0 : 90;
         });
     }
 
-    /* ---------- rendering ---------- */
-
-    function arrow(pts, color) {
-        var n = pts.length;
-        if (n < 2) return '';
-        var a = pts[n - 2], b = pts[n - 1];
-        var dx = b.x - a.x, dy = b.y - a.y;
-        var len = Math.sqrt(dx * dx + dy * dy);
-        if (!len) return '';
-        var ux = dx / len, uy = dy / len, px = -uy, py = ux;
-        var bx = b.x - ux * 9, by = b.y - uy * 9;
-        return '<polygon points="' + b.x + ',' + b.y + ' ' +
-            (bx + px * 4) + ',' + (by + py * 4) + ' ' +
-            (bx - px * 4) + ',' + (by - py * 4) +
-            '" fill="' + color + '" pointer-events="none"/>';
-    }
-
-    function lineLabel(l) {
-        var pts = l.points;
-        var best = 0, bi = 1, i;
-        for (i = 1; i < pts.length; i++) {
-            var len = segLen(pts[i - 1], pts[i]);
-            if (len > best) { best = len; bi = i; }
+    function nearestFraction(points, x, y) {
+        var total = 0;
+        var i;
+        for (i = 1; i < points.length; i++) {
+            total += Math.abs(points[i].x - points[i - 1].x) + Math.abs(points[i].y - points[i - 1].y);
         }
-        var a = pts[bi - 1], b = pts[bi];
-        var mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-        var horiz = Math.abs(a.y - b.y) < 0.01;
-        var txt = esc(l.lineNo);
-        if (horiz) {
-            return '<text x="' + mx + '" y="' + (my - 7) + '" text-anchor="middle" font-size="9" font-family="Arial, sans-serif" fill="#343a40" pointer-events="none">' + txt + '</text>';
-        }
-        return '<text x="' + (mx + 7) + '" y="' + my + '" font-size="9" font-family="Arial, sans-serif" fill="#343a40" pointer-events="none">' + txt + '</text>';
-    }
+        if (total <= 0) return 0.5;
 
-    function isSel(kind, id) {
-        return selected && selected.kind === kind && selected.id === id;
-    }
+        var best = { d: Infinity, at: 0 };
+        var run = 0;
 
-    function render() {
-        if (!diagram || !scene) return;
-        var h = [];
-
-        diagram.lines.forEach(function (l) {
-            var pts = l.points || [];
-            if (pts.length < 2) return;
-            var st = PS.mediumStyle(l.medium);
-            var d = pts.map(function (p) { return p.x + ',' + p.y; }).join(' ');
-            var sel = isSel('line', l.id);
-
-            h.push('<g data-kind="line" data-id="' + l.id + '">');
-            if (l.isInsulated) {
-                h.push('<polyline points="' + d + '" fill="none" stroke="' + st.color + '" stroke-opacity="0.25" stroke-width="8" stroke-linejoin="round"/>');
+        for (i = 1; i < points.length; i++) {
+            var ax = points[i - 1].x;
+            var ay = points[i - 1].y;
+            var bx = points[i].x;
+            var by = points[i].y;
+            var seg = Math.abs(bx - ax) + Math.abs(by - ay);
+            if (seg > 0) {
+                var vx = bx - ax;
+                var vy = by - ay;
+                var t = ((x - ax) * vx + (y - ay) * vy) / (vx * vx + vy * vy);
+                t = Math.max(0, Math.min(1, t));
+                var cx = ax + vx * t;
+                var cy = ay + vy * t;
+                var d = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                if (d < best.d) best = { d: d, at: run + seg * t };
             }
-            h.push('<polyline points="' + d + '" fill="none" stroke="transparent" stroke-width="14" style="cursor:pointer"/>');
-            h.push('<polyline points="' + d + '" fill="none" stroke="' + st.color + '" stroke-width="' + (sel ? 3.8 : 2.2) + '"' +
-                (st.dash ? ' stroke-dasharray="' + st.dash + '"' : '') + ' stroke-linejoin="round" pointer-events="none"/>');
-            h.push(arrow(pts, st.color));
-            h.push(lineLabel(l));
-            h.push('</g>');
-        });
+            run += seg;
+        }
+
+        return Math.max(0.05, Math.min(0.95, best.at / total));
+    }
+
+    /* ---------- view (zoom and pan) ---------- */
+
+    function contentBounds() {
+        var minX = Infinity;
+        var minY = Infinity;
+        var maxX = -Infinity;
+        var maxY = -Infinity;
+
+        function grow(x1, y1, x2, y2) {
+            if (x1 < minX) minX = x1;
+            if (y1 < minY) minY = y1;
+            if (x2 > maxX) maxX = x2;
+            if (y2 > maxY) maxY = y2;
+        }
 
         diagram.nodes.forEach(function (n) {
-            var sz = PS.size(n.symbolType);
-            var sel = isSel('node', n.id);
-            var cur = (READONLY || n.isLocked) ? 'pointer' : 'move';
-            h.push('<g data-kind="node" data-id="' + n.id + '" transform="translate(' + n.x + ',' + n.y + ')" style="cursor:' + cur + '">');
-            h.push('<g transform="rotate(' + (n.rotationDeg || 0) + ')">' + PS.nodeMarkup(n.symbolType) + '</g>');
-            h.push('<rect x="' + (-sz[0] / 2) + '" y="' + (-sz[1] / 2) + '" width="' + sz[0] + '" height="' + sz[1] +
-                '" fill="transparent" stroke="' + (sel ? '#e8590c' : 'none') + '" stroke-width="1.6" stroke-dasharray="5 3"/>');
-            h.push('<text x="0" y="' + PS.tagOffset(n.symbolType) + '" text-anchor="middle" font-size="12" font-weight="bold" font-family="Arial, sans-serif" fill="#1f2933" pointer-events="none">' + esc(n.tag) + '</text>');
-            if (n.name) {
-                h.push('<text x="0" y="' + (PS.tagOffset(n.symbolType) + 11) + '" text-anchor="middle" font-size="8.5" font-family="Arial, sans-serif" fill="#6c757d" pointer-events="none">' + esc(n.name) + '</text>');
-            }
-            if (n.isLocked) {
-                h.push('<text x="' + (sz[0] / 2 - 4) + '" y="' + (-sz[1] / 2 + 8) + '" font-size="10" pointer-events="none">\uD83D\uDD12</text>');
-            }
-            h.push('</g>');
+            var s = PidSymbols.size(n.symbolType);
+            grow(n.x - s.w / 2, n.y - s.h / 2, n.x + s.w / 2, n.y + s.h / 2 + 32);
+        });
+        diagram.valves.forEach(function (v) { grow(v.x - 20, v.y - 20, v.x + 20, v.y + 36); });
+        diagram.instruments.forEach(function (i) { grow(i.x - 20, i.y - 20, i.x + 20, i.y + 32); });
+        diagram.lines.forEach(function (l) {
+            l.points.forEach(function (p) { grow(p.x, p.y, p.x, p.y); });
         });
 
-        diagram.instruments.forEach(function (i) {
-            var ax = null, ay = null;
-            if (i.pidEquipmentNodeId && nodeMap[i.pidEquipmentNodeId]) {
-                var nd = nodeMap[i.pidEquipmentNodeId];
-                ax = nd.x; ay = nd.y - PS.size(nd.symbolType)[1] / 2;
-            } else if (i.pidLineId && lineMap[i.pidLineId] && lineMap[i.pidLineId].points.length > 1) {
-                var q = nearest(lineMap[i.pidLineId].points, i.x, i.y);
-                ax = q.x; ay = q.y;
-            }
-            if (ax !== null) {
-                h.push('<line x1="' + i.x + '" y1="' + i.y + '" x2="' + ax + '" y2="' + ay + '" stroke="#495057" stroke-width="1" stroke-dasharray="3 2" pointer-events="none"/>');
-            }
-            var sel = isSel('instrument', i.id);
-            h.push('<g data-kind="instrument" data-id="' + i.id + '" transform="translate(' + i.x + ',' + i.y + ')" style="cursor:' + (READONLY ? 'pointer' : 'move') + '">');
-            h.push(PS.instrumentMarkup(i.instrumentType));
-            h.push('<rect x="-17" y="-17" width="34" height="34" fill="transparent" stroke="' + (sel ? '#e8590c' : 'none') + '" stroke-width="1.6" stroke-dasharray="4 2"/>');
-            h.push('<text x="0" y="9" text-anchor="middle" font-size="7.5" font-family="Arial, sans-serif" fill="#1f2933" pointer-events="none">' + esc((i.tag || '').replace(/^[A-Za-z]+-/, '')) + '</text>');
-            h.push('<text x="0" y="28" text-anchor="middle" font-size="9" font-family="Arial, sans-serif" fill="#1f2933" pointer-events="none">' + esc(i.tag) + '</text>');
-            h.push('</g>');
-        });
+        if (!isFinite(minX)) return { x: 0, y: 0, w: 900, h: 600 };
 
-        diagram.valves.forEach(function (v) {
-            var sel = isSel('valve', v.id);
-            var vert = Math.abs(((v.rotationDeg || 0) % 180)) === 90;
-            h.push('<g data-kind="valve" data-id="' + v.id + '" transform="translate(' + v.x + ',' + v.y + ')" style="cursor:' + (READONLY ? 'pointer' : 'move') + '">');
-            h.push('<g transform="rotate(' + (v.rotationDeg || 0) + ')">' + PS.valveMarkup(v.valveType) + '</g>');
-            h.push('<rect x="-12" y="-12" width="24" height="24" fill="transparent" stroke="' + (sel ? '#e8590c' : 'none') + '" stroke-width="1.6" stroke-dasharray="4 2"/>');
-            h.push('<text x="' + (vert ? 16 : 0) + '" y="' + (vert ? 3 : 24) + '" text-anchor="' + (vert ? 'start' : 'middle') +
-                '" font-size="9" font-family="Arial, sans-serif" fill="#1f2933" pointer-events="none">' + esc(v.tag) + (v.isNormallyOpen ? '' : ' (NC)') + '</text>');
-            h.push('</g>');
-        });
-
-        scene.innerHTML = h.join('');
-    }
-
-    function queueRender() {
-        if (renderQueued) return;
-        renderQueued = true;
-        window.requestAnimationFrame(function () {
-            renderQueued = false;
-            render();
-        });
+        var pad = 80;
+        return { x: minX - pad, y: minY - pad, w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 };
     }
 
     function applyView() {
-        var cw = el.canvas.clientWidth || 1000;
-        var ch = el.canvas.clientHeight || 700;
-        view.h = view.w * ch / cw;
+        if (!svg || !view) return;
         svg.setAttribute('viewBox', view.x + ' ' + view.y + ' ' + view.w + ' ' + view.h);
     }
 
     function fitView() {
         if (!diagram) return;
-        var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
-        function add(x, y) {
-            if (x < minX) minX = x; if (y < minY) minY = y;
-            if (x > maxX) maxX = x; if (y > maxY) maxY = y;
-        }
-        diagram.nodes.forEach(function (n) {
-            var s = PS.size(n.symbolType);
-            add(n.x - s[0] / 2, n.y - s[1] / 2 - 10);
-            add(n.x + s[0] / 2, n.y + s[1] / 2 + 40);
-        });
-        diagram.lines.forEach(function (l) { l.points.forEach(function (p) { add(p.x, p.y); }); });
-        diagram.valves.forEach(function (v) { add(v.x - 15, v.y - 15); add(v.x + 15, v.y + 30); });
-        diagram.instruments.forEach(function (i) { add(i.x - 20, i.y - 20); add(i.x + 20, i.y + 35); });
-        if (minX > maxX) { minX = 0; minY = 0; maxX = 1200; maxY = 800; }
-
-        var pad = 60;
-        var bw = maxX - minX + pad * 2;
-        var bh = maxY - minY + pad * 2;
-        var cw = el.canvas.clientWidth || 1000;
-        var ch = el.canvas.clientHeight || 700;
-        var w = Math.max(bw, bh * cw / ch);
-        view.w = w;
-        view.h = w * ch / cw;
-        view.x = (minX + maxX) / 2 - view.w / 2;
-        view.y = (minY + maxY) / 2 - view.h / 2;
+        baseView = contentBounds();
+        view = { x: baseView.x, y: baseView.y, w: baseView.w, h: baseView.h };
         applyView();
     }
 
-    function zoomAt(cx, cy, factor) {
-        var nw = Math.min(30000, Math.max(120, view.w * factor));
-        var f = nw / view.w;
-        view.x = cx - (cx - view.x) * f;
-        view.y = cy - (cy - view.y) * f;
-        view.w = nw;
+    function zoomAt(px, py, factor) {
+        if (!view || !baseView) return;
+        var w = view.w * factor;
+        if (w < baseView.w * 0.05 || w > baseView.w * 6) return;
+        view = {
+            x: px - (px - view.x) * factor,
+            y: py - (py - view.y) * factor,
+            w: w,
+            h: view.h * factor
+        };
         applyView();
     }
 
-    function toSvg(clientX, clientY) {
+    function zoomCenter(factor) {
+        if (!view) return;
+        zoomAt(view.x + view.w / 2, view.y + view.h / 2, factor);
+    }
+
+    function toSvg(e) {
         var pt = svg.createSVGPoint();
-        pt.x = clientX;
-        pt.y = clientY;
-        var ctm = svg.getScreenCTM();
-        if (!ctm) return { x: 0, y: 0 };
-        var p = pt.matrixTransform(ctm.inverse());
-        return { x: p.x, y: p.y };
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        var m = svg.getScreenCTM();
+        return m ? pt.matrixTransform(m.inverse()) : { x: 0, y: 0 };
+    }
+
+    /* ---------- render ---------- */
+
+    function selectionOverlay() {
+        if (!selected) return '';
+        var obj = selectedObject();
+        if (!obj) return '';
+
+        var stroke = 'stroke="#0d6efd" fill="none" stroke-width="1.5" stroke-dasharray="5 3" pointer-events="none"';
+
+        if (selected.kind === 'node') {
+            var s = PidSymbols.size(obj.symbolType);
+            return '<rect x="' + r2(obj.x - s.w / 2 - 6) + '" y="' + r2(obj.y - s.h / 2 - 6) + '" width="' + (s.w + 12) +
+                '" height="' + (s.h + 12) + '" rx="4" ' + stroke + '/>';
+        }
+        if (selected.kind === 'valve') {
+            return '<circle cx="' + r2(obj.x) + '" cy="' + r2(obj.y) + '" r="17" ' + stroke + '/>';
+        }
+        if (selected.kind === 'instrument') {
+            return '<circle cx="' + r2(obj.x) + '" cy="' + r2(obj.y) + '" r="19" ' + stroke + '/>';
+        }
+        if (selected.kind === 'line') {
+            var path = obj.points.map(function (p) { return p.x + ',' + p.y; }).join(' ');
+            return '<polyline points="' + path + '" fill="none" stroke="#0d6efd" stroke-opacity="0.35" stroke-width="9" ' +
+                'stroke-linejoin="round" pointer-events="none"/>';
+        }
+        return '';
+    }
+
+    function renderCanvas() {
+        if (!diagram) return;
+
+        var parts = [];
+        diagram.lines.forEach(function (l) { parts.push(PidSymbols.lineSvg(l)); });
+        diagram.nodes.forEach(function (n) { parts.push(PidSymbols.nodeSvg(n)); });
+        diagram.valves.forEach(function (v) { parts.push(PidSymbols.valveSvg(v)); });
+        diagram.instruments.forEach(function (i) { parts.push(PidSymbols.instrumentSvg(i)); });
+        parts.push(selectionOverlay());
+
+        el.canvas.innerHTML =
+            '<svg xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;color:var(--bs-body-color,#212529);touch-action:none">' +
+            parts.join('') + '</svg>';
+
+        svg = el.canvas.querySelector('svg');
+        if (!view) fitView();
+        applyView();
+    }
+
+    function scheduleRender() {
+        if (rafPending) return;
+        rafPending = true;
+        window.requestAnimationFrame(function () {
+            rafPending = false;
+            renderCanvas();
+        });
+    }
+
+    function statusClass(s) {
+        if (s === 'Approved') return 'text-bg-success';
+        if (s === 'InReview') return 'text-bg-warning';
+        if (s === 'Rejected') return 'text-bg-danger';
+        if (s === 'Superseded') return 'text-bg-dark';
+        return 'text-bg-secondary';
+    }
+
+    function renderHeader() {
+        el.title.value = diagram.title || '';
+        el.title.disabled = READ_ONLY;
+        if (el.statusSelect) el.statusSelect.value = diagram.status;
+
+        var badge = $('statusBadge');
+        if (badge) {
+            badge.className = 'badge ' + statusClass(diagram.status);
+            badge.textContent = diagram.status;
+        }
+        var rev = $('revisionText');
+        if (rev) rev.textContent = 'Rev ' + diagram.revisionNo;
+        var no = $('drawingNoText');
+        if (no) no.textContent = diagram.drawingNo;
+    }
+
+    function updateButtons() {
+        var dirty = isDirty();
+        el.save.disabled = busy || READ_ONLY || !dirty;
+        el.del.disabled = busy || READ_ONLY || !selected;
+        el.connect.disabled = busy || READ_ONLY;
+        el.connect.classList.toggle('active', connectMode);
+        if (el.setStatus) el.setStatus.disabled = busy;
+        if (el.newRevision) {
+            var st = diagram ? diagram.status : '';
+            el.newRevision.disabled = busy || !(st === 'Approved' || st === 'Rejected' || st === 'Superseded');
+        }
+        if (el.undo) el.undo.disabled = busy || READ_ONLY || !(hist && hist.canUndo());
+        if (el.redo) el.redo.disabled = busy || READ_ONLY || !(hist && hist.canRedo());
+    }
+
+    function renderAll() {
+        renderHeader();
+        renderCanvas();
+        renderProps();
+        updateButtons();
     }
 
     /* ---------- selection and properties ---------- */
 
+    function selectedObject() {
+        if (!selected || !diagram) return null;
+        var list = selected.kind === 'node' ? diagram.nodes
+            : selected.kind === 'line' ? diagram.lines
+                : selected.kind === 'valve' ? diagram.valves
+                    : diagram.instruments;
+        return findIn(list, selected.id);
+    }
+
     function select(kind, id) {
         selected = kind ? { kind: kind, id: id } : null;
+        renderCanvas();
         renderProps();
         updateButtons();
-        render();
     }
 
-    function updateButtons() {
-        var k = selected ? selected.kind : null;
-        setDisabled(el.addValve, READONLY || !(k === 'line' || k === 'valve'));
-        setDisabled(el.addInstrument, READONLY || !(k === 'node' || k === 'line' || k === 'valve'));
-        setDisabled(el.deleteItem, READONLY || !(k === 'valve' || k === 'instrument'));
-        setDisabled(el.lockNode, READONLY || k !== 'node');
-        setDisabled(el.rotate, READONLY || k !== 'node');
-        setDisabled(el.save, READONLY);
+    function dis() { return READ_ONLY ? ' disabled' : ''; }
+
+    function fText(label, field, value) {
+        return '<div class="mb-2"><label class="form-label small text-muted mb-1">' + esc(label) + '</label>' +
+            '<input class="form-control form-control-sm" data-field="' + field + '" value="' + esc(value) + '"' + dis() + ' /></div>';
     }
 
-    function fieldWrap(label, control) {
-        var wrap = document.createElement('div');
-        wrap.className = 'mb-2';
-        var lb = document.createElement('label');
-        lb.className = 'form-label small mb-1';
-        lb.textContent = label;
-        wrap.appendChild(lb);
-        wrap.appendChild(control);
-        return wrap;
+    function fNum(label, field, value, attrs, nullable) {
+        return '<div class="mb-2"><label class="form-label small text-muted mb-1">' + esc(label) + '</label>' +
+            '<input type="number" class="form-control form-control-sm" data-field="' + field + '" data-type="number"' +
+            (nullable ? ' data-nullable="1"' : '') + ' ' + (attrs || '') +
+            ' value="' + (value == null ? '' : esc(value)) + '"' + dis() + ' /></div>';
     }
 
-    function textField(box, label, obj, key, opts) {
-        opts = opts || {};
-        var input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'form-control form-control-sm';
-        input.value = obj[key] == null ? '' : obj[key];
-        input.disabled = READONLY || !!opts.readonly;
-        input.addEventListener('input', function () {
-            obj[key] = input.value === '' && opts.nullable ? null : input.value;
-            markDirty();
-            if (opts.after) opts.after();
-            queueRender();
-        });
-        box.appendChild(fieldWrap(label, input));
+    function fSelect(label, field, options, value) {
+        return '<div class="mb-2"><label class="form-label small text-muted mb-1">' + esc(label) + '</label>' +
+            '<select class="form-select form-select-sm" data-field="' + field + '"' + dis() + '>' +
+            options.map(function (o) {
+                return '<option value="' + esc(o) + '"' + (o === value ? ' selected' : '') + '>' + esc(o) + '</option>';
+            }).join('') + '</select></div>';
     }
 
-    function numField(box, label, obj, key, opts) {
-        opts = opts || {};
-        var input = document.createElement('input');
-        input.type = 'number';
-        input.className = 'form-control form-control-sm';
-        input.step = opts.step || 'any';
-        if (opts.min !== undefined) input.min = opts.min;
-        if (opts.max !== undefined) input.max = opts.max;
-        input.value = obj[key] == null ? '' : obj[key];
-        input.disabled = READONLY;
-        input.addEventListener('input', function () {
-            if (input.value === '') {
-                if (opts.nullable) { obj[key] = null; markDirty(); queueRender(); }
-                return;
-            }
-            var n = parseFloat(input.value);
-            if (isNaN(n)) return;
-            if (opts.min !== undefined && n < opts.min) n = opts.min;
-            if (opts.max !== undefined && n > opts.max) n = opts.max;
-            obj[key] = n;
-            markDirty();
-            if (opts.after) opts.after();
-            queueRender();
-        });
-        box.appendChild(fieldWrap(label, input));
-    }
-
-    function selectField(box, label, obj, key, options, opts) {
-        opts = opts || {};
-        var sel = document.createElement('select');
-        sel.className = 'form-select form-select-sm';
-        sel.disabled = READONLY;
-        options.forEach(function (o) {
-            var op = document.createElement('option');
-            op.value = typeof o === 'object' ? o.value : o;
-            op.textContent = typeof o === 'object' ? o.text : o;
-            sel.appendChild(op);
-        });
-        sel.value = String(obj[key]);
-        sel.addEventListener('change', function () {
-            obj[key] = opts.number ? parseFloat(sel.value) : sel.value;
-            markDirty();
-            if (opts.after) opts.after();
-            queueRender();
-        });
-        box.appendChild(fieldWrap(label, sel));
-    }
-
-    function checkField(box, label, obj, key, opts) {
-        opts = opts || {};
-        var wrap = document.createElement('div');
-        wrap.className = 'form-check mb-2';
-        var input = document.createElement('input');
-        input.type = 'checkbox';
-        input.className = 'form-check-input';
-        input.checked = !!obj[key];
-        input.disabled = READONLY;
-        var lb = document.createElement('label');
-        lb.className = 'form-check-label small';
-        lb.textContent = label;
-        input.addEventListener('change', function () {
-            obj[key] = input.checked;
-            markDirty();
-            if (opts.after) opts.after();
-            queueRender();
-        });
-        wrap.appendChild(input);
-        wrap.appendChild(lb);
-        box.appendChild(wrap);
-    }
-
-    function readonlyField(box, label, text) {
-        var input = document.createElement('input');
-        input.type = 'text';
-        input.className = 'form-control form-control-sm';
-        input.value = text == null ? '' : text;
-        input.disabled = true;
-        box.appendChild(fieldWrap(label, input));
-    }
-
-    function heading(box, text) {
-        var h = document.createElement('div');
-        h.className = 'fw-semibold mb-2';
-        h.textContent = text;
-        box.appendChild(h);
+    function fCheck(label, field, checked) {
+        return '<div class="form-check mb-2"><input type="checkbox" class="form-check-input" id="f_' + field + '" data-field="' + field +
+            '" data-type="bool"' + (checked ? ' checked' : '') + dis() + ' />' +
+            '<label class="form-check-label small" for="f_' + field + '">' + esc(label) + '</label></div>';
     }
 
     function renderProps() {
-        var box = el.props;
-        if (!box) return;
-        box.innerHTML = '';
+        var obj = selectedObject();
 
-        var item = getSelected();
-        if (!item) {
-            var p = document.createElement('div');
-            p.className = 'text-muted small';
-            p.textContent = 'Select an item on the drawing.';
-            box.appendChild(p);
+        if (!obj) {
+            el.props.innerHTML = '<div class="small text-muted p-1">Click an item on the drawing to edit it.</div>';
             return;
         }
 
+        var html = '';
+
         if (selected.kind === 'node') {
-            heading(box, 'Equipment');
-            textField(box, 'Tag', item, 'tag');
-            textField(box, 'Name', item, 'name');
-            readonlyField(box, 'Symbol', item.symbolType);
-            readonlyField(box, 'Stage', item.stageNo);
-            selectField(box, 'Rotation', item, 'rotationDeg', [
-                { value: '0', text: '0' }, { value: '90', text: '90' },
-                { value: '180', text: '180' }, { value: '270', text: '270' }
-            ], { number: true });
-            checkField(box, 'Locked (excluded from auto layout)', item, 'isLocked', { after: function () { updateButtons(); } });
+            html += '<div class="fw-semibold mb-2">Equipment ' + esc(obj.tag) + '</div>';
+            html += fText('Tag', 'tag', obj.tag);
+            html += fText('Name', 'name', obj.name);
+            html += fSelect('Symbol', 'symbolType', PidSymbols.symbolTypes, obj.symbolType);
+            html += fCheck('Locked in place', 'isLocked', obj.isLocked);
         } else if (selected.kind === 'line') {
-            var from = nodeMap[item.fromNodeId], to = nodeMap[item.toNodeId];
-            heading(box, 'Line');
-            textField(box, 'Line No', item, 'lineNo');
-            readonlyField(box, 'From', from ? from.tag : '');
-            readonlyField(box, 'To', to ? to.tag : '');
-            selectField(box, 'Medium', item, 'medium', PS.mediums);
-            numField(box, 'Nominal size (mm)', item, 'nominalSizeMm', { min: 0 });
-            textField(box, 'Material', item, 'material', { nullable: true });
-            checkField(box, 'Insulated', item, 'isInsulated');
-            textField(box, 'Notes', item, 'notes', { nullable: true });
+            var from = findIn(diagram.nodes, obj.fromNodeId);
+            var to = findIn(diagram.nodes, obj.toNodeId);
+            html += '<div class="fw-semibold mb-1">Line ' + esc(obj.lineNo) + '</div>';
+            html += '<div class="small text-muted mb-2">' + esc(from ? from.tag : '?') + ' &rarr; ' + esc(to ? to.tag : '?') + '</div>';
+            html += fText('Line no', 'lineNo', obj.lineNo);
+            html += fSelect('Medium', 'medium', Object.keys(PidSymbols.mediumColors), obj.medium);
+            html += fNum('Size DN (mm)', 'nominalSizeMm', obj.nominalSizeMm, 'min="10" step="5"', false);
+            html += fText('Material', 'material', obj.material || '');
+            html += fCheck('Insulated', 'isInsulated', obj.isInsulated);
+            html += fText('Notes', 'notes', obj.notes || '');
         } else if (selected.kind === 'valve') {
-            var vl = lineMap[item.pidLineId];
-            heading(box, 'Valve');
-            textField(box, 'Tag', item, 'tag');
-            readonlyField(box, 'Line', vl ? vl.lineNo : '');
-            selectField(box, 'Type', item, 'valveType', PS.valveTypes);
-            numField(box, 'Nominal size (mm)', item, 'nominalSizeMm', { min: 0 });
-            numField(box, 'Position on line (0.05 - 0.95)', item, 'positionOnLine', {
-                min: 0.05, max: 0.95, step: 0.05,
-                after: function () { placeValve(item); }
-            });
-            checkField(box, 'Normally open', item, 'isNormallyOpen');
-            textField(box, 'Notes', item, 'notes', { nullable: true });
-        } else if (selected.kind === 'instrument') {
-            heading(box, 'Instrument');
-            textField(box, 'Tag', item, 'tag');
-            selectField(box, 'Type', item, 'instrumentType', PS.instrumentTypes);
-            textField(box, 'Service', item, 'service', { nullable: true });
-            numField(box, 'Range min', item, 'rangeMin', { nullable: true });
-            numField(box, 'Range max', item, 'rangeMax', { nullable: true });
-            textField(box, 'Unit', item, 'unit', { nullable: true });
-            textField(box, 'Notes', item, 'notes', { nullable: true });
+            html += '<div class="fw-semibold mb-2">Valve ' + esc(obj.tag) + '</div>';
+            html += fText('Tag', 'tag', obj.tag);
+            html += fSelect('Type', 'valveType', PidSymbols.valveTypes, obj.valveType);
+            html += fNum('Size DN (mm)', 'nominalSizeMm', obj.nominalSizeMm, 'min="10" step="5"', false);
+            html += fNum('Position on line (0.05 to 0.95)', 'positionOnLine', obj.positionOnLine, 'min="0.05" max="0.95" step="0.05"', false);
+            html += fCheck('Normally open', 'isNormallyOpen', obj.isNormallyOpen);
+            html += fText('Notes', 'notes', obj.notes || '');
+        } else {
+            html += '<div class="fw-semibold mb-2">Instrument ' + esc(obj.tag) + '</div>';
+            html += fText('Tag', 'tag', obj.tag);
+            html += fSelect('Type', 'instrumentType', PidSymbols.instrumentTypes, obj.instrumentType);
+            html += fText('Service', 'service', obj.service || '');
+            html += fNum('Range min', 'rangeMin', obj.rangeMin, 'step="any"', true);
+            html += fNum('Range max', 'rangeMax', obj.rangeMax, 'step="any"', true);
+            html += fText('Unit', 'unit', obj.unit || '');
+            html += fText('Notes', 'notes', obj.notes || '');
         }
+
+        el.props.innerHTML = html;
     }
 
-    /* ---------- actions ---------- */
+    function applyField(target, isChange) {
+        if (READ_ONLY) return;
+        var field = target.getAttribute('data-field');
+        var obj = selectedObject();
+        if (!field || !obj) return;
 
-    function lineForSelection() {
-        var item = getSelected();
-        if (!item) return null;
-        if (selected.kind === 'line') return item;
-        if (selected.kind === 'valve') return lineMap[item.pidLineId] || null;
-        return null;
-    }
+        var type = target.getAttribute('data-type');
+        var value;
 
-    function addValve() {
-        if (READONLY) return;
-        var line = lineForSelection();
-        if (!line) { msg('Select a line first.', 'warning'); return; }
-
-        var type = el.valveType && el.valveType.value ? el.valveType.value : 'Gate';
-        var tries = [0.5, 0.35, 0.65, 0.25, 0.75, 0.15, 0.85];
-        var pos = 0.5;
-        for (var t = 0; t < tries.length; t++) {
-            var free = true;
-            for (var k = 0; k < diagram.valves.length; k++) {
-                var ov = diagram.valves[k];
-                if (ov.pidLineId === line.id && Math.abs(ov.positionOnLine - tries[t]) < 0.08) { free = false; break; }
+        if (type === 'bool') {
+            value = target.checked;
+        } else if (type === 'number') {
+            var n = parseFloat(target.value);
+            if (!isFinite(n)) {
+                if (target.getAttribute('data-nullable') === '1') value = null;
+                else return;
+            } else {
+                value = n;
             }
-            if (free) { pos = tries[t]; break; }
+        } else {
+            value = target.value;
         }
 
-        var v = {
-            id: uid(),
-            pidLineId: line.id,
-            tag: nextTag('V', diagram.valves.map(function (x) { return x.tag; })),
+        obj[field] = value;
+
+        if (field === 'positionOnLine') placeValves();
+        if (field === 'symbolType') routeAll();
+
+        renderCanvas();
+        if (isChange) {
+            if (field === 'symbolType') renderProps();
+            commit();
+        }
+    }
+
+    el.props.addEventListener('input', function (e) {
+        if (e.target.getAttribute('data-type') === 'bool' || e.target.tagName === 'SELECT') return;
+        applyField(e.target, false);
+    });
+
+    el.props.addEventListener('change', function (e) {
+        applyField(e.target, true);
+    });
+
+    el.title.addEventListener('input', function () {
+        if (READ_ONLY || !diagram) return;
+        diagram.title = el.title.value;
+        updateButtons();
+    });
+
+    el.title.addEventListener('change', function () {
+        if (READ_ONLY || !diagram) return;
+        diagram.title = el.title.value;
+        commit();
+    });
+
+    /* ---------- add and delete ---------- */
+
+    function viewCentre() {
+        if (!view) return { x: 400, y: 300 };
+        return { x: snap(view.x + view.w / 2), y: snap(view.y + view.h / 2) };
+    }
+
+    function addEquipment(type) {
+        var c = viewCentre();
+        var node = {
+            id: uuid(),
+            equipmentItemId: null,
+            sizedEquipmentId: null,
+            tag: nextTag(EQ_PREFIX[type] || 'X', nodeTags()),
+            name: EQ_NAME[type] || type,
+            symbolType: type,
+            stageNo: 0,
+            instanceNo: 1,
+            x: c.x,
+            y: c.y,
+            rotationDeg: 0,
+            isLocked: false
+        };
+        diagram.nodes.push(node);
+        selected = { kind: 'node', id: node.id };
+        renderCanvas();
+        renderProps();
+        commit();
+        showMessage('Equipment added. Drag it into place.', 'info');
+    }
+
+    function addValve(type) {
+        var obj = selectedObject();
+        if (!selected || selected.kind !== 'line' || !obj) {
+            showMessage('Select a line first, then click the valve symbol.', 'warning');
+            return;
+        }
+        var valve = {
+            id: uuid(),
+            pidLineId: obj.id,
+            tag: nextTag('V', diagram.valves.map(function (v) { return v.tag; })),
             valveType: type,
-            nominalSizeMm: line.nominalSizeMm,
-            positionOnLine: pos,
-            x: 0, y: 0, rotationDeg: 0,
+            nominalSizeMm: obj.nominalSizeMm,
+            positionOnLine: 0.5,
+            x: 0,
+            y: 0,
+            rotationDeg: 0,
             isNormallyOpen: true,
             notes: null
         };
-        diagram.valves.push(v);
-        placeValve(v);
-        markDirty();
-        select('valve', v.id);
+        diagram.valves.push(valve);
+        placeValves();
+        selected = { kind: 'valve', id: valve.id };
+        renderCanvas();
+        renderProps();
+        commit();
     }
 
-    function addInstrument() {
-        if (READONLY) return;
-        var item = getSelected();
-        if (!item) { msg('Select equipment or a line first.', 'warning'); return; }
+    function addInstrument(type) {
+        var obj = selectedObject();
+        if (!selected || (selected.kind !== 'node' && selected.kind !== 'line') || !obj) {
+            showMessage('Select equipment or a line first, then click the instrument symbol.', 'warning');
+            return;
+        }
 
-        var type = el.instrumentType && el.instrumentType.value ? el.instrumentType.value : 'PT';
-        var defaults = {
-            PT: { service: 'Pressure', unit: 'bar' },
-            TT: { service: 'Temperature', unit: '\u00b0C' },
-            FT: { service: 'Flow', unit: 'm\u00b3/h' },
-            LT: { service: 'Level', unit: '%' }
-        }[type] || { service: null, unit: null };
-
+        var d = INSTRUMENT_DEFAULTS[type] || { unit: '', min: 0, max: 100, service: '' };
         var ins = {
-            id: uid(),
+            id: uuid(),
             pidLineId: null,
             pidEquipmentNodeId: null,
-            tag: nextTag(type, diagram.instruments.map(function (x) { return x.tag; })),
+            tag: nextTag(type, diagram.instruments.map(function (i) { return i.tag; })),
             instrumentType: type,
-            service: defaults.service,
-            rangeMin: null,
-            rangeMax: null,
-            unit: defaults.unit,
-            x: 0, y: 0,
+            service: d.service,
+            rangeMin: d.min,
+            rangeMax: d.max,
+            unit: d.unit,
+            x: 0,
+            y: 0,
             notes: null
         };
 
-        var count, x, y;
         if (selected.kind === 'node') {
-            ins.pidEquipmentNodeId = item.id;
-            count = diagram.instruments.filter(function (i) { return i.pidEquipmentNodeId === item.id; }).length;
-            x = item.x + count * 40 - 20;
-            y = item.y - PS.size(item.symbolType)[1] / 2 - 45;
+            var s = PidSymbols.size(obj.symbolType);
+            var count = diagram.instruments.filter(function (i) { return i.pidEquipmentNodeId === obj.id; }).length;
+            ins.pidEquipmentNodeId = obj.id;
+            ins.x = r2(obj.x + count * 40 - 20);
+            ins.y = r2(obj.y - s.h / 2 - 45);
         } else {
-            var line = lineForSelection();
-            if (!line || line.points.length < 2) { msg('Select equipment or a line first.', 'warning'); return; }
-            ins.pidLineId = line.id;
-            count = diagram.instruments.filter(function (i) { return i.pidLineId === line.id; }).length;
-            var mp = pointAt(line.points, 0.5);
-            x = mp.h ? mp.x + count * 40 : mp.x + 35;
-            y = mp.h ? mp.y - 35 : mp.y + count * 40;
+            var p = PidSymbols.pointAt(obj.points, 0.5);
+            ins.pidLineId = obj.id;
+            ins.x = r2(p.horizontal ? p.x : p.x + 35);
+            ins.y = r2(p.horizontal ? p.y - 35 : p.y);
         }
-        ins.x = r2(x);
-        ins.y = r2(y);
 
         diagram.instruments.push(ins);
-        markDirty();
-        select('instrument', ins.id);
+        selected = { kind: 'instrument', id: ins.id };
+        renderCanvas();
+        renderProps();
+        commit();
+    }
+
+    function connectNodes(fromId, toId) {
+        var line = {
+            id: uuid(),
+            lineNo: nextLineNo('Slurry', 100),
+            fromNodeId: fromId,
+            toNodeId: toId,
+            medium: 'Slurry',
+            nominalSizeMm: 100,
+            material: 'CS',
+            isInsulated: false,
+            points: [],
+            notes: null
+        };
+        diagram.lines.push(line);
+        routeAll();
+        selected = { kind: 'line', id: line.id };
+        renderCanvas();
+        renderProps();
+        commit();
+        showMessage('Line added. Set its medium and size on the right.', 'info');
+    }
+
+    function removeLines(lineIds) {
+        diagram.valves = diagram.valves.filter(function (v) { return lineIds.indexOf(v.pidLineId) < 0; });
+        diagram.instruments = diagram.instruments.filter(function (i) { return !i.pidLineId || lineIds.indexOf(i.pidLineId) < 0; });
+        diagram.lines = diagram.lines.filter(function (l) { return lineIds.indexOf(l.id) < 0; });
     }
 
     function deleteSelected() {
-        if (READONLY || !selected) return;
-        if (selected.kind === 'valve') {
-            diagram.valves = diagram.valves.filter(function (v) { return v.id !== selected.id; });
-        } else if (selected.kind === 'instrument') {
-            diagram.instruments = diagram.instruments.filter(function (i) { return i.id !== selected.id; });
+        if (READ_ONLY || !selected) return;
+        var obj = selectedObject();
+        if (!obj) return;
+
+        if (selected.kind === 'node') {
+            var attached = diagram.lines.filter(function (l) {
+                return l.fromNodeId === obj.id || l.toNodeId === obj.id;
+            }).map(function (l) { return l.id; });
+
+            if (attached.length && !window.confirm('Delete ' + obj.tag + ' and its ' + attached.length + ' connected line(s)?')) return;
+
+            removeLines(attached);
+            diagram.instruments = diagram.instruments.filter(function (i) { return i.pidEquipmentNodeId !== obj.id; });
+            diagram.nodes = diagram.nodes.filter(function (n) { return n.id !== obj.id; });
+        } else if (selected.kind === 'line') {
+            removeLines([obj.id]);
+        } else if (selected.kind === 'valve') {
+            diagram.valves = diagram.valves.filter(function (v) { return v.id !== obj.id; });
         } else {
-            msg('Only valves and instruments can be deleted.', 'warning');
+            diagram.instruments = diagram.instruments.filter(function (i) { return i.id !== obj.id; });
+        }
+
+        selected = null;
+        renderCanvas();
+        renderProps();
+        commit();
+    }
+
+    function setConnectMode(on) {
+        connectMode = on;
+        connectFrom = null;
+        el.connect.classList.toggle('active', on);
+        if (on) showMessage('Click the source equipment, then the target equipment.', 'info');
+        else clearMessage();
+    }
+
+    el.connect.addEventListener('click', function () {
+        if (READ_ONLY) return;
+        setConnectMode(!connectMode);
+    });
+
+    el.del.addEventListener('click', deleteSelected);
+
+    /* ---------- legend (click to add) ---------- */
+
+    function renderLegend() {
+        var items = PidSymbols.legend();
+        var groups = { equipment: 'Equipment', valve: 'Valves', instrument: 'Instruments' };
+        var html = '';
+
+        Object.keys(groups).forEach(function (kind) {
+            html += '<div class="small text-muted mt-2 mb-1">' + groups[kind] + '</div><div class="d-flex flex-wrap gap-1">';
+            items.filter(function (i) { return i.kind === kind; }).forEach(function (i) {
+                html += '<button type="button" class="btn btn-outline-secondary btn-sm p-1 pid-legend-item" data-kind="' + i.kind +
+                    '" data-type="' + i.type + '" title="' + esc(i.label) + '"' + dis() + '>' +
+                    PidSymbols.previewSvg(i.kind, i.type, 44) + '</button>';
+            });
+            html += '</div>';
+        });
+
+        var media = Object.keys(PidSymbols.mediumColors).map(function (m) {
+            return '<div class="d-flex align-items-center gap-2 small"><span style="display:inline-block;width:22px;height:3px;background:' +
+                PidSymbols.mediumColors[m] + '"></span>' + esc(m) + '</div>';
+        }).join('');
+
+        html += '<div class="small text-muted mt-3 mb-1">Line media</div>' + media;
+        el.legend.innerHTML = html;
+    }
+
+    el.legend.addEventListener('click', function (e) {
+        if (READ_ONLY) return;
+        var btn = e.target.closest('.pid-legend-item');
+        if (!btn) return;
+        var kind = btn.getAttribute('data-kind');
+        var type = btn.getAttribute('data-type');
+        clearMessage();
+        if (kind === 'equipment') addEquipment(type);
+        else if (kind === 'valve') addValve(type);
+        else addInstrument(type);
+    });
+
+    /* ---------- canvas pointer handling ---------- */
+
+    function targetOf(e) {
+        var t = e.target.closest ? e.target.closest('.pid-node, .pid-valve, .pid-instrument, .pid-line') : null;
+        if (!t) return null;
+        var kind = t.classList.contains('pid-node') ? 'node'
+            : t.classList.contains('pid-valve') ? 'valve'
+                : t.classList.contains('pid-instrument') ? 'instrument' : 'line';
+        return { kind: kind, id: t.getAttribute('data-id') };
+    }
+
+    el.canvas.addEventListener('wheel', function (e) {
+        if (!svg) return;
+        e.preventDefault();
+        var p = toSvg(e);
+        zoomAt(p.x, p.y, e.deltaY < 0 ? 0.85 : 1 / 0.85);
+    }, { passive: false });
+
+    el.canvas.addEventListener('pointerdown', function (e) {
+        if (!svg || busy || e.button !== 0) return;
+
+        var t = targetOf(e);
+
+        if (connectMode && !READ_ONLY) {
+            if (t && t.kind === 'node') {
+                if (!connectFrom) {
+                    connectFrom = t.id;
+                    select('node', t.id);
+                    showMessage('Now click the target equipment.', 'info');
+                } else if (connectFrom !== t.id) {
+                    var from = connectFrom;
+                    setConnectMode(false);
+                    connectNodes(from, t.id);
+                }
+            }
+            e.preventDefault();
             return;
         }
-        markDirty();
-        select(null, null);
-    }
 
-    function toggleLock() {
-        var n = selected && selected.kind === 'node' ? getSelected() : null;
-        if (READONLY || !n) return;
-        n.isLocked = !n.isLocked;
-        markDirty();
-        renderProps();
-        render();
-    }
+        if (t) {
+            select(t.kind, t.id);
 
-    function rotateNode() {
-        var n = selected && selected.kind === 'node' ? getSelected() : null;
-        if (READONLY || !n) return;
-        n.rotationDeg = ((n.rotationDeg || 0) + 90) % 360;
-        markDirty();
-        renderProps();
-        render();
-    }
-
-    function save() {
-        if (READONLY || saving || !diagram) return;
-        saving = true;
-        setDisabled(el.save, true);
-        post(URLS.save, diagram).then(function (res) {
-            saving = false;
-            setDisabled(el.save, READONLY);
-            if (res.ok && res.data) {
-                diagram = normalize(res.data);
-                reindex();
-                if (selected && !getSelected()) selected = null;
-                clearDirty();
-                renderProps();
-                updateButtons();
-                render();
-                msg('Saved.', 'success');
-            } else {
-                msg(res.text || ('Save failed (' + res.status + ').'), 'danger');
+            if (!READ_ONLY && t.kind !== 'line') {
+                var obj = selectedObject();
+                if (obj && t.kind === 'node' && obj.isLocked) {
+                    showMessage('This equipment is locked. Untick Locked to move it.', 'warning');
+                } else if (obj) {
+                    var attached = {};
+                    if (t.kind === 'node') {
+                        diagram.instruments.forEach(function (i) {
+                            if (i.pidEquipmentNodeId === obj.id) attached[i.id] = { x: i.x, y: i.y };
+                        });
+                    }
+                    drag = {
+                        kind: t.kind,
+                        id: t.id,
+                        start: toSvg(e),
+                        clientX: e.clientX,
+                        clientY: e.clientY,
+                        orig: { x: obj.x, y: obj.y },
+                        attached: attached,
+                        moved: false
+                    };
+                }
             }
-        }).catch(function () {
-            saving = false;
-            setDisabled(el.save, READONLY);
-            msg('Save failed. Check the connection.', 'danger');
-        });
-    }
-
-    function changeStatus(status, askRemarks, confirmText) {
-        if (dirty) { msg('Save changes first.', 'warning'); return; }
-        if (confirmText && !window.confirm(confirmText)) return;
-        var remarks = null;
-        if (askRemarks) {
-            remarks = window.prompt('Remarks (optional):', '');
-            if (remarks === null) return;
-        }
-        post(URLS.status, { id: DIAGRAM_ID, status: status, remarks: remarks }).then(function (res) {
-            if (res.ok) { window.location.reload(); }
-            else { msg(res.text || ('Status change failed (' + res.status + ').'), 'danger'); }
-        });
-    }
-
-    function newRevision() {
-        if (dirty) { msg('Save changes first.', 'warning'); return; }
-        var remarks = window.prompt('Revision remarks (optional):', '');
-        if (remarks === null) return;
-        post(URLS.revision, { id: DIAGRAM_ID, remarks: remarks }).then(function (res) {
-            if (res.ok) { window.location.reload(); }
-            else { msg(res.text || ('New revision failed (' + res.status + ').'), 'danger'); }
-        });
-    }
-
-    /* ---------- pointer interaction ---------- */
-
-    function onPointerDown(e) {
-        if (e.button !== 0) return;
-        var t = e.target.closest ? e.target.closest('[data-kind]') : null;
-
-        if (!t) {
-            drag = {
-                mode: 'pan', cx: e.clientX, cy: e.clientY,
-                sx: view.x, sy: view.y,
-                scale: view.w / (el.canvas.clientWidth || 1000),
+        } else {
+            var m = svg.getScreenCTM();
+            pan = {
+                clientX: e.clientX,
+                clientY: e.clientY,
+                view: { x: view.x, y: view.y, w: view.w, h: view.h },
+                scale: m ? m.a : 1,
                 moved: false
             };
-        } else {
-            var kind = t.getAttribute('data-kind');
-            var id = t.getAttribute('data-id');
-            select(kind, id);
-            var item = getSelected();
-            if (!READONLY && item && kind !== 'line' && !(kind === 'node' && item.isLocked)) {
-                var p = toSvg(e.clientX, e.clientY);
-                drag = {
-                    mode: kind, id: id, cx: e.clientX, cy: e.clientY, moved: false,
-                    startP: p, ox: item.x, oy: item.y,
-                    attached: kind === 'node'
-                        ? diagram.instruments.filter(function (i) { return i.pidEquipmentNodeId === id; })
-                            .map(function (i) { return { o: i, x: i.x, y: i.y }; })
-                        : []
-                };
-            }
         }
 
-        if (drag) {
-            document.addEventListener('pointermove', onPointerMove);
-            document.addEventListener('pointerup', onPointerUp);
-            e.preventDefault();
-        }
-    }
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
+        e.preventDefault();
+    });
 
     function onPointerMove(e) {
-        if (!drag) return;
-        if (!drag.moved && Math.abs(e.clientX - drag.cx) + Math.abs(e.clientY - drag.cy) < 3) return;
-        drag.moved = true;
+        if (drag) {
+            var px = Math.abs(e.clientX - drag.clientX) + Math.abs(e.clientY - drag.clientY);
+            if (!drag.moved && px < DRAG_THRESHOLD_PX) return;
+            drag.moved = true;
 
-        if (drag.mode === 'pan') {
-            view.x = drag.sx - (e.clientX - drag.cx) * drag.scale;
-            view.y = drag.sy - (e.clientY - drag.cy) * drag.scale;
-            applyView();
-            return;
-        }
+            var cur = toSvg(e);
+            var dx = cur.x - drag.start.x;
+            var dy = cur.y - drag.start.y;
 
-        var p = toSvg(e.clientX, e.clientY);
-        var item = getSelected();
-        if (!item) return;
-        var nx = snap(drag.ox + p.x - drag.startP.x);
-        var ny = snap(drag.oy + p.y - drag.startP.y);
-
-        if (drag.mode === 'node') {
-            item.x = nx;
-            item.y = ny;
-            drag.attached.forEach(function (a) {
-                a.o.x = r2(a.x + nx - drag.ox);
-                a.o.y = r2(a.y + ny - drag.oy);
-            });
-            rerouteNodeLines(item.id);
-        } else if (drag.mode === 'valve') {
-            var line = lineMap[item.pidLineId];
-            if (line && line.points.length > 1) {
-                var q = nearest(line.points, drag.ox + p.x - drag.startP.x, drag.oy + p.y - drag.startP.y);
-                item.positionOnLine = r3(Math.min(0.95, Math.max(0.05, q.f)));
-                placeValve(item);
+            if (drag.kind === 'node') {
+                var node = findIn(diagram.nodes, drag.id);
+                if (!node) return;
+                node.x = snap(drag.orig.x + dx);
+                node.y = snap(drag.orig.y + dy);
+                var appliedX = node.x - drag.orig.x;
+                var appliedY = node.y - drag.orig.y;
+                Object.keys(drag.attached).forEach(function (id) {
+                    var ins = findIn(diagram.instruments, id);
+                    if (ins) {
+                        ins.x = r2(drag.attached[id].x + appliedX);
+                        ins.y = r2(drag.attached[id].y + appliedY);
+                    }
+                });
+                routeAll();
+            } else if (drag.kind === 'valve') {
+                var valve = findIn(diagram.valves, drag.id);
+                var line = valve ? findIn(diagram.lines, valve.pidLineId) : null;
+                if (!valve || !line) return;
+                valve.positionOnLine = r2(nearestFraction(line.points, cur.x, cur.y));
+                placeValves();
+            } else if (drag.kind === 'instrument') {
+                var inst = findIn(diagram.instruments, drag.id);
+                if (!inst) return;
+                inst.x = r2(drag.orig.x + dx);
+                inst.y = r2(drag.orig.y + dy);
             }
-        } else if (drag.mode === 'instrument') {
-            item.x = nx;
-            item.y = ny;
+
+            scheduleRender();
+        } else if (pan) {
+            var cx = e.clientX - pan.clientX;
+            var cy = e.clientY - pan.clientY;
+            if (Math.abs(cx) + Math.abs(cy) >= DRAG_THRESHOLD_PX) pan.moved = true;
+            view = {
+                x: pan.view.x - cx / pan.scale,
+                y: pan.view.y - cy / pan.scale,
+                w: pan.view.w,
+                h: pan.view.h
+            };
+            applyView();
         }
-        queueRender();
     }
 
     function onPointerUp() {
         document.removeEventListener('pointermove', onPointerMove);
         document.removeEventListener('pointerup', onPointerUp);
-        var d = drag;
-        drag = null;
-        if (!d) return;
+        document.removeEventListener('pointercancel', onPointerUp);
 
-        if (d.mode === 'pan') {
-            if (!d.moved) select(null, null);
-            return;
-        }
-        if (d.moved) {
-            markDirty();
-            renderProps();
-            render();
-        }
-    }
-
-    function onWheel(e) {
-        e.preventDefault();
-        var p = toSvg(e.clientX, e.clientY);
-        zoomAt(p.x, p.y, e.deltaY < 0 ? 0.9 : 1.1);
-    }
-
-    function onKeyDown(e) {
-        var tag = e.target && e.target.tagName ? e.target.tagName.toLowerCase() : '';
-        if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
-            e.preventDefault();
-            save();
-            return;
-        }
-        if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-            if (selected && (selected.kind === 'valve' || selected.kind === 'instrument')) {
-                e.preventDefault();
-                deleteSelected();
+        if (drag) {
+            var d = drag;
+            drag = null;
+            if (d.moved) {
+                renderCanvas();
+                renderProps();
+                commit();
             }
-        } else if (e.key === 'Escape') {
-            select(null, null);
+        } else if (pan) {
+            var p = pan;
+            pan = null;
+            if (!p.moved) select(null);
         }
     }
 
-    /* ---------- legend and init ---------- */
+    document.addEventListener('keydown', function (e) {
+        var t = e.target;
+        var tag = t && t.tagName ? t.tagName.toUpperCase() : '';
+        var typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable);
 
-    function renderLegend() {
-        if (!el.legend) return;
-        var h = [];
-        PS.legendItems().forEach(function (it) {
-            h.push('<div class="d-flex align-items-center small mb-1">' +
-                '<svg width="40" height="8" class="me-2"><line x1="0" y1="4" x2="40" y2="4" stroke="' + it.color + '" stroke-width="2.5"' +
-                (it.dash ? ' stroke-dasharray="' + it.dash + '"' : '') + '/></svg>' +
-                '<span>' + esc(it.label) + '</span></div>');
-        });
-        el.legend.innerHTML = h.join('');
-    }
+        if (e.key === 'Escape') {
+            if (connectMode) setConnectMode(false);
+            else if (!typing) select(null);
+            return;
+        }
+        if (typing || READ_ONLY) return;
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            e.preventDefault();
+            deleteSelected();
+        }
+    });
 
-    function buildSvg() {
-        svg = document.createElementNS(NS, 'svg');
-        svg.setAttribute('width', '100%');
-        svg.setAttribute('height', '100%');
-        svg.style.display = 'block';
-        svg.style.background = '#ffffff';
-        svg.style.touchAction = 'none';
-        svg.style.userSelect = 'none';
-        svg.innerHTML =
-            '<defs><pattern id="pidGrid" width="50" height="50" patternUnits="userSpaceOnUse">' +
-            '<path d="M50 0 L0 0 0 50" fill="none" stroke="#eef0f2" stroke-width="1"/></pattern></defs>' +
-            '<rect x="-20000" y="-20000" width="40000" height="40000" fill="url(#pidGrid)" pointer-events="none"/>' +
-            '<g id="pidScene"></g>';
-        scene = svg.querySelector('#pidScene');
-        el.canvas.innerHTML = '';
-        el.canvas.appendChild(svg);
+    el.zoomIn.addEventListener('click', function () { zoomCenter(0.8); });
+    el.zoomOut.addEventListener('click', function () { zoomCenter(1.25); });
+    el.zoomFit.addEventListener('click', fitView);
 
-        svg.addEventListener('pointerdown', onPointerDown);
-        svg.addEventListener('wheel', onWheel, { passive: false });
-    }
+    /* ---------- save, status, revision ---------- */
 
-    function bind(elm, fn) {
-        if (elm) elm.addEventListener('click', fn);
-    }
-
-    function init() {
-        if (!el.canvas) return;
-        buildSvg();
-        renderLegend();
-
-        bind(el.save, save);
-        bind(el.addValve, addValve);
-        bind(el.addInstrument, addInstrument);
-        bind(el.deleteItem, deleteSelected);
-        bind(el.lockNode, toggleLock);
-        bind(el.rotate, rotateNode);
-        bind(el.fit, fitView);
-        bind(el.zoomIn, function () { zoomAt(view.x + view.w / 2, view.y + view.h / 2, 0.8); });
-        bind(el.zoomOut, function () { zoomAt(view.x + view.w / 2, view.y + view.h / 2, 1.25); });
-        bind(el.submitReview, function () { changeStatus('InReview', false, null); });
-        bind(el.approve, function () { changeStatus('Approved', true, 'Approve this P&ID? It will become read-only.'); });
-        bind(el.reject, function () { changeStatus('Rejected', true, null); });
-        bind(el.newRevision, newRevision);
-
-        document.addEventListener('keydown', onKeyDown);
-        window.addEventListener('resize', applyView);
-        window.addEventListener('beforeunload', function (e) {
-            if (dirty) { e.preventDefault(); e.returnValue = ''; }
-        });
-
+    function setBusy(b) {
+        busy = b;
+        root.classList.toggle('is-busy', b);
         updateButtons();
-        renderProps();
+    }
 
-        request(URLS.data).then(function (res) {
+    function adopt(dto) {
+        diagram = normalize(dto);
+        if (selected && !selectedObject()) selected = null;
+        savedSnapshot = JSON.stringify(diagram);
+        renderAll();
+    }
+
+    function save() {
+        if (READ_ONLY || !diagram || !isDirty()) return;
+        clearMessage();
+        setBusy(true);
+        showMessage('Saving...', 'info');
+
+        post(URLS.save, diagram).then(function (res) {
+            setBusy(false);
             if (!res.ok || !res.data) {
-                msg('Could not load the diagram (' + res.status + ').', 'danger');
+                showMessage(failText(res, 'Could not save'), 'danger');
                 return;
             }
-            diagram = normalize(res.data);
-            reindex();
-            render();
-            fitView();
+            adopt(res.data);
+            if (hist) hist.reset();
+            updateButtons();
+            showMessage('Saved.', 'success');
         }).catch(function () {
-            msg('Could not load the diagram.', 'danger');
+            setBusy(false);
+            showMessage('Could not reach the server. Try again.', 'danger');
         });
     }
 
-    init();
+    el.save.addEventListener('click', save);
+
+    if (el.setStatus) {
+        el.setStatus.addEventListener('click', function () {
+            if (isDirty()) {
+                showMessage('Save your changes before changing the status.', 'warning');
+                return;
+            }
+            setBusy(true);
+            post(URLS.status, {
+                id: DIAGRAM_ID,
+                status: el.statusSelect.value,
+                remarks: el.statusRemarks.value.trim() || null
+            }).then(function (res) {
+                if (!res.ok) {
+                    setBusy(false);
+                    showMessage(failText(res, 'Could not change the status'), 'danger');
+                    return;
+                }
+                window.location.reload();
+            }).catch(function () {
+                setBusy(false);
+                showMessage('Could not reach the server. Try again.', 'danger');
+            });
+        });
+    }
+
+    if (el.newRevision) {
+        el.newRevision.addEventListener('click', function () {
+            if (isDirty()) {
+                showMessage('Save your changes first.', 'warning');
+                return;
+            }
+            if (!window.confirm('Start a new revision? The drawing becomes Draft and editable.')) return;
+            setBusy(true);
+            post(URLS.revision, {
+                id: DIAGRAM_ID,
+                remarks: el.statusRemarks.value.trim() || null
+            }).then(function (res) {
+                if (!res.ok) {
+                    setBusy(false);
+                    showMessage(failText(res, 'Could not start a new revision'), 'danger');
+                    return;
+                }
+                window.location.reload();
+            }).catch(function () {
+                setBusy(false);
+                showMessage('Could not reach the server. Try again.', 'danger');
+            });
+        });
+    }
+
+    window.addEventListener('beforeunload', function (e) {
+        if (isDirty()) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
+    /* ---------- undo and redo ---------- */
+
+    function restoreDiagram(state) {
+        diagram = normalize(state);
+        if (selected && !selectedObject()) selected = null;
+        renderAll();
+    }
+
+    /* ---------- start ---------- */
+
+    renderLegend();
+    el.props.innerHTML = '<div class="small text-muted p-1">Loading...</div>';
+
+    request(URLS.data + '?id=' + encodeURIComponent(DIAGRAM_ID), { method: 'GET' }).then(function (res) {
+        if (!res.ok || !res.data) {
+            showMessage(failText(res, 'Could not load the drawing'), 'danger');
+            return;
+        }
+
+        diagram = normalize(res.data);
+        savedSnapshot = JSON.stringify(diagram);
+        fitView();
+        renderAll();
+
+        hist = typeof UndoRedo === 'function' ? UndoRedo({
+            getState: function () { return diagram; },
+            setState: restoreDiagram,
+            onChange: updateButtons,
+            isActive: function () { return !READ_ONLY && !busy; },
+            limit: 100
+        }) : null;
+
+        if (el.undo) el.undo.addEventListener('click', function () { if (hist && !busy && !READ_ONLY) hist.undo(); });
+        if (el.redo) el.redo.addEventListener('click', function () { if (hist && !busy && !READ_ONLY) hist.redo(); });
+        updateButtons();
+    }).catch(function () {
+        showMessage('Could not reach the server. Try again.', 'danger');
+    });
 })();
