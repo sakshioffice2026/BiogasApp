@@ -23,6 +23,90 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/workflow.css" asp-append-version="true" />
+    <style>
+        .pidx {
+            display: grid;
+            gap: 14px;
+            padding: 20px 22px;
+            margin-bottom: var(--bp-gap);
+            position: relative;
+            overflow: hidden;
+        }
+
+            .pidx::before {
+                content: "";
+                position: absolute;
+                inset: 0 0 auto 0;
+                height: 4px;
+                background: var(--bp-grad-flow);
+            }
+
+        .pidx__eyebrow {
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--bp-indigo);
+        }
+
+        .pidx__flow {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 0;
+            align-items: center;
+        }
+
+            .pidx__flow li {
+                position: relative;
+                padding: 7px 14px;
+                border-radius: 999px;
+                border: 1px solid var(--bp-line);
+                background: var(--bp-surface);
+                color: var(--bp-ink-soft);
+                font-size: .85rem;
+                font-weight: 600;
+                margin-right: 26px;
+                box-shadow: var(--bp-shadow);
+            }
+
+                .pidx__flow li:not(:last-child)::after {
+                    content: "";
+                    position: absolute;
+                    left: 100%;
+                    top: 50%;
+                    width: 26px;
+                    height: 2px;
+                    background: var(--bp-grad-flow);
+                    transform: translateY(-50%);
+                }
+
+                .pidx__flow li:not(:last-child)::before {
+                    content: "";
+                    position: absolute;
+                    left: calc(100% + 18px);
+                    top: 50%;
+                    width: 7px;
+                    height: 7px;
+                    border-top: 2px solid var(--bp-cyan);
+                    border-right: 2px solid var(--bp-cyan);
+                    transform: translateY(-50%) rotate(45deg);
+                    z-index: 1;
+                }
+
+                .pidx__flow li:last-child {
+                    margin-right: 0;
+                    background: var(--bp-grad-flow);
+                    color: #fff;
+                    border-color: transparent;
+                }
+
+        .pidx__cta {
+            justify-self: start;
+        }
+    </style>
 }
 @section Scripts {
     <script src="~/js/gauges.js" asp-append-version="true"></script>
@@ -105,6 +189,23 @@
         </div>
     </section>
 </div>
+
+<section class="pidx bp-card" aria-labelledby="pidx-title">
+    <div class="pidx__copy">
+        <span class="pidx__eyebrow">Process drawing</span>
+        <h2 class="sm-card-title" id="pidx-title">P&amp;ID from this run</h2>
+        <p class="bp-muted mb-0">Piping and instrumentation diagram (the pipes, valves and sensors between equipment) built from the sized equipment of run v@(Model.RunVersion).</p>
+    </div>
+    <ol class="pidx__flow" role="list">
+        <li>Feed</li>
+        <li>Pre-treatment</li>
+        <li>Digestion</li>
+        <li>Gas holding</li>
+        <li>Upgrading</li>
+        <li>CBG</li>
+    </ol>
+    <a class="bp-btn bp-btn--primary pidx__cta" asp-controller="Pid" asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Open P&amp;ID</a>
+</section>
 
 <partial name="_ThermalCard" model="Model.Thermal" />
 

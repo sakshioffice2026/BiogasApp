@@ -211,6 +211,8 @@ public static class PidPdfWriter
         var lines = d.Lines.ToDictionary(l => l.Id);
 
         var headingY = d.Nodes.Min(n => (double)n.Y) - 130;
+        if (d.Instruments.Count > 0)
+            headingY = Math.Min(headingY, d.Instruments.Min(i => (double)i.Y) - 45);
         var b = new Bounds();
         foreach (var n in d.Nodes)
         {

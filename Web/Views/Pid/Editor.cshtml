@@ -54,6 +54,7 @@
         <div class="d-flex gap-2">
             <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Back</a>
             <a class="btn btn-outline-primary btn-sm" asp-action="ExportDxf" asp-route-id="@d.Id">Download DXF</a>
+            <a class="btn btn-outline-danger btn-sm" asp-action="ExportPdf" asp-route-id="@d.Id">Download PDF</a>
             <a class="btn btn-outline-success btn-sm" asp-action="ExportExcel" asp-route-id="@d.Id">Excel lists</a>
         </div>
     </div>

@@ -15,15 +15,8 @@ public class DashboardController : Controller
     [HttpGet]
     public async Task<IActionResult> Index(Guid? projectId, CancellationToken cancellationToken)
     {
-        ViewData["StatusCounts"] = await _dashboards.GetProjectStatusCountsAsync(cancellationToken);
-        ViewData["TotalRuns"] = await _dashboards.GetTotalRunCountAsync(cancellationToken);
-        ViewData["ProjectId"] = projectId;
-
-        var latest = projectId.HasValue
-            ? await _dashboards.GetLatestDashboardAsync(projectId.Value, cancellationToken)
-            : null;
-
-        return View(latest);
+        var overview = await _dashboards.GetOverviewAsync(projectId, cancellationToken);
+        return View(overview);
     }
 
     [HttpGet]

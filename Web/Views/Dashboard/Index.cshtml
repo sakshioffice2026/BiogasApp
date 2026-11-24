@@ -1,26 +1,47 @@
 @using BiogasApp.Database.Enums
-@using System.Linq
+@using Web.Helpers
+@model BiogasApp.Model.DTOs.DashboardOverviewDto
 @{
     ViewData["Title"] = "Overview";
 
-    var statusCounts = ViewData["StatusCounts"] as IDictionary<ProjectStatus, int>
-        ?? new Dictionary<ProjectStatus, int>();
+    var counts = Model.ProjectStatusCounts;
+    int Count(ProjectStatus s) => counts.TryGetValue(s, out var c) ? c : 0;
 
-    var totalRuns = ViewData["TotalRuns"] is int runs ? runs : 0;
-    var projectId = ViewData["ProjectId"] as Guid?;
-    var totalProjects = statusCounts.Values.Sum();
+    var canAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("ClientAdmin");
+    var kpi = Model.Kpis;
+}
+@functions {
+    static string PidCss(PidApprovalStatus? s) => s switch
+    {
+        PidApprovalStatus.Approved => "is-approved",
+        PidApprovalStatus.InReview => "is-review",
+        PidApprovalStatus.Rejected => "is-rejected",
+        PidApprovalStatus.Superseded => "is-muted",
+        _ => "is-draft"
+    };
 
-    var draft = statusCounts.TryGetValue(ProjectStatus.Draft, out var d) ? d : 0;
-    var simulated = statusCounts.TryGetValue(ProjectStatus.Simulated, out var s) ? s : 0;
-    var approved = statusCounts.TryGetValue(ProjectStatus.Approved, out var a) ? a : 0;
-    var proposed = 0;
+    static string PidText(PidApprovalStatus? s) => s switch
+    {
+        PidApprovalStatus.InReview => "In review",
+        null => "No P&ID",
+        _ => s.ToString() ?? string.Empty
+    };
+
+    static string DotCss(string kind) => kind switch
+    {
+        "Simulation" => "db-dot--sim",
+        "Layout" => "db-dot--layout",
+        "P&ID" => "db-dot--pid",
+        "CAD" => "db-dot--cad",
+        _ => string.Empty
+    };
 }
 
 @section Styles {
     <style>
         .db-wrap {
             display: grid;
-            gap: 24px;
+            gap: 22px;
         }
 
         .db-hero {
@@ -43,7 +64,17 @@
 
             .db-hero p {
                 margin: 0;
-                opacity: .85;
+                opacity: .88;
+            }
+
+        .db-hero-latest {
+            margin-top: 10px;
+            font-size: .88rem;
+            opacity: .95;
+        }
+
+            .db-hero-latest strong {
+                font-weight: 700;
             }
 
         .db-hero-actions {
@@ -77,11 +108,18 @@
         }
 
         .db-stat-value {
-            font-size: 2rem;
+            font-size: 1.8rem;
             font-weight: 800;
             margin: 8px 0;
             color: var(--bp-ink);
         }
+
+            .db-stat-value small {
+                font-size: .8rem;
+                font-weight: 600;
+                color: var(--bp-ink-mute);
+                margin-left: 4px;
+            }
 
         .db-stat-note {
             color: var(--bp-ink-mute);
@@ -98,108 +136,388 @@
             .db-section h2 {
                 font-size: 1.15rem;
                 font-weight: 750;
-                margin: 0 0 18px;
+                margin: 0 0 16px;
             }
 
-        .db-status-list {
+        .db-sub {
+            color: var(--bp-ink-mute);
+            font-size: .85rem;
+            margin: -10px 0 14px;
+        }
+
+        .db-cols {
+            display: grid;
+            grid-template-columns: 3fr 2fr;
+            gap: 22px;
+        }
+
+        .db-cols-even {
+            display: grid;
+            grid-template-columns: repeat(2,minmax(0,1fr));
+            gap: 22px;
+        }
+
+        .db-pills {
             display: grid;
             grid-template-columns: repeat(4,minmax(0,1fr));
             gap: 12px;
         }
 
-        .db-status {
-            padding: 16px;
+        .db-pill {
+            padding: 14px 16px;
             border-radius: 14px;
             background: rgba(248,250,252,.9);
             border: 1px solid var(--bp-line);
+            border-left-width: 4px;
         }
 
-        .db-status-label {
-            font-size: .82rem;
-            color: var(--bp-ink-mute);
+            .db-pill span {
+                display: block;
+                font-size: .8rem;
+                color: var(--bp-ink-mute);
+            }
+
+            .db-pill strong {
+                display: block;
+                font-size: 1.4rem;
+                font-weight: 800;
+                margin-top: 4px;
+            }
+
+        .db-pill--draft {
+            border-left-color: #64748b;
         }
 
-        .db-status-value {
-            font-size: 1.5rem;
-            font-weight: 800;
-            margin-top: 5px;
+        .db-pill--simulated {
+            border-left-color: #0ea5e9;
         }
 
-        .db-status--draft {
-            border-left: 4px solid #64748b;
+        .db-pill--approved {
+            border-left-color: #16a34a;
         }
 
-        .db-status--simulated {
-            border-left: 4px solid #0ea5e9;
+        .db-pill--archived {
+            border-left-color: #a16207;
         }
 
-        .db-status--proposed {
-            border-left: 4px solid #8b5cf6;
+        .db-pill--violet {
+            border-left-color: #8b5cf6;
         }
 
-        .db-status--approved {
-            border-left: 4px solid #16a34a;
+        .db-pill--red {
+            border-left-color: #e11d48;
         }
 
-        .db-latest {
+        .db-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
             display: grid;
-            grid-template-columns: repeat(3,minmax(0,1fr));
+            gap: 12px;
+        }
+
+        .db-proj {
+            padding: 14px 16px;
+            border: 1px solid var(--bp-line);
+            border-radius: 16px;
+            background: #fff;
+            display: grid;
+            gap: 10px;
+        }
+
+        .db-proj-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .db-proj-name {
+            font-weight: 750;
+            color: var(--bp-ink);
+            text-decoration: none;
+        }
+
+            .db-proj-name:hover {
+                text-decoration: underline;
+            }
+
+        .db-proj-meta {
+            color: var(--bp-ink-mute);
+            font-size: .8rem;
+        }
+
+        .db-proj-foot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .db-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .db-tag {
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: .74rem;
+            font-weight: 600;
+            border: 1px dashed var(--bp-line);
+            color: var(--bp-ink-mute);
+            background: transparent;
+        }
+
+            .db-tag.is-on {
+                border-style: solid;
+                border-color: transparent;
+                background: #e0f2fe;
+                color: #075985;
+            }
+
+            .db-tag.is-approved {
+                border-style: solid;
+                border-color: transparent;
+                background: #dcfce7;
+                color: #166534;
+            }
+
+            .db-tag.is-review {
+                border-style: solid;
+                border-color: transparent;
+                background: #fef3c7;
+                color: #92400e;
+            }
+
+            .db-tag.is-rejected {
+                border-style: solid;
+                border-color: transparent;
+                background: #ffe4e6;
+                color: #9f1239;
+            }
+
+            .db-tag.is-draft {
+                border-style: solid;
+                border-color: transparent;
+                background: #f1f5f9;
+                color: #475569;
+            }
+
+            .db-tag.is-muted {
+                border-style: solid;
+                border-color: transparent;
+                background: #e2e8f0;
+                color: #334155;
+            }
+
+        .db-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+            .db-links .bp-btn {
+                text-decoration: none;
+                padding: 5px 12px;
+                font-size: .8rem;
+            }
+
+        .db-approve {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+        }
+
+            .db-approve strong {
+                display: block;
+                font-size: .92rem;
+            }
+
+            .db-approve span {
+                font-size: .78rem;
+                color: var(--bp-ink-mute);
+            }
+
+        .db-empty-note {
+            color: var(--bp-ink-mute);
+            font-size: .9rem;
+            padding: 14px;
+            border: 1px dashed var(--bp-line);
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .db-timeline {
+            list-style: none;
+            margin: 0;
+            padding: 0 0 0 18px;
+            position: relative;
+            display: grid;
             gap: 14px;
         }
 
-        .db-latest-item {
-            padding: 16px;
-            border-radius: 14px;
-            background: #f8fafc;
-            border: 1px solid var(--bp-line);
+            .db-timeline::before {
+                content: "";
+                position: absolute;
+                left: 5px;
+                top: 6px;
+                bottom: 6px;
+                width: 2px;
+                background: var(--bp-line);
+            }
+
+            .db-timeline li {
+                position: relative;
+            }
+
+                .db-timeline li::before {
+                    content: "";
+                    position: absolute;
+                    left: -18px;
+                    top: 5px;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: #94a3b8;
+                    border: 2px solid #fff;
+                    box-shadow: 0 0 0 1px var(--bp-line);
+                }
+
+                .db-timeline li.db-dot--sim::before {
+                    background: #0ea5e9;
+                }
+
+                .db-timeline li.db-dot--layout::before {
+                    background: #16a34a;
+                }
+
+                .db-timeline li.db-dot--pid::before {
+                    background: #8b5cf6;
+                }
+
+                .db-timeline li.db-dot--cad::before {
+                    background: #f59e0b;
+                }
+
+        .db-tl-title {
+            font-weight: 650;
+            font-size: .92rem;
         }
 
-            .db-latest-item span {
-                display: block;
-                font-size: .82rem;
+        .db-tl-meta {
+            color: var(--bp-ink-mute);
+            font-size: .78rem;
+        }
+
+        .db-pid {
+            display: grid;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+            .db-pid::before {
+                content: "";
+                position: absolute;
+                inset: 0 0 auto 0;
+                height: 4px;
+                background: var(--bp-grad-flow);
+            }
+
+            .db-pid h2 {
+                margin-bottom: 6px;
+            }
+
+            .db-pid p {
+                margin: 0;
                 color: var(--bp-ink-mute);
             }
 
-            .db-latest-item strong {
-                display: block;
-                font-size: 1.35rem;
-                margin-top: 6px;
-            }
-
-        .db-empty {
-            text-align: center;
-            padding: 36px 20px;
+        .db-pid-eyebrow {
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--bp-indigo);
         }
 
-            .db-empty h3 {
-                margin: 0 0 8px;
+        .db-pid-flow {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 0;
+            align-items: center;
+        }
+
+            .db-pid-flow li {
+                position: relative;
+                margin-right: 28px;
+                padding: 8px 16px;
+                border-radius: 999px;
+                border: 1px solid var(--bp-line);
+                background: #fff;
+                color: var(--bp-ink-soft);
+                font-size: .86rem;
+                font-weight: 600;
+                box-shadow: var(--bp-shadow);
             }
 
-            .db-empty p {
-                color: var(--bp-ink-mute);
-                margin-bottom: 18px;
-            }
+                .db-pid-flow li:not(:last-child)::after {
+                    content: "";
+                    position: absolute;
+                    left: 100%;
+                    top: 50%;
+                    width: 28px;
+                    height: 2px;
+                    background: var(--bp-grad-flow);
+                    transform: translateY(-50%);
+                }
 
-        .db-warning {
-            padding: 14px 18px;
-            border-radius: 14px;
-            background: #fff7ed;
-            border: 1px solid #fed7aa;
-            color: #9a3412;
+                .db-pid-flow li:not(:last-child)::before {
+                    content: "";
+                    position: absolute;
+                    left: calc(100% + 19px);
+                    top: 50%;
+                    width: 7px;
+                    height: 7px;
+                    border-top: 2px solid var(--bp-cyan);
+                    border-right: 2px solid var(--bp-cyan);
+                    transform: translateY(-50%) rotate(45deg);
+                    z-index: 1;
+                }
+
+                .db-pid-flow li:last-child {
+                    margin-right: 0;
+                    background: var(--bp-grad-flow);
+                    border-color: transparent;
+                    color: #fff;
+                }
+
+        @@media(max-width:1000px) {
+            .db-cols, .db-cols-even {
+                grid-template-columns: 1fr;
+            }
         }
 
         @@media(max-width:900px) {
-            .db-grid, .db-status-list {
-                grid-template-columns: repeat(2,minmax(0,1fr));
-            }
-
-            .db-latest {
+            .db-grid, .db-pills {
                 grid-template-columns: repeat(2,minmax(0,1fr));
             }
         }
 
         @@media(max-width:560px) {
-            .db-grid, .db-status-list, .db-latest {
+            .db-grid, .db-pills {
                 grid-template-columns: 1fr;
             }
 
@@ -215,122 +533,220 @@
 }
 
 <div class="db-wrap">
+
     <section class="db-hero">
         <div>
             <h1>Plant engineering overview</h1>
             <p>Manage projects, run biogas simulations and move toward plant design.</p>
+            @if (Model.FeaturedProjectId.HasValue && !string.IsNullOrEmpty(Model.FeaturedProjectName))
+            {
+                <div class="db-hero-latest">Latest project: <strong>@Model.FeaturedProjectName</strong></div>
+            }
         </div>
         <div class="db-hero-actions">
             <a class="bp-btn bp-btn--primary" asp-controller="Project" asp-action="Create">+ New project</a>
             <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Index">View projects</a>
+            @if (Model.FeaturedRunId.HasValue)
+            {
+                <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="Dashboard" asp-route-runId="@Model.FeaturedRunId">Open latest simulation</a>
+            }
         </div>
     </section>
 
-    <section class="db-grid" aria-label="Project summary">
+    <section class="db-grid" aria-label="Plant totals">
         <article class="db-stat">
             <div class="db-stat-label">Total projects</div>
-            <div class="db-stat-value">@totalProjects</div>
-            <div class="db-stat-note">Across all project stages</div>
+            <div class="db-stat-value">@Model.TotalProjects</div>
+            <div class="db-stat-note">@Model.TotalRuns simulation runs in total</div>
         </article>
         <article class="db-stat">
-            <div class="db-stat-label">Simulation runs</div>
-            <div class="db-stat-value">@totalRuns</div>
-            <div class="db-stat-note">Calculations completed</div>
+            <div class="db-stat-label">Feed handled</div>
+            <div class="db-stat-value">@kpi.TotalFeedTpd.ToString("N1")<small>TPD</small></div>
+            <div class="db-stat-note">Latest run of @kpi.ProjectsCounted projects</div>
         </article>
         <article class="db-stat">
-            <div class="db-stat-label">Simulated projects</div>
-            <div class="db-stat-value">@simulated</div>
-            <div class="db-stat-note">Projects with simulation progress</div>
+            <div class="db-stat-label">Raw biogas</div>
+            <div class="db-stat-value">@kpi.RawBiogasNm3Day.ToString("N0")<small>Nm&sup3;/day</small></div>
+            <div class="db-stat-note">Across simulated projects</div>
         </article>
         <article class="db-stat">
-            <div class="db-stat-label">Approved projects</div>
-            <div class="db-stat-value">@approved</div>
-            <div class="db-stat-note">Approved project stage</div>
+            <div class="db-stat-label">Net CBG</div>
+            <div class="db-stat-value">@kpi.NetCbgKgDay.ToString("N0")<small>kg/day</small></div>
+            <div class="db-stat-note">Parasitic power @kpi.ParasiticPowerKw.ToString("N0") kW</div>
         </article>
     </section>
 
     <section class="db-section">
         <h2>Project pipeline</h2>
-        <div class="db-status-list">
-            <article class="db-status db-status--draft">
-                <div class="db-status-label">Draft</div>
-                <div class="db-status-value">@draft</div>
-            </article>
-            <article class="db-status db-status--simulated">
-                <div class="db-status-label">Simulated</div>
-                <div class="db-status-value">@simulated</div>
-            </article>
-            <article class="db-status db-status--proposed">
-                <div class="db-status-label">Proposed</div>
-                <div class="db-status-value">@proposed</div>
-            </article>
-            <article class="db-status db-status--approved">
-                <div class="db-status-label">Approved</div>
-                <div class="db-status-value">@approved</div>
-            </article>
+        <div class="db-pills">
+            <article class="db-pill db-pill--draft"><span>Draft</span><strong>@Count(ProjectStatus.Draft)</strong></article>
+            <article class="db-pill db-pill--simulated"><span>Simulated</span><strong>@Count(ProjectStatus.Simulated)</strong></article>
+            <article class="db-pill db-pill--approved"><span>Approved</span><strong>@Count(ProjectStatus.Approved)</strong></article>
+            <article class="db-pill db-pill--archived"><span>Archived</span><strong>@Count(ProjectStatus.Archived)</strong></article>
         </div>
     </section>
 
-    @if (Model != null)
-    {
+    <div class="db-cols">
         <section class="db-section">
-            <h2>Latest simulation snapshot</h2>
-            <div class="db-latest">
-                <div class="db-latest-item">
-                    <span>Raw biogas production</span>
-                    <strong>@Model.RawBiogasNm3Day.ToString("N1") Nm³/day</strong>
-                </div>
-                <div class="db-latest-item">
-                    <span>Net CBG production</span>
-                    <strong>@Model.NetCbgKgDay.ToString("N1") kg/day</strong>
-                </div>
-                <div class="db-latest-item">
-                    <span>Digester volume per tank</span>
-                    <strong>@Model.DigesterVolumeM3.ToString("N1") m³</strong>
-                </div>
-                <div class="db-latest-item">
-                    <span>Digester dimensions</span>
-                    <strong>@Model.DigesterDiameterM.ToString("N1") × @Model.DigesterHeightM.ToString("N1") m</strong>
-                </div>
-                <div class="db-latest-item">
-                    <span>Digester count</span>
-                    <strong>@Model.DigesterCount</strong>
-                </div>
-                <div class="db-latest-item">
-                    <span>Parasitic power</span>
-                    <strong>@Model.ParasiticPowerKw.ToString("N1") kW</strong>
-                </div>
-            </div>
-
-            @if (Model.Warnings != null && Model.Warnings.Count > 0)
+            <h2>Recent projects</h2>
+            <p class="db-sub">Latest five projects and which drawings they have.</p>
+            @if (Model.RecentProjects.Count == 0)
             {
-                <div class="db-warning mt-3">
-                    <strong>Simulation warnings</strong>
-                    <ul class="mb-0 mt-2">
-                        @foreach (var warning in Model.Warnings)
-                        {
-                            <li>@warning</li>
-                        }
-                    </ul>
+                <div class="db-empty-note">No projects yet. Create one to get started.</div>
+            }
+            else
+            {
+                <ul class="db-list">
+                    @foreach (var p in Model.RecentProjects)
+                    {
+                        <li class="db-proj">
+                            <div class="db-proj-head">
+                                <a class="db-proj-name" asp-controller="Project" asp-action="Detail" asp-route-id="@p.ProjectId">@p.Name</a>
+                                <span class="bp-chip bp-chip--@(p.Status.Css())">@p.Status.Label()</span>
+                            </div>
+                            <div class="db-proj-meta">
+                                @(string.IsNullOrWhiteSpace(p.Country) ? "Location not set" : p.Country)
+                                &middot; @(p.LatestRunVersion.HasValue ? $"Run v{p.LatestRunVersion}" : "No run yet")
+                                &middot; Created @p.CreatedAt.ToString("dd MMM yyyy")
+                            </div>
+                            <div class="db-proj-foot">
+                                <div class="db-tags">
+                                    <span class="db-tag @(p.HasLayout ? "is-on" : "")">Layout</span>
+                                    <span class="db-tag @(p.HasPfd ? "is-on" : "")">PFD</span>
+                                    <span class="db-tag @(p.HasPid? PidCss(p.PidStatus) : "")">@(p.HasPid ? "P&ID " + PidText(p.PidStatus) : "P&ID")</span>
+                                </div>
+                                <div class="db-links">
+                                    @if (p.LatestRunId.HasValue)
+                                    {
+                                        <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="Dashboard" asp-route-runId="@p.LatestRunId">Simulation</a>
+                                        <a class="bp-btn bp-btn--ghost" asp-controller="Pid" asp-action="Index" asp-route-projectId="@p.ProjectId" asp-route-runId="@p.LatestRunId">P&amp;ID</a>
+                                    }
+                                    else
+                                    {
+                                        <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="Mixer" asp-route-projectId="@p.ProjectId">Start mixer</a>
+                                    }
+                                </div>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="db-section">
+            <h2>Waiting for approval</h2>
+            <p class="db-sub">P&amp;ID drawings submitted for review.</p>
+            @if (Model.PendingPids.Count == 0)
+            {
+                <div class="db-empty-note">Nothing is waiting for review.</div>
+            }
+            else
+            {
+                <ul class="db-list">
+                    @foreach (var x in Model.PendingPids)
+                    {
+                        <li class="db-approve">
+                            <div>
+                                <strong>@x.DrawingNo &middot; Rev @x.RevisionNo</strong>
+                                <span>@x.ProjectName @(x.UpdatedAt.HasValue ? "- " + x.UpdatedAt.Value.ToString("dd MMM, HH:mm") : "")</span>
+                            </div>
+                            <a class="bp-btn bp-btn--ghost" asp-controller="Pid" asp-action="Editor" asp-route-id="@x.PidDiagramId">Review</a>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    </div>
+
+    <div class="db-cols-even">
+        <section class="db-section">
+            <h2>Enquiries and proposals</h2>
+            <p class="db-sub">@Model.Enquiries.Total enquiries received.</p>
+            <div class="db-pills">
+                <article class="db-pill db-pill--simulated"><span>New</span><strong>@Model.Enquiries.New</strong></article>
+                <article class="db-pill db-pill--violet"><span>Under review</span><strong>@Model.Enquiries.UnderReview</strong></article>
+                <article class="db-pill db-pill--approved"><span>Approved</span><strong>@Model.Enquiries.Approved</strong></article>
+                <article class="db-pill db-pill--red"><span>Rejected</span><strong>@Model.Enquiries.Rejected</strong></article>
+            </div>
+            <p class="db-sub mt-3 mb-2">Proposals: @Model.Enquiries.ProposalsDraft draft, @Model.Enquiries.ProposalsSent sent, @Model.Enquiries.ProposalsApproved approved.</p>
+            @if (canAdmin)
+            {
+                <div class="db-links mt-2">
+                    <a class="bp-btn bp-btn--ghost" asp-controller="Enquiry" asp-action="Index">Open enquiries</a>
                 </div>
             }
+        </section>
 
-            <div class="db-hero-actions mt-3">
-                <a class="bp-btn bp-btn--primary" asp-controller="Simulation" asp-action="Dashboard" asp-route-runId="@Model.SimulationRunId">Open simulation</a>
-                <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="Results" asp-route-runId="@Model.SimulationRunId">Detailed results</a>
-                <a class="bp-btn bp-btn--ghost" asp-controller="Cad" asp-action="Index" asp-route-runId="@Model.SimulationRunId">CAD</a>
-                <a class="bp-btn bp-btn--ghost" asp-controller="Proposal" asp-action="Index" asp-route-runId="@Model.SimulationRunId">Proposal</a>
+        <section class="db-section">
+            <h2>Site assessments</h2>
+            <p class="db-sub">Plot surveys and site plans.</p>
+            <div class="db-pills" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+                <article class="db-pill db-pill--draft"><span>Total</span><strong>@Model.Assessments.Total</strong></article>
+                <article class="db-pill db-pill--simulated"><span>In draft</span><strong>@Model.Assessments.Draft</strong></article>
+                <article class="db-pill db-pill--approved"><span>Converted</span><strong>@Model.Assessments.Converted</strong></article>
+            </div>
+            <div class="db-links mt-3">
+                <a class="bp-btn bp-btn--ghost" asp-controller="Assessment" asp-action="Index">Open assessments</a>
             </div>
         </section>
-    }
-    else
-    {
-        <section class="db-section db-empty">
-            <h3>No simulation selected yet</h3>
-            <p>Create a project and run the mixer simulation to see plant KPIs here.</p>
-            <a class="bp-btn bp-btn--primary" asp-controller="Project" asp-action="Create">Create your first project</a>
-        </section>
-    }
+    </div>
+
+    <section class="db-section db-pid" aria-labelledby="db-pid-title">
+        <div>
+            <span class="db-pid-eyebrow">Process drawing</span>
+            <h2 id="db-pid-title">P&amp;ID studio</h2>
+            <p>Piping and instrumentation diagram: pipes, valves and sensors between your sized equipment, drawn automatically from a simulation run.</p>
+        </div>
+        <ol class="db-pid-flow" role="list">
+            <li>Feed</li>
+            <li>Pre-treatment</li>
+            <li>Digestion</li>
+            <li>Gas holding</li>
+            <li>Upgrading</li>
+            <li>CBG</li>
+        </ol>
+        <div class="db-hero-actions">
+            @if (Model.FeaturedProjectId.HasValue)
+            {
+                <a class="bp-btn bp-btn--primary" asp-controller="Pid" asp-action="Index" asp-route-projectId="@Model.FeaturedProjectId" asp-route-runId="@Model.FeaturedRunId">Open P&amp;ID for @Model.FeaturedProjectName</a>
+            }
+            else
+            {
+                <a class="bp-btn bp-btn--primary" asp-controller="Project" asp-action="Index">Pick a project to draw</a>
+            }
+        </div>
+    </section>
+
+    <section class="db-section">
+        <h2>Recent activity</h2>
+        @if (Model.Activity.Count == 0)
+        {
+            <div class="db-empty-note">Activity will appear here as you work.</div>
+        }
+        else
+        {
+            <ul class="db-timeline">
+                @foreach (var a in Model.Activity)
+                {
+                    <li class="@DotCss(a.Kind)">
+                        <div class="db-tl-title">@a.Title</div>
+                        <div class="db-tl-meta">
+                            @a.Kind
+                            @if (!string.IsNullOrEmpty(a.Detail))
+                            {
+                                <text>&middot; @a.Detail</text>
+                            }
+                            @if (!string.IsNullOrEmpty(a.By))
+                            {
+                                <text>&middot; @a.By</text>
+                            }
+                            &middot; @a.At.ToString("dd MMM yyyy, HH:mm")
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
 
     <section class="db-section">
         <h2>Quick actions</h2>
@@ -338,6 +754,8 @@
             <a class="bp-btn bp-btn--primary" asp-controller="Project" asp-action="Create">Create project</a>
             <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Index">Project library</a>
             <a class="bp-btn bp-btn--ghost" asp-controller="Feedstock" asp-action="Index">Feedstock catalog</a>
+            <a class="bp-btn bp-btn--ghost" asp-controller="Assessment" asp-action="Index">Site assessments</a>
         </div>
     </section>
+
 </div>

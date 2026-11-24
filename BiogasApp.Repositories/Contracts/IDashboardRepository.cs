@@ -12,4 +12,6 @@ public interface IDashboardRepository
     Task<Dictionary<ProjectStatus, int>> GetProjectStatusCountsAsync(CancellationToken cancellationToken = default);
 
     Task<int> GetTotalRunCountAsync(CancellationToken cancellationToken = default);
+
+    Task<DashboardOverviewDto> GetOverviewAsync(Guid? projectId, CancellationToken cancellationToken = default);
 }

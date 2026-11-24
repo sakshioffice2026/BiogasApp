@@ -76,6 +76,8 @@ else
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-primary btn-sm" asp-action="Editor" asp-route-id="@Model.PidDiagramId">Open editor</a>
                     <a class="btn btn-outline-success btn-sm" asp-action="ExportExcel" asp-route-id="@Model.PidDiagramId">Excel lists</a>
+                    <a class="btn btn-outline-primary btn-sm" asp-action="ExportDxf" asp-route-id="@Model.PidDiagramId">Download DXF</a>
+                    <a class="btn btn-outline-danger btn-sm" asp-action="ExportPdf" asp-route-id="@Model.PidDiagramId">Download PDF</a>
                     <form method="post" asp-action="Delete" class="d-inline" onsubmit="return confirm('Delete this P&ID?');">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@Model.PidDiagramId" />

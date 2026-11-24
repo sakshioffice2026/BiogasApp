@@ -80,6 +80,7 @@ else
                     <th scope="col">Status</th>
                     <th scope="col">Checklist</th>
                     <th scope="col">Layout</th>
+                    <th scope="col">P&amp;ID</th>
                     <th scope="col">Site</th>
                     <th scope="col">CAD drawings</th>
                 </tr>
@@ -103,6 +104,10 @@ else
                         <td>
                             <a class="btn btn-sm btn-outline-secondary"
                                asp-controller="Layout" asp-action="Editor" asp-route-projectId="@p.Id">Layout</a>
+                        </td>
+                        <td>
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-controller="Pid" asp-action="Index" asp-route-projectId="@p.Id">P&amp;ID</a>
                         </td>
                         <td>
                             <a class="btn btn-sm btn-outline-secondary"
