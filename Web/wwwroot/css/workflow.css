@@ -1,6 +1,6 @@
 .wf-layout {
     display: grid;
-    grid-template-columns: 400px minmax(0, 1fr);
+    grid-template-columns: 270px minmax(0, 1fr);
     grid-auto-rows: min-content;
     column-gap: 1.25rem;
     row-gap: 0;
@@ -23,7 +23,7 @@
     }
 
 .wf {
-    padding: 1.25rem;
+    padding: .75rem;
     background: var(--bp-surface);
     border: 1px solid var(--bp-line);
     border-radius: var(--bp-radius);
@@ -35,7 +35,7 @@
 .wf__head,
 .wf__row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 34px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
     gap: 8px;
     align-items: center;
 }
@@ -53,7 +53,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -75,12 +75,12 @@
     align-items: center;
     gap: 8px;
     min-width: 0;
-    padding: 9px 11px;
+    padding: 6px 8px;
     background: #fff;
     border: 1px solid var(--bp-line);
     border-radius: var(--bp-radius-sm);
-    font-size: .92rem;
-    line-height: 1.3;
+    font-size: .8rem;
+    line-height: 1.25;
     color: var(--bp-ink-mute);
     transition: border-color .2s var(--bp-ease), background .2s var(--bp-ease);
 }
@@ -103,12 +103,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: #fff;
     border: 1px solid var(--bp-line);
-    font-size: .92rem;
+    font-size: .8rem;
     font-weight: 600;
     color: var(--bp-ink-mute);
 }

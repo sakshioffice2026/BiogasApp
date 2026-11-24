@@ -11,48 +11,52 @@
     {
         <dl class="sm-bubbles">
             <div class="sm-bubble"><dt>Digester tanks</dt><dd>@Model.TankCount</dd></div>
-            <div class="sm-bubble"><dt>Feed heating (per tank)</dt><dd>@Model.FeedHeatingKwPerTank.ToString("N1") <small>kW</small></dd></div>
-            <div class="sm-bubble"><dt>Transmission loss (per tank)</dt><dd>@Model.TransmissionLossKwPerTank.ToString("N1") <small>kW</small></dd></div>
-            <div class="sm-bubble"><dt>Heat duty (per tank)</dt><dd>@Model.TotalThermalDutyKwPerTank.ToString("N1") <small>kW</small></dd></div>
             <div class="sm-bubble"><dt>Heat duty (all tanks)</dt><dd>@Model.TotalThermalDutyKw.ToString("N1") <small>kW</small></dd></div>
-            <div class="sm-bubble"><dt>Heat exchanger area (per tank)</dt><dd>@Model.HeatExchangerAreaM2PerTank.ToString("N0") <small>m&sup2;</small></dd></div>
+            <div class="sm-bubble"><dt>Heat duty (per tank)</dt><dd>@Model.TotalThermalDutyKwPerTank.ToString("N1") <small>kW</small></dd></div>
             <div class="sm-bubble"><dt>Mixing power (per tank)</dt><dd>@Model.TotalMixingPowerKwPerTank.ToString("N1") <small>kW</small></dd></div>
-            <div class="sm-bubble"><dt>Agitators (per tank)</dt><dd>@Model.AgitatorCountPerTank</dd></div>
-            <div class="sm-bubble"><dt>Power per agitator</dt><dd>@Model.PowerPerAgitatorKw.ToString("N0") <small>kW</small></dd></div>
         </dl>
 
-        <h3 class="sm-sub-title">Shell courses (per tank)</h3>
-        @if (Model.ShellCourses.Count == 0)
-        {
-            <p class="bp-muted mb-0">Shell course data was not saved for this run.</p>
-        }
-        else
-        {
-            <div class="sm-table-wrap">
-                <table class="sm-table">
-                    <thead>
-                        <tr>
-                            <th scope="col">Course</th>
-                            <th scope="col" class="text-end">Calculated (mm)</th>
-                            <th scope="col" class="text-end">Specified (mm)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var c in Model.ShellCourses)
-                        {
-                            <tr>
-                                <th scope="row">@c.CourseIndex</th>
-                                <td class="text-end">@(c.CalculatedMm > 0 ? c.CalculatedMm.ToString("N2") : "-")</td>
-                                <td class="text-end">@c.SpecifiedMm.ToString("N0")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-    }
+        <details class="mt-3">
+            <summary class="sm-sub-title" style="cursor:pointer;">More thermal and mixing detail</summary>
+            <dl class="sm-bubbles mt-2">
+                <div class="sm-bubble"><dt>Feed heating (per tank)</dt><dd>@Model.FeedHeatingKwPerTank.ToString("N1") <small>kW</small></dd></div>
+                <div class="sm-bubble"><dt>Transmission loss (per tank)</dt><dd>@Model.TransmissionLossKwPerTank.ToString("N1") <small>kW</small></dd></div>
+                <div class="sm-bubble"><dt>Heat exchanger area (per tank)</dt><dd>@Model.HeatExchangerAreaM2PerTank.ToString("N0") <small>m&sup2;</small></dd></div>
+                <div class="sm-bubble"><dt>Agitators (per tank)</dt><dd>@Model.AgitatorCountPerTank</dd></div>
+                <div class="sm-bubble"><dt>Power per agitator</dt><dd>@Model.PowerPerAgitatorKw.ToString("N0") <small>kW</small></dd></div>
+            </dl>
+        </details>
 
-    <div class="sm-next">
-        <a class="bp-btn bp-btn--ghost" href="#sm-upgrading">Next: Upgrading &rarr;</a>
-    </div>
+        <details class="mt-3">
+            <summary class="sm-sub-title" style="cursor:pointer;">Shell courses (per tank)</summary>
+            @if (Model.ShellCourses.Count == 0)
+            {
+                <p class="bp-muted mb-0 mt-2">Shell course data was not saved for this run.</p>
+            }
+            else
+            {
+                <div class="sm-table-wrap mt-2">
+                    <table class="sm-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Course</th>
+                                <th scope="col" class="text-end">Calculated (mm)</th>
+                                <th scope="col" class="text-end">Specified (mm)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model.ShellCourses)
+                            {
+                                <tr>
+                                    <th scope="row">@c.CourseIndex</th>
+                                    <td class="text-end">@(c.CalculatedMm > 0 ? c.CalculatedMm.ToString("N2") : "-")</td>
+                                    <td class="text-end">@c.SpecifiedMm.ToString("N0")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </details>
+    }
 </section>

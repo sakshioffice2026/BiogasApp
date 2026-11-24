@@ -28,6 +28,124 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
+    <style>
+        .sx-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .9rem;
+        }
+
+            .sx-table th {
+                text-align: left;
+                padding: 10px 8px;
+                font-size: .78rem;
+                font-weight: 600;
+                color: var(--bp-ink-mute);
+                white-space: nowrap;
+            }
+
+            .sx-table td {
+                padding: 12px 8px;
+                border-top: 1px solid var(--bp-line);
+                color: var(--bp-ink);
+                vertical-align: middle;
+            }
+
+            .sx-table .sx-num {
+                text-align: right;
+                white-space: nowrap;
+            }
+
+            .sx-table tbody tr:hover td {
+                background: rgba(91, 91, 240, .05);
+            }
+
+            .sx-table tr.is-picked td {
+                background: rgba(16, 181, 232, .08);
+            }
+
+        .sx-run {
+            font-family: var(--bp-font-display);
+            font-weight: 600;
+            color: var(--bp-link);
+            white-space: nowrap;
+        }
+
+        .sx-date {
+            font-size: .8rem;
+            color: var(--bp-ink-mute);
+            white-space: nowrap;
+        }
+
+        .sx-links {
+            display: flex;
+            gap: 6px;
+            justify-content: flex-end;
+            white-space: nowrap;
+        }
+
+            .sx-links a {
+                padding: 6px 12px;
+                border-radius: 999px;
+                border: 1px solid var(--bp-line);
+                background: #fff;
+                color: var(--bp-ink);
+                text-decoration: none;
+                font-size: .82rem;
+                font-weight: 600;
+            }
+
+                .sx-links a:hover {
+                    color: var(--bp-link);
+                    box-shadow: var(--bp-shadow);
+                }
+
+        .sx-cmpbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: var(--bp-gap);
+            padding: 10px 16px;
+        }
+
+        .sx-scroll {
+            overflow-x: auto;
+        }
+
+        .sx-pick input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--bp-indigo);
+        }
+    </style>
+}
+@section Scripts {
+    <script>
+        (function () {
+            var form = document.querySelector('[data-sm-compare]');
+            if (!form) return;
+            var boxes = form.querySelectorAll('.sx-pick input');
+            var btn = form.querySelector('[data-sx-compare]');
+            var note = form.querySelector('[data-sx-note]');
+            var a = form.querySelector('[name="runA"]');
+            var b = form.querySelector('[name="runB"]');
+            function sync() {
+                var checked = Array.prototype.filter.call(boxes, function (x) { return x.checked; });
+                boxes.forEach(function (x) {
+                    x.closest('tr').classList.toggle('is-picked', x.checked);
+                    x.disabled = !x.checked && checked.length >= 2;
+                });
+                if (btn) btn.disabled = checked.length !== 2;
+                if (note) note.textContent = checked.length + ' of 2 runs selected';
+                a.value = checked.length > 0 ? checked[0].value : '';
+                b.value = checked.length > 1 ? checked[1].value : '';
+            }
+            boxes.forEach(function (x) { x.addEventListener('change', sync); });
+            sync();
+        })();
+    </script>
 }
 
 <div class="bp-page-head">
@@ -57,70 +175,82 @@
 else
 {
     <form method="get" asp-action="Compare" class="sm-history" data-sm-compare>
+        <input type="hidden" name="runA" value="" />
+        <input type="hidden" name="runB" value="" />
+
         @if (count > 1)
         {
-            <div class="sm-compare-bar bp-glass">
-                <p class="mb-0">Pick one run as <strong>A</strong> and one as <strong>B</strong>, then compare them.</p>
-                <button type="submit" class="bp-btn bp-btn--primary">Compare runs</button>
+            <div class="sx-cmpbar bp-card">
+                <p class="mb-0 bp-muted" data-sx-note aria-live="polite">0 of 2 runs selected</p>
+                <button type="submit" class="bp-btn bp-btn--primary" data-sx-compare disabled>Compare</button>
             </div>
         }
 
-        <ol class="sm-timeline" role="list">
-            @foreach (var run in Model)
-            {
-                var warns = WarningCount(run.WarningsJson);
-                <li class="sm-run @(run.Id == latestId ? "is-latest" : null)">
-                    <span class="sm-run__node" aria-hidden="true">v@(run.RunVersion)</span>
-                    <article class="sm-run__card bp-card">
-                        <header class="sm-run__head">
-                            <h2 class="sm-run__title">Run v@(run.RunVersion)</h2>
-                            @if (run.Id == latestId)
-                            {
-                                <span class="bp-chip bp-chip--approved">
-                                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
-                                    Latest
-                                </span>
-                            }
-                            @if (warns > 0)
-                            {
-                                <span class="bp-chip bp-chip--archived">
-                                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 3 20h18L12 4zM12 10v4M12 17v.5" /></svg>
-                                    @warns @(warns == 1 ? "note" : "notes")
-                                </span>
-                            }
-                            <time class="sm-run__date" datetime="@run.CreatedAt.ToString("o")">@run.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</time>
-                        </header>
-
-                        <dl class="sm-bubbles sm-bubbles--tight">
-                            <div class="sm-bubble"><dt>Feed</dt><dd>@run.TotalFeedTpd.ToString("N1") <small>TPD</small></dd></div>
-                            <div class="sm-bubble"><dt>Raw biogas</dt><dd>@run.RawBiogasNm3Day.ToString("N0") <small>Nm&sup3;/day</small></dd></div>
-                            <div class="sm-bubble"><dt>Net output</dt><dd>@run.NetCbgKgDay.ToString("N0") <small>kg/day</small></dd></div>
-                            <div class="sm-bubble"><dt>C:N</dt><dd>@run.BlendedCnRatio.ToString("N1")</dd></div>
-                            <div class="sm-bubble"><dt>Retention</dt><dd>@run.HrtDays.ToString("N1") <small>days</small></dd></div>
-                        </dl>
-
-                        <footer class="sm-run__foot">
-                            <div class="sm-run__links">
-                                <a class="bp-btn bp-btn--ghost" asp-action="Dashboard" asp-route-runId="@run.Id">Dashboard</a>
-                                <a class="bp-btn bp-btn--ghost" asp-action="Results" asp-route-runId="@run.Id">Full results</a>
-                            </div>
+        <section class="bp-card sx-scroll">
+            <table class="sx-table">
+                <thead>
+                    <tr>
+                        @if (count > 1)
+                        {
+                            <th><span class="visually-hidden">Select</span></th>
+                        }
+                        <th>Run</th>
+                        <th>Date</th>
+                        <th class="sx-num">Feed (TPD)</th>
+                        <th class="sx-num">Raw biogas (Nm&sup3;/day)</th>
+                        <th class="sx-num">Net (kg/day)</th>
+                        <th class="sx-num">C:N</th>
+                        <th class="sx-num">Retention (days)</th>
+                        <th class="sx-num">Notes</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var run in Model)
+                    {
+                        var warns = WarningCount(run.WarningsJson);
+                        <tr>
                             @if (count > 1)
                             {
-                                <div class="sm-run__pick">
-                                    <label class="sm-pick">
-                                        <input type="radio" name="runA" value="@run.Id" required />
-                                        <span><span class="visually-hidden">Use run v@(run.RunVersion) as </span>A</span>
+                                <td>
+                                    <label class="sx-pick">
+                                        <input type="checkbox" value="@run.Id" aria-label="Select run v@(run.RunVersion) to compare" />
                                     </label>
-                                    <label class="sm-pick">
-                                        <input type="radio" name="runB" value="@run.Id" required />
-                                        <span><span class="visually-hidden">Use run v@(run.RunVersion) as </span>B</span>
-                                    </label>
-                                </div>
+                                </td>
                             }
-                        </footer>
-                    </article>
-                </li>
-            }
-        </ol>
+                            <td class="sx-run">
+                                v@(run.RunVersion)
+                                @if (run.Id == latestId)
+                                {
+                                    <span class="bp-chip bp-chip--approved">Latest</span>
+                                }
+                            </td>
+                            <td class="sx-date"><time datetime="@run.CreatedAt.ToString("o")">@run.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</time></td>
+                            <td class="sx-num">@run.TotalFeedTpd.ToString("N1")</td>
+                            <td class="sx-num">@run.RawBiogasNm3Day.ToString("N0")</td>
+                            <td class="sx-num">@run.NetCbgKgDay.ToString("N0")</td>
+                            <td class="sx-num">@run.BlendedCnRatio.ToString("N1")</td>
+                            <td class="sx-num">@run.HrtDays.ToString("N1")</td>
+                            <td class="sx-num">
+                                @if (warns > 0)
+                                {
+                                    <span class="bp-chip bp-chip--archived">@warns</span>
+                                }
+                                else
+                                {
+                                    <span class="bp-muted">0</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="sx-links">
+                                    <a asp-action="Dashboard" asp-route-runId="@run.Id">Dashboard</a>
+                                    <a asp-action="Results" asp-route-runId="@run.Id">Full results</a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </section>
     </form>
 }

@@ -1,24 +1,4 @@
-@using System.Globalization
 @model BiogasApp.Model.DTOs.DashboardDto
-@{
-    var inv = CultureInfo.InvariantCulture;
-    var cnPos = Math.Min(100d, Math.Max(0d, Model.BlendedCnRatio / 50d * 100d));
-}
-@functions {
-    static string ZoneIcon(string zone) => zone switch
-    {
-        "Green" => "m5 12.5 4.5 4.5L19 7.5",
-        "Yellow" => "M12 4 3 20h18L12 4zM12 10v4M12 17v.5",
-        _ => "M6 6l12 12M18 6 6 18"
-    };
-
-    static string ZoneText(string zone) => zone switch
-    {
-        "Green" => "Optimal",
-        "Yellow" => "Watch",
-        _ => "Critical"
-    };
-}
 
 <section class="sm-kpis" aria-label="Key results">
     <article class="sm-kpi sm-kpi--flame bp-card">
@@ -43,7 +23,7 @@
         </span>
         <p class="sm-kpi__label">Digesters</p>
         <p class="sm-kpi__value">@Model.DigesterCount <small>@(Model.DigesterCount == 1 ? "tank" : "tanks")</small></p>
-        <p class="sm-kpi__sub">@Model.DigesterDiameterM.ToString("N1") m wide, @Model.DigesterHeightM.ToString("N1") m high, @Model.DigesterVolumeM3.ToString("N0") m&sup3; each</p>
+        <p class="sm-kpi__sub">@Model.DigesterVolumeM3.ToString("N0") m&sup3; each</p>
     </article>
 
     <article class="sm-kpi sm-kpi--flame bp-card">
@@ -53,31 +33,5 @@
         <p class="sm-kpi__label">Parasitic load</p>
         <p class="sm-kpi__value">@Model.ParasiticPowerKw.ToString("N0") <small>kW power</small></p>
         <p class="sm-kpi__sub">@Model.ParasiticHeatKw.ToString("N0") kW heat</p>
-    </article>
-
-    <article class="bp-gauge bp-gauge--cn sm-kpi sm-kpi--wide bp-card" data-gauge="cn" data-value="@Model.BlendedCnRatio.ToString("0.##", inv)" data-zone="@Model.CnGaugeZone" style="--bp-pos:@cnPos.ToString("0.#", inv)">
-        <p class="bp-gauge__title">Blended C:N ratio</p>
-        <div class="bp-gauge__track" aria-hidden="true">
-            <span class="bp-gauge__seg bp-gauge__seg--red" style="--bp-w:30"></span>
-            <span class="bp-gauge__seg bp-gauge__seg--yellow" style="--bp-w:10"></span>
-            <span class="bp-gauge__seg bp-gauge__seg--green" style="--bp-w:20"></span>
-            <span class="bp-gauge__seg bp-gauge__seg--yellow" style="--bp-w:10"></span>
-            <span class="bp-gauge__seg bp-gauge__seg--red" style="--bp-w:30"></span>
-            <span class="bp-gauge__marker"></span>
-        </div>
-        <p class="bp-gauge__readout">
-            <strong data-gauge-value>@Model.BlendedCnRatio.ToString("0.##", inv)</strong>
-            <span class="bp-gauge__zone">
-                @foreach (var z in new[] { "Green", "Yellow", "Red" })
-                {
-                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false" data-zone-icon="@z"><path d="@ZoneIcon(z)" /></svg>
-                }
-                @foreach (var z in new[] { "Green", "Yellow", "Red" })
-                {
-                    <span data-zone-text="@z">@ZoneText(z)</span>
-                }
-            </span>
-        </p>
-        <p class="bp-gauge__scale"><span>0</span><span>15</span><span>20 to 30 ideal</span><span>35</span><span>50</span></p>
     </article>
 </section>
