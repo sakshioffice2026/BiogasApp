@@ -1,0 +1,174 @@
+@using BiogasApp.Database.Enums
+@model BiogasApp.Model.ViewModel.PidEditorViewModel
+@{
+    ViewData["Title"] = "P&ID editor";
+    var d = Model.Diagram;
+    var badge = d.Status switch
+    {
+        PidApprovalStatus.Approved => "bg-success",
+        PidApprovalStatus.InReview => "bg-info text-dark",
+        PidApprovalStatus.Rejected => "bg-danger",
+        PidApprovalStatus.Superseded => "bg-dark",
+        _ => "bg-secondary"
+    };
+}
+
+@section Styles {
+    <style>
+        .pid-canvas {
+            height: calc(100vh - 300px);
+            min-height: 480px;
+            border: 1px solid #ced4da;
+            border-radius: .375rem;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .pid-side {
+            max-height: calc(100vh - 300px);
+            min-height: 480px;
+            overflow-y: auto;
+        }
+    </style>
+}
+
+<div id="pidEditor"
+     data-diagram-id="@d.Id"
+     data-readonly="@(Model.IsReadOnly ? "true" : "false")"
+     data-data-url="@Url.Action("Data", "Pid", new { id = d.Id })"
+     data-save-url="@Url.Action("Save", "Pid")"
+     data-status-url="@Url.Action("SetStatus", "Pid")"
+     data-revision-url="@Url.Action("NewRevision", "Pid")">
+
+    @Html.AntiForgeryToken()
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+        <div>
+            <h1 class="h4 mb-0">P&amp;ID editor</h1>
+            <div class="text-muted">
+                @Model.ProjectName - @d.DrawingNo - Rev @d.RevisionNo
+                <span class="badge @badge ms-1">@d.Status</span>
+                <span class="text-warning small ms-2" id="pidDirty"></span>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Back</a>
+            <a class="btn btn-outline-primary btn-sm" asp-action="ExportDxf" asp-route-id="@d.Id">Download DXF</a>
+            <a class="btn btn-outline-success btn-sm" asp-action="ExportExcel" asp-route-id="@d.Id">Excel lists</a>
+        </div>
+    </div>
+
+    @if (Model.IsReadOnly)
+    {
+        <div class="alert alert-secondary py-2 small mb-2">This revision is approved and read-only. Create a new revision to edit.</div>
+    }
+
+    <div id="pidMessage" class="d-none"></div>
+
+    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+        <button type="button" class="btn btn-success btn-sm" id="btnSave" @(Model.IsReadOnly ? "disabled" : "")>Save</button>
+
+        <div class="vr"></div>
+
+        <select class="form-select form-select-sm w-auto" id="selValveType" aria-label="Valve type">
+            <option value="Gate">Gate</option>
+            <option value="Ball">Ball</option>
+            <option value="Butterfly">Butterfly</option>
+            <option value="Check">Check</option>
+            <option value="Globe">Globe</option>
+            <option value="Relief">Relief</option>
+            <option value="Control">Control</option>
+            <option value="Solenoid">Solenoid</option>
+        </select>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddValve" disabled>Add valve</button>
+
+        <select class="form-select form-select-sm w-auto" id="selInstrumentType" aria-label="Instrument type">
+            <option value="PT">PT - Pressure</option>
+            <option value="TT">TT - Temperature</option>
+            <option value="FT">FT - Flow</option>
+            <option value="LT">LT - Level</option>
+        </select>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddInstrument" disabled>Add instrument</button>
+
+        <button type="button" class="btn btn-outline-danger btn-sm" id="btnDeleteItem" disabled>Delete</button>
+
+        <div class="vr"></div>
+
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnLockNode" disabled>Lock</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnRotate" disabled>Rotate 90&deg;</button>
+
+        <div class="vr"></div>
+
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnZoomOut" aria-label="Zoom out">-</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnZoomIn" aria-label="Zoom in">+</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnFit">Fit</button>
+
+        <div class="vr"></div>
+
+        @if (d.Status == PidApprovalStatus.Draft || d.Status == PidApprovalStatus.Rejected)
+        {
+            <button type="button" class="btn btn-outline-info btn-sm" id="btnSubmitReview">Submit for review</button>
+        }
+        @if (d.Status == PidApprovalStatus.InReview)
+        {
+            <button type="button" class="btn btn-outline-success btn-sm" id="btnApprove">Approve</button>
+            <button type="button" class="btn btn-outline-danger btn-sm" id="btnReject">Reject</button>
+        }
+        @if (d.Status == PidApprovalStatus.Approved || d.Status == PidApprovalStatus.Rejected)
+        {
+            <button type="button" class="btn btn-outline-dark btn-sm" id="btnNewRevision">New revision</button>
+        }
+    </div>
+
+    <div class="row g-2">
+        <div class="col-lg-9">
+            <div class="pid-canvas" id="pidCanvas"></div>
+        </div>
+
+        <div class="col-lg-3">
+            <div class="pid-side">
+                <div class="card mb-2">
+                    <div class="card-body p-2">
+                        <div id="pidProps"></div>
+                    </div>
+                </div>
+
+                <div class="card mb-2">
+                    <div class="card-body p-2">
+                        <div class="fw-semibold mb-2">Legend</div>
+                        <div id="pidLegend"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body p-2">
+                        <div class="fw-semibold mb-2">Revisions</div>
+                        @if (Model.Revisions.Count == 0)
+                        {
+                            <div class="text-muted small">No revisions yet.</div>
+                        }
+                        else
+                        {
+                            foreach (var rev in Model.Revisions)
+                            {
+                                <div class="small border-bottom py-1">
+                                    <strong>Rev @rev.RevisionNo</strong> - @rev.Status
+                                    <div class="text-muted">@rev.ChangedBy, @rev.ChangedAt.ToString("dd MMM yyyy HH:mm")</div>
+                                    @if (!string.IsNullOrWhiteSpace(rev.Remarks))
+                                    {
+                                        <div>@rev.Remarks</div>
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pid-symbols.js" asp-append-version="true"></script>
+    <script src="~/js/pid-editor.js" asp-append-version="true"></script>
+}

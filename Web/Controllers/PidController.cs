@@ -218,6 +218,32 @@ public class PidController : Controller
         return File(bytes, XlsxMime, fileName);
     }
 
+
+
+    [HttpGet]
+    public async Task<IActionResult> ExportDxf(Guid id, CancellationToken cancellationToken)
+    {
+        var d = await _pid.GetByIdAsync(id, cancellationToken);
+        if (d == null) return NotFound();
+
+        var projectName = await _pid.GetProjectNameAsync(d.ProjectId, cancellationToken) ?? string.Empty;
+        var bytes = PidDxfWriter.Write(d, projectName, DateTime.UtcNow);
+        var fileName = $"{d.DrawingNo}_Rev{d.RevisionNo}.dxf";
+        return File(bytes, "application/dxf", fileName);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportPdf(Guid id, CancellationToken cancellationToken)
+    {
+        var d = await _pid.GetByIdAsync(id, cancellationToken);
+        if (d == null) return NotFound();
+
+        var projectName = await _pid.GetProjectNameAsync(d.ProjectId, cancellationToken) ?? string.Empty;
+        var bytes = PidPdfWriter.Write(d, projectName, DateTime.UtcNow);
+        var fileName = $"{d.DrawingNo}_Rev{d.RevisionNo}.pdf";
+        return File(bytes, "application/pdf", fileName);
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)

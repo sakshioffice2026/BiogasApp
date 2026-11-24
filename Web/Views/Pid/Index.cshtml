@@ -1,0 +1,130 @@
+@using BiogasApp.Database.Enums
+@model BiogasApp.Model.ViewModel.PidEditorViewModel
+@{
+    ViewData["Title"] = "P&ID";
+    var hasRuns = Model.AvailableRuns.Count > 0;
+    var hasDiagram = Model.PidDiagramId.HasValue;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h4 mb-0">P&amp;ID</h1>
+        <div class="text-muted">@Model.ProjectName</div>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" asp-controller="Project" asp-action="Detail" asp-route-id="@Model.ProjectId">Back to project</a>
+</div>
+
+@if (TempData["PidError"] is string pidError)
+{
+    <div class="alert alert-danger" role="alert">@pidError</div>
+}
+
+@if (!hasRuns)
+{
+    <div class="alert alert-info">
+        No simulation run with sized equipment found for this project. Run the simulation first.
+    </div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <h2 class="h6 mb-3">Generate from sized equipment</h2>
+            <form method="post" asp-action="Generate" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="projectId" value="@Model.ProjectId" />
+                <div class="col-md-6 col-lg-4">
+                    <label class="form-label small mb-1" for="simulationRunId">Simulation run</label>
+                    <select class="form-select form-select-sm" id="simulationRunId" name="simulationRunId">
+                        @foreach (var run in Model.AvailableRuns)
+                        {
+                            <option value="@run.SimulationRunId" selected="@(run.SimulationRunId == Model.SimulationRunId)">
+                                Run v@(run.RunVersion) - @run.CreatedAt.ToString("dd MMM yyyy HH:mm")
+                            </option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary btn-sm"
+                            onclick="return @(hasDiagram ? "confirm('A new P&ID will be created for this run. Continue?')" : "true");">
+                        Generate P&amp;ID
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@if (hasDiagram)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <div class="fw-semibold">@Model.Diagram.DrawingNo - @Model.Diagram.Title</div>
+                    <div class="small text-muted">
+                        Revision @Model.Diagram.RevisionNo
+                        <span class="badge bg-secondary ms-1">@Model.Diagram.Status</span>
+                    </div>
+                    <div class="small text-muted">
+                        @Model.Diagram.Nodes.Count equipment,
+                        @Model.Diagram.Lines.Count lines,
+                        @Model.Diagram.Valves.Count valves,
+                        @Model.Diagram.Instruments.Count instruments
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary btn-sm" asp-action="Editor" asp-route-id="@Model.PidDiagramId">Open editor</a>
+                    <a class="btn btn-outline-success btn-sm" asp-action="ExportExcel" asp-route-id="@Model.PidDiagramId">Excel lists</a>
+                    <form method="post" asp-action="Delete" class="d-inline" onsubmit="return confirm('Delete this P&ID?');">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.PidDiagramId" />
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h2 class="h6 mb-3">Revision history</h2>
+            @if (Model.Revisions.Count == 0)
+            {
+                <div class="text-muted small">No revisions yet.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Rev</th>
+                                <th>Status</th>
+                                <th>Remarks</th>
+                                <th>By</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rev in Model.Revisions)
+                            {
+                                <tr>
+                                    <td>@rev.RevisionNo</td>
+                                    <td>@rev.Status</td>
+                                    <td>@rev.Remarks</td>
+                                    <td>@rev.ChangedBy</td>
+                                    <td>@rev.ChangedAt.ToString("dd MMM yyyy HH:mm")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+else if (hasRuns)
+{
+    <div class="text-muted">No P&amp;ID yet for this run. Use Generate P&amp;ID above.</div>
+}
