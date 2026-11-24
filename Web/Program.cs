@@ -1,5 +1,6 @@
 using BiogasApp.Business.Engine;
 using BiogasApp.Business.Financial;
+using BiogasApp.Business.Pid;
 using BiogasApp.Database;
 using BiogasApp.Repositories.Contracts;
 using BiogasApp.Repositories.Repositories;
@@ -48,6 +49,11 @@ builder.Services.AddScoped<ISiteRepository, SiteRepository>();
 builder.Services.AddScoped<IClearanceRuleRepository, ClearanceRuleRepository>();
 builder.Services.AddScoped<ISiteLayoutRepository, SiteLayoutRepository>();
 builder.Services.AddScoped<IAssessmentRepository, AssessmentRepository>();
+builder.Services.AddScoped<IPidRepository, PidRepository>();
+builder.Services.AddScoped<IPidExport, PidExportRepository>();
+builder.Services.AddScoped<PidTagService>();
+builder.Services.AddScoped<PidTemplateBuilder>();
+builder.Services.AddScoped<PidAutoLayoutService>();
 // ---------- CAD generation (built-in layout engine) ----------
 builder.Services.AddScoped<ICadGeneration, CadGenerationRepository>();
 builder.Services.AddHttpClient<IReceptorProvider, OsmReceptorProvider>(client =>

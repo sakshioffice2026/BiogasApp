@@ -42,6 +42,14 @@ public class ApplicationDbContext : DbContext
     public DbSet<AssessmentEquipmentItem> AssessmentEquipmentItems => Set<AssessmentEquipmentItem>();
     public DbSet<AssessmentLayout> AssessmentLayouts => Set<AssessmentLayout>();
     public DbSet<AssessmentLayoutItem> AssessmentLayoutItems => Set<AssessmentLayoutItem>();
+
+    public DbSet<PidDiagram> PidDiagrams => Set<PidDiagram>();
+    public DbSet<PidEquipmentNode> PidEquipmentNodes => Set<PidEquipmentNode>();
+    public DbSet<PidLine> PidLines => Set<PidLine>();
+    public DbSet<PidValve> PidValves => Set<PidValve>();
+    public DbSet<PidInstrument> PidInstruments => Set<PidInstrument>();
+    public DbSet<PidRevision> PidRevisions => Set<PidRevision>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -837,6 +845,166 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        // ---------- pid_diagrams ----------
+        modelBuilder.Entity<PidDiagram>(e =>
+        {
+            e.ToTable("pid_diagrams");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.DrawingNo).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            e.Property(x => x.ApprovedBy).HasMaxLength(150);
+            e.Property(x => x.ApprovedAt).HasColumnType("timestamp");
+            e.Property(x => x.CreatedBy).HasMaxLength(150);
+            e.Property(x => x.CreatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.Property(x => x.UpdatedAt).HasColumnType("timestamp");
+            e.HasIndex(x => new { x.ProjectId, x.SimulationRunId });
+
+            e.HasOne(x => x.Project)
+                .WithMany()
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.SimulationRun)
+                .WithMany()
+                .HasForeignKey(x => x.SimulationRunId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- pid_equipment_nodes ----------
+        modelBuilder.Entity<PidEquipmentNode>(e =>
+        {
+            e.ToTable("pid_equipment_nodes");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Tag).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            e.Property(x => x.SymbolType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            e.Property(x => x.X).HasColumnType("decimal(10,2)");
+            e.Property(x => x.Y).HasColumnType("decimal(10,2)");
+            e.Property(x => x.RotationDeg).HasColumnType("decimal(6,2)");
+            e.HasIndex(x => x.PidDiagramId);
+
+            e.HasOne(x => x.PidDiagram)
+                .WithMany(d => d.Nodes)
+                .HasForeignKey(x => x.PidDiagramId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.EquipmentItem)
+                .WithMany()
+                .HasForeignKey(x => x.EquipmentItemId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasOne(x => x.SizedEquipment)
+                .WithMany()
+                .HasForeignKey(x => x.SizedEquipmentId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ---------- pid_lines ----------
+        modelBuilder.Entity<PidLine>(e =>
+        {
+            e.ToTable("pid_lines");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.LineNo).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Medium).HasConversion<string>().HasMaxLength(20).IsRequired();
+            e.Property(x => x.NominalSizeMm).HasColumnType("decimal(7,2)");
+            e.Property(x => x.Material).HasMaxLength(50);
+            e.Property(x => x.PointsJson).HasColumnType("json").IsRequired();
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => x.PidDiagramId);
+
+            e.HasOne(x => x.PidDiagram)
+                .WithMany(d => d.Lines)
+                .HasForeignKey(x => x.PidDiagramId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.FromNode)
+                .WithMany()
+                .HasForeignKey(x => x.FromNodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.ToNode)
+                .WithMany()
+                .HasForeignKey(x => x.ToNodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- pid_valves ----------
+        modelBuilder.Entity<PidValve>(e =>
+        {
+            e.ToTable("pid_valves");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Tag).HasMaxLength(50).IsRequired();
+            e.Property(x => x.ValveType).HasConversion<string>().HasMaxLength(20).IsRequired();
+            e.Property(x => x.NominalSizeMm).HasColumnType("decimal(7,2)");
+            e.Property(x => x.PositionOnLine).HasColumnType("decimal(5,4)");
+            e.Property(x => x.X).HasColumnType("decimal(10,2)");
+            e.Property(x => x.Y).HasColumnType("decimal(10,2)");
+            e.Property(x => x.RotationDeg).HasColumnType("decimal(6,2)");
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => x.PidDiagramId);
+            e.HasIndex(x => x.PidLineId);
+
+            e.HasOne(x => x.PidDiagram)
+                .WithMany(d => d.Valves)
+                .HasForeignKey(x => x.PidDiagramId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.PidLine)
+                .WithMany()
+                .HasForeignKey(x => x.PidLineId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- pid_instruments ----------
+        modelBuilder.Entity<PidInstrument>(e =>
+        {
+            e.ToTable("pid_instruments");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Tag).HasMaxLength(50).IsRequired();
+            e.Property(x => x.InstrumentType).HasConversion<string>().HasMaxLength(10).IsRequired();
+            e.Property(x => x.Service).HasMaxLength(150);
+            e.Property(x => x.RangeMin).HasColumnType("decimal(12,3)");
+            e.Property(x => x.RangeMax).HasColumnType("decimal(12,3)");
+            e.Property(x => x.Unit).HasMaxLength(20);
+            e.Property(x => x.X).HasColumnType("decimal(10,2)");
+            e.Property(x => x.Y).HasColumnType("decimal(10,2)");
+            e.Property(x => x.Notes).HasMaxLength(500);
+            e.HasIndex(x => x.PidDiagramId);
+
+            e.HasOne(x => x.PidDiagram)
+                .WithMany(d => d.Instruments)
+                .HasForeignKey(x => x.PidDiagramId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.PidLine)
+                .WithMany()
+                .HasForeignKey(x => x.PidLineId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(x => x.PidEquipmentNode)
+                .WithMany()
+                .HasForeignKey(x => x.PidEquipmentNodeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ---------- pid_revisions ----------
+        modelBuilder.Entity<PidRevision>(e =>
+        {
+            e.ToTable("pid_revisions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            e.Property(x => x.Remarks).HasMaxLength(500);
+            e.Property(x => x.SnapshotJson).HasColumnType("longtext");
+            e.Property(x => x.ChangedBy).HasMaxLength(150);
+            e.Property(x => x.ChangedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasIndex(x => new { x.PidDiagramId, x.RevisionNo });
+
+            e.HasOne(x => x.PidDiagram)
+                .WithMany(d => d.Revisions)
+                .HasForeignKey(x => x.PidDiagramId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
         // ---------- snake_case column names for every property ----------
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {
