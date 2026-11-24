@@ -130,7 +130,22 @@
 </div>
 </div>
 
-
+<section class="pidx bp-card" aria-labelledby="pidx-title">
+    <div class="pidx__copy">
+        <span class="pidx__eyebrow">Process drawing</span>
+        <h2 class="sm-card-title" id="pidx-title">P&amp;ID from this run</h2>
+        <p class="bp-muted mb-0">Piping and instrumentation diagram (the pipes, valves and sensors between equipment) built from the sized equipment of run v@(Model.RunVersion).</p>
+    </div>
+    <ol class="pidx__flow" role="list">
+        <li>Feed</li>
+        <li>Pre-treatment</li>
+        <li>Digestion</li>
+        <li>Gas holding</li>
+        <li>Upgrading</li>
+        <li>CBG</li>
+    </ol>
+    <a class="bp-btn bp-btn--primary pidx__cta" asp-controller="Pid" asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Open P&amp;ID</a>
+</section>
 
 @if (warnings.Count > 0)
 {
@@ -189,23 +204,6 @@
         </div>
     </section>
 </div>
-
-<section class="pidx bp-card" aria-labelledby="pidx-title">
-    <div class="pidx__copy">
-        <span class="pidx__eyebrow">Process drawing</span>
-        <h2 class="sm-card-title" id="pidx-title">P&amp;ID from this run</h2>
-        <p class="bp-muted mb-0">Piping and instrumentation diagram (the pipes, valves and sensors between equipment) built from the sized equipment of run v@(Model.RunVersion).</p>
-    </div>
-    <ol class="pidx__flow" role="list">
-        <li>Feed</li>
-        <li>Pre-treatment</li>
-        <li>Digestion</li>
-        <li>Gas holding</li>
-        <li>Upgrading</li>
-        <li>CBG</li>
-    </ol>
-    <a class="bp-btn bp-btn--primary pidx__cta" asp-controller="Pid" asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Open P&amp;ID</a>
-</section>
 
 <partial name="_ThermalCard" model="Model.Thermal" />
 

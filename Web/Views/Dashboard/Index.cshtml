@@ -10,33 +10,6 @@
     var canAdmin = User.IsInRole("SuperAdmin") || User.IsInRole("ClientAdmin");
     var kpi = Model.Kpis;
 }
-@functions {
-    static string PidCss(PidApprovalStatus? s) => s switch
-    {
-        PidApprovalStatus.Approved => "is-approved",
-        PidApprovalStatus.InReview => "is-review",
-        PidApprovalStatus.Rejected => "is-rejected",
-        PidApprovalStatus.Superseded => "is-muted",
-        _ => "is-draft"
-    };
-
-    static string PidText(PidApprovalStatus? s) => s switch
-    {
-        PidApprovalStatus.InReview => "In review",
-        null => "No P&ID",
-        _ => s.ToString() ?? string.Empty
-    };
-
-    static string DotCss(string kind) => kind switch
-    {
-        "Simulation" => "db-dot--sim",
-        "Layout" => "db-dot--layout",
-        "P&ID" => "db-dot--pid",
-        "CAD" => "db-dot--cad",
-        _ => string.Empty
-    };
-}
-
 @section Styles {
     <style>
         .db-wrap {
@@ -145,12 +118,6 @@
             margin: -10px 0 14px;
         }
 
-        .db-cols {
-            display: grid;
-            grid-template-columns: 3fr 2fr;
-            gap: 22px;
-        }
-
         .db-cols-even {
             display: grid;
             grid-template-columns: repeat(2,minmax(0,1fr));
@@ -216,104 +183,6 @@
             gap: 12px;
         }
 
-        .db-proj {
-            padding: 14px 16px;
-            border: 1px solid var(--bp-line);
-            border-radius: 16px;
-            background: #fff;
-            display: grid;
-            gap: 10px;
-        }
-
-        .db-proj-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .db-proj-name {
-            font-weight: 750;
-            color: var(--bp-ink);
-            text-decoration: none;
-        }
-
-            .db-proj-name:hover {
-                text-decoration: underline;
-            }
-
-        .db-proj-meta {
-            color: var(--bp-ink-mute);
-            font-size: .8rem;
-        }
-
-        .db-proj-foot {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .db-tags {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-
-        .db-tag {
-            padding: 3px 10px;
-            border-radius: 999px;
-            font-size: .74rem;
-            font-weight: 600;
-            border: 1px dashed var(--bp-line);
-            color: var(--bp-ink-mute);
-            background: transparent;
-        }
-
-            .db-tag.is-on {
-                border-style: solid;
-                border-color: transparent;
-                background: #e0f2fe;
-                color: #075985;
-            }
-
-            .db-tag.is-approved {
-                border-style: solid;
-                border-color: transparent;
-                background: #dcfce7;
-                color: #166534;
-            }
-
-            .db-tag.is-review {
-                border-style: solid;
-                border-color: transparent;
-                background: #fef3c7;
-                color: #92400e;
-            }
-
-            .db-tag.is-rejected {
-                border-style: solid;
-                border-color: transparent;
-                background: #ffe4e6;
-                color: #9f1239;
-            }
-
-            .db-tag.is-draft {
-                border-style: solid;
-                border-color: transparent;
-                background: #f1f5f9;
-                color: #475569;
-            }
-
-            .db-tag.is-muted {
-                border-style: solid;
-                border-color: transparent;
-                background: #e2e8f0;
-                color: #334155;
-            }
-
         .db-links {
             display: flex;
             gap: 8px;
@@ -354,68 +223,6 @@
             border: 1px dashed var(--bp-line);
             border-radius: 14px;
             text-align: center;
-        }
-
-        .db-timeline {
-            list-style: none;
-            margin: 0;
-            padding: 0 0 0 18px;
-            position: relative;
-            display: grid;
-            gap: 14px;
-        }
-
-            .db-timeline::before {
-                content: "";
-                position: absolute;
-                left: 5px;
-                top: 6px;
-                bottom: 6px;
-                width: 2px;
-                background: var(--bp-line);
-            }
-
-            .db-timeline li {
-                position: relative;
-            }
-
-                .db-timeline li::before {
-                    content: "";
-                    position: absolute;
-                    left: -18px;
-                    top: 5px;
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    background: #94a3b8;
-                    border: 2px solid #fff;
-                    box-shadow: 0 0 0 1px var(--bp-line);
-                }
-
-                .db-timeline li.db-dot--sim::before {
-                    background: #0ea5e9;
-                }
-
-                .db-timeline li.db-dot--layout::before {
-                    background: #16a34a;
-                }
-
-                .db-timeline li.db-dot--pid::before {
-                    background: #8b5cf6;
-                }
-
-                .db-timeline li.db-dot--cad::before {
-                    background: #f59e0b;
-                }
-
-        .db-tl-title {
-            font-weight: 650;
-            font-size: .92rem;
-        }
-
-        .db-tl-meta {
-            color: var(--bp-ink-mute);
-            font-size: .78rem;
         }
 
         .db-pid {
@@ -505,7 +312,7 @@
                 }
 
         @@media(max-width:1000px) {
-            .db-cols, .db-cols-even {
+            .db-cols-even {
                 grid-template-columns: 1fr;
             }
         }
@@ -586,77 +393,29 @@
         </div>
     </section>
 
-    <div class="db-cols">
-        <section class="db-section">
-            <h2>Recent projects</h2>
-            <p class="db-sub">Latest five projects and which drawings they have.</p>
-            @if (Model.RecentProjects.Count == 0)
-            {
-                <div class="db-empty-note">No projects yet. Create one to get started.</div>
-            }
-            else
-            {
-                <ul class="db-list">
-                    @foreach (var p in Model.RecentProjects)
-                    {
-                        <li class="db-proj">
-                            <div class="db-proj-head">
-                                <a class="db-proj-name" asp-controller="Project" asp-action="Detail" asp-route-id="@p.ProjectId">@p.Name</a>
-                                <span class="bp-chip bp-chip--@(p.Status.Css())">@p.Status.Label()</span>
-                            </div>
-                            <div class="db-proj-meta">
-                                @(string.IsNullOrWhiteSpace(p.Country) ? "Location not set" : p.Country)
-                                &middot; @(p.LatestRunVersion.HasValue ? $"Run v{p.LatestRunVersion}" : "No run yet")
-                                &middot; Created @p.CreatedAt.ToString("dd MMM yyyy")
-                            </div>
-                            <div class="db-proj-foot">
-                                <div class="db-tags">
-                                    <span class="db-tag @(p.HasLayout ? "is-on" : "")">Layout</span>
-                                    <span class="db-tag @(p.HasPfd ? "is-on" : "")">PFD</span>
-                                    <span class="db-tag @(p.HasPid? PidCss(p.PidStatus) : "")">@(p.HasPid ? "P&ID " + PidText(p.PidStatus) : "P&ID")</span>
-                                </div>
-                                <div class="db-links">
-                                    @if (p.LatestRunId.HasValue)
-                                    {
-                                        <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="Dashboard" asp-route-runId="@p.LatestRunId">Simulation</a>
-                                        <a class="bp-btn bp-btn--ghost" asp-controller="Pid" asp-action="Index" asp-route-projectId="@p.ProjectId" asp-route-runId="@p.LatestRunId">P&amp;ID</a>
-                                    }
-                                    else
-                                    {
-                                        <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="Mixer" asp-route-projectId="@p.ProjectId">Start mixer</a>
-                                    }
-                                </div>
-                            </div>
-                        </li>
-                    }
-                </ul>
-            }
-        </section>
-
-        <section class="db-section">
-            <h2>Waiting for approval</h2>
-            <p class="db-sub">P&amp;ID drawings submitted for review.</p>
-            @if (Model.PendingPids.Count == 0)
-            {
-                <div class="db-empty-note">Nothing is waiting for review.</div>
-            }
-            else
-            {
-                <ul class="db-list">
-                    @foreach (var x in Model.PendingPids)
-                    {
-                        <li class="db-approve">
-                            <div>
-                                <strong>@x.DrawingNo &middot; Rev @x.RevisionNo</strong>
-                                <span>@x.ProjectName @(x.UpdatedAt.HasValue ? "- " + x.UpdatedAt.Value.ToString("dd MMM, HH:mm") : "")</span>
-                            </div>
-                            <a class="bp-btn bp-btn--ghost" asp-controller="Pid" asp-action="Editor" asp-route-id="@x.PidDiagramId">Review</a>
-                        </li>
-                    }
-                </ul>
-            }
-        </section>
-    </div>
+    <section class="db-section">
+        <h2>Waiting for approval</h2>
+        <p class="db-sub">P&amp;ID drawings submitted for review.</p>
+        @if (Model.PendingPids.Count == 0)
+        {
+            <div class="db-empty-note">Nothing is waiting for review.</div>
+        }
+        else
+        {
+            <ul class="db-list">
+                @foreach (var x in Model.PendingPids)
+                {
+                    <li class="db-approve">
+                        <div>
+                            <strong>@x.DrawingNo &middot; Rev @x.RevisionNo</strong>
+                            <span>@x.ProjectName @(x.UpdatedAt.HasValue ? "- " + x.UpdatedAt.Value.ToString("dd MMM, HH:mm") : "")</span>
+                        </div>
+                        <a class="bp-btn bp-btn--ghost" asp-controller="Pid" asp-action="Editor" asp-route-id="@x.PidDiagramId">Review</a>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
 
     <div class="db-cols-even">
         <section class="db-section">
@@ -715,37 +474,6 @@
                 <a class="bp-btn bp-btn--primary" asp-controller="Project" asp-action="Index">Pick a project to draw</a>
             }
         </div>
-    </section>
-
-    <section class="db-section">
-        <h2>Recent activity</h2>
-        @if (Model.Activity.Count == 0)
-        {
-            <div class="db-empty-note">Activity will appear here as you work.</div>
-        }
-        else
-        {
-            <ul class="db-timeline">
-                @foreach (var a in Model.Activity)
-                {
-                    <li class="@DotCss(a.Kind)">
-                        <div class="db-tl-title">@a.Title</div>
-                        <div class="db-tl-meta">
-                            @a.Kind
-                            @if (!string.IsNullOrEmpty(a.Detail))
-                            {
-                                <text>&middot; @a.Detail</text>
-                            }
-                            @if (!string.IsNullOrEmpty(a.By))
-                            {
-                                <text>&middot; @a.By</text>
-                            }
-                            &middot; @a.At.ToString("dd MMM yyyy, HH:mm")
-                        </div>
-                    </li>
-                }
-            </ul>
-        }
     </section>
 
     <section class="db-section">
