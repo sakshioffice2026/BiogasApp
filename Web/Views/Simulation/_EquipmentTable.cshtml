@@ -1,0 +1,190 @@
+@*
+    Shared sized-equipment table.
+    Dashboard (compact, no detail rows):
+      <partial name="_EquipmentTable" model='(Model.Equipment, false, "dash")' />
+    Results (expandable GeometryParams and ProcessDuty rows):
+      <partial name="_EquipmentTable" model='(Model.EquipmentSizing, true, "res")' />
+*@
+@using System.Collections
+@using System.Globalization
+@using System.Text.RegularExpressions
+@model (IReadOnlyList<BiogasApp.Model.DTOs.EquipmentSizingDto> Items, bool Expandable, string IdPrefix)
+@functions {
+    static string Humanize(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var text = value.Replace('_', ' ').ToLowerInvariant();
+        return char.ToUpperInvariant(text[0]) + text.Substring(1);
+    }
+
+    static string KeyLabel(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return string.Empty;
+
+        // 1. Split PascalCase words first so unit tokens become standalone words.
+        var text = Regex.Replace(key.Replace('_', ' '), "([a-z0-9])([A-Z])", "$1 $2");
+
+        // 2. Normalise unit suffixes anywhere in the label.
+        text = Regex.Replace(text, @"\bNm3 Hr\b", "(Nm\u00B3/h)");
+        text = Regex.Replace(text, @"\bM3\b", "(m\u00B3)");
+        text = Regex.Replace(text, @"\bM2\b", "(m\u00B2)");
+        text = Regex.Replace(text, @"\bKw\b", "(kW)");
+        text = Regex.Replace(text, @"\bMm(?: Array)?\b", "(mm)");
+        text = Regex.Replace(text, @"\bLiters\b", "(L)");
+        text = Regex.Replace(text, @"\sM$", " (m)");
+
+        // 3. Only now lower-case "Per Bank" (it was one token before step 1).
+        text = text.Replace("Per Bank", "per bank");
+
+        text = Regex.Replace(text, @"\s{2,}", " ").Trim();
+        return char.ToUpperInvariant(text[0]) + text.Substring(1);
+    }
+
+    static string ValueText(object? value)
+    {
+        if (value is null) return "n/a";
+        if (value is string s) return s;
+        if (value is IEnumerable list)
+        {
+            var parts = new List<string>();
+            foreach (var item in list)
+            {
+                parts.Add(item?.ToString() ?? "n/a");
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        return value.ToString() ?? "n/a";
+    }
+
+    static string Money(decimal value) => value.ToString("N0", CultureInfo.CurrentCulture);
+}
+@{
+    var items = Model.Items;
+    var expandable = Model.Expandable;
+    var prefix = string.IsNullOrWhiteSpace(Model.IdPrefix) ? "eq" : Model.IdPrefix;
+    var total = items.Sum(e => e.TotalCost);
+    var cols = expandable ? 5 : 4;
+}
+
+<div class="sx-table-wrap">
+    <table class="sx-table sx-table--equip" data-sx-equip>
+        <caption class="visually-hidden">Sized equipment</caption>
+        <thead>
+            <tr>
+                <th scope="col">Tag</th>
+                <th scope="col">Equipment</th>
+                <th scope="col" class="sx-num">Qty</th>
+                <th scope="col" class="sx-num">Cost</th>
+                @if (expandable)
+                {
+                    <th scope="col" class="sx-chev"><span class="visually-hidden">Details</span></th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @for (var i = 0; i < items.Count; i++)
+            {
+                var e = items[i];
+                var hasDetail = expandable && (e.GeometryParams.Count > 0 || e.ProcessDuty.Count > 0);
+                var detailId = $"{prefix}-detail-{i + 1}";
+                var cost = e.TotalCost > 0 ? Money(e.TotalCost) : "Costed in BOM";
+
+                if (hasDetail)
+                {
+                    <tr class="sx-row" data-target="@detailId">
+                        <td class="sx-tag">
+                            <button type="button" class="sx-row__btn" aria-expanded="false" aria-controls="@detailId">
+                                <span>@e.EquipmentTag</span>
+                                <span class="visually-hidden">: show details</span>
+                            </button>
+                        </td>
+                        <td>@Humanize(e.EquipmentType)</td>
+                        <td class="sx-num">@e.Quantity</td>
+                        <td class="sx-num">@cost</td>
+                        <td class="sx-chev" aria-hidden="true">&#9662;</td>
+                    </tr>
+                    <tr class="sx-detail" id="@detailId" hidden>
+                        <td colspan="@cols">
+                            <div class="sx-spec-groups">
+                                @if (e.GeometryParams.Count > 0)
+                                {
+                                    <div>
+                                        <h4 class="sx-spec-title">Geometry</h4>
+                                        <dl class="sx-spec">
+                                            @foreach (var g in e.GeometryParams)
+                                            {
+                                                <div><dt>@KeyLabel(g.Key)</dt><dd>@ValueText(g.Value)</dd></div>
+                                            }
+                                        </dl>
+                                    </div>
+                                }
+                                @if (e.ProcessDuty.Count > 0)
+                                {
+                                    <div>
+                                        <h4 class="sx-spec-title">Process duty</h4>
+                                        <dl class="sx-spec">
+                                            @foreach (var d in e.ProcessDuty)
+                                            {
+                                                <div><dt>@KeyLabel(d.Key)</dt><dd>@ValueText(d.Value)</dd></div>
+                                            }
+                                        </dl>
+                                    </div>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    <tr>
+                        <td class="sx-tag">@e.EquipmentTag</td>
+                        <td>@Humanize(e.EquipmentType)</td>
+                        <td class="sx-num">@e.Quantity</td>
+                        <td class="sx-num">@cost</td>
+                        @if (expandable)
+                        {
+                            <td class="sx-chev"></td>
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3">Equipment total</td>
+                <td class="sx-num">@Money(total)</td>
+                @if (expandable)
+                {
+                    <td class="sx-chev"></td>
+                }
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+@if (expandable)
+{
+    <script>
+        (function () {
+            if (window.__sxEquipBound) return;
+            window.__sxEquipBound = true;
+
+            function toggle(row) {
+                var detail = document.getElementById(row.getAttribute('data-target'));
+                var btn = row.querySelector('.sx-row__btn');
+                if (!detail || !btn) return;
+                var open = detail.hidden;
+                detail.hidden = !open;
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                row.classList.toggle('is-open', open);
+            }
+
+            document.addEventListener('click', function (e) {
+                var row = e.target.closest ? e.target.closest('.sx-row') : null;
+                if (row) toggle(row);
+            });
+        })();
+    </script>
+}

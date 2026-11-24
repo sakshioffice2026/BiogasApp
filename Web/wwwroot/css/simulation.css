@@ -289,7 +289,10 @@
 
 .sm-bubble {
     display: grid;
+    grid-template-rows: 1fr auto;
+    align-content: space-between;
     gap: .1rem;
+    min-width: 0;
     padding: .55rem .8rem;
     border-radius: 14px;
     background: linear-gradient(135deg, rgba(0, 196, 140, .12), rgba(16, 181, 232, .12) 55%, rgba(91, 91, 240, .12));
@@ -310,10 +313,12 @@
     }
 
         .sm-bubble dd small {
+            display: inline-block;
             font-family: var(--bp-font);
             font-size: .78rem;
             font-weight: 600;
             color: var(--bp-ink-mute);
+            white-space: nowrap;
         }
 
 .sm-bubbles--tight {
@@ -327,7 +332,9 @@
 
 /* ---------- Result tables (shell courses) ---------- */
 .sm-table-wrap {
+    max-width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     border: 1px solid var(--bp-line);
     border-radius: 14px;
 }
@@ -362,14 +369,18 @@
 
     .sm-table td {
         font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
     }
 
 /* ---------- Gas split bar ---------- */
 .sm-split {
     display: flex;
+    flex-wrap: nowrap;
     gap: 4px;
     height: 44px;
     margin-top: 1.1rem;
+    width: 100%;
 }
 
 .sm-split__part {
@@ -378,6 +389,7 @@
     justify-content: center;
     min-width: 0;
     overflow: hidden;
+    text-overflow: ellipsis;
     flex: var(--sm-val, 1) 1 0;
     padding: 0 .5rem;
     border-radius: 12px;

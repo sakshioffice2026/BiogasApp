@@ -10,55 +10,57 @@
 
 @if (options.Count > 1)
 {
-    <section class="sm-tech bp-card" aria-labelledby="sm-tech-title" style="padding:14px 16px; margin-bottom:var(--bp-gap); overflow-x:auto;">
-        <h2 class="sm-card-title" id="sm-tech-title" style="margin-bottom:8px;">Upgrading technology</h2>
-        <table style="width:100%; border-collapse:collapse; font-size:.9rem;">
-            <thead>
-                <tr style="text-align:left; color:var(--bp-ink-mute); font-size:.78rem;">
-                    <th style="padding:8px; font-weight:600;">Technology</th>
-                    <th style="padding:8px; font-weight:600; text-align:right;">Recovery</th>
-                    <th style="padding:8px; font-weight:600; text-align:right;">Purity</th>
-                    <th style="padding:8px; font-weight:600; text-align:right;">Power</th>
-                    <th style="padding:8px; font-weight:600; text-align:right;">Net output</th>
-                    <th style="padding:8px;"></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var t in options)
-                {
-                    var parsed = Enum.TryParse<UpgradingTech>(t.Technology, true, out var tech);
-                    var isSelected = string.Equals(t.Technology, selectedKey, StringComparison.OrdinalIgnoreCase);
-                    var power = t.UpgradingPowerKw + t.CompressorPowerKw;
-                    <tr style="border-top:1px solid var(--bp-line); @(isSelected ? "background:rgba(16,181,232,.08);" : "")">
-                        <td style="padding:11px 8px; font-weight:600;">
-                            @(parsed? tech.Label() : t.Technology)
-                            @if (t.NetCbgKgDay >= bestYield)
-                            {
-                                <span class="bp-chip bp-chip--simulated">Highest yield</span>
-                            }
-                            @if (power <= lowestPower)
-                            {
-                                <span class="bp-chip bp-chip--archived">Lowest power</span>
-                            }
-                        </td>
-                        <td style="padding:11px 8px; text-align:right;">@t.RecoveryPercent.ToString("N1")%</td>
-                        <td style="padding:11px 8px; text-align:right;">@t.PurityPercent.ToString("N1")%</td>
-                        <td style="padding:11px 8px; text-align:right;">@power.ToString("N0") kW</td>
-                        <td style="padding:11px 8px; text-align:right;">@t.NetCbgKgDay.ToString("N0") kg/day</td>
-                        <td style="padding:11px 8px; text-align:right; white-space:nowrap;">
-                            @if (isSelected)
-                            {
-                                <span class="bp-chip bp-chip--approved" aria-current="true">Selected</span>
-                            }
-                            else
-                            {
-                                <a class="bp-btn bp-btn--ghost"
-                                   asp-action="Dashboard" asp-route-runId="@Model.SimulationRunId" asp-route-tech="@(parsed? tech.ToString() : t.Technology)">Select</a>
-                            }
-                        </td>
+    <section class="sm-tech" aria-labelledby="sm-tech-title">
+        <h3 class="sm-sub-title" id="sm-tech-title">Upgrading technology</h3>
+        <div class="sx-table-wrap">
+            <table class="sx-table sx-table--tech">
+                <thead>
+                    <tr>
+                        <th scope="col">Technology</th>
+                        <th scope="col" class="sx-num">Recovery</th>
+                        <th scope="col" class="sx-num">Purity</th>
+                        <th scope="col" class="sx-num">Power</th>
+                        <th scope="col" class="sx-num">Net output</th>
+                        <th scope="col" class="sx-num"><span class="visually-hidden">Action</span></th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var t in options)
+                    {
+                        var parsed = Enum.TryParse<UpgradingTech>(t.Technology, true, out var tech);
+                        var isSelected = string.Equals(t.Technology, selectedKey, StringComparison.OrdinalIgnoreCase);
+                        var power = t.UpgradingPowerKw + t.CompressorPowerKw;
+                        <tr class="@(isSelected ? "is-selected" : null)">
+                            <th scope="row" class="sx-tech-name">
+                                @(parsed ? tech.Label() : t.Technology)
+                                @if (t.NetCbgKgDay >= bestYield)
+                                {
+                                    <span class="bp-chip bp-chip--simulated">Highest yield</span>
+                                }
+                                @if (power <= lowestPower)
+                                {
+                                    <span class="bp-chip bp-chip--archived">Lowest power</span>
+                                }
+                            </th>
+                            <td class="sx-num">@t.RecoveryPercent.ToString("N1")%</td>
+                            <td class="sx-num">@t.PurityPercent.ToString("N1")%</td>
+                            <td class="sx-num">@power.ToString("N0") kW</td>
+                            <td class="sx-num">@t.NetCbgKgDay.ToString("N0") kg/day</td>
+                            <td class="sx-num">
+                                @if (isSelected)
+                                {
+                                    <span class="bp-chip bp-chip--approved" aria-current="true">Selected</span>
+                                }
+                                else
+                                {
+                                    <a class="bp-btn bp-btn--ghost"
+                                       asp-action="Dashboard" asp-route-runId="@Model.SimulationRunId" asp-route-tech="@(parsed ? tech.ToString() : t.Technology)">Select</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </section>
 }

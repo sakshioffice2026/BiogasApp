@@ -1,0 +1,50 @@
+@*
+    Shared engine notes accordion for Dashboard, Results and Compare.
+
+    Single run (Dashboard / Results):
+    @if (warnings.Count > 0)
+    {
+        <partial name="_EngineNotes" model='($"Engine notes ({warnings.Count})", new List<(string? Heading, IReadOnlyList<string> Items)> { (null, warnings) })' />
+    }
+
+    Two runs (Compare):
+    <partial name="_EngineNotes" model='($"Engine notes (A: {a.Warnings.Count}, B: {b.Warnings.Count})", new List<(string? Heading, IReadOnlyList<string> Items)> { ($"Run A (v{a.Version})", a.Warnings), ($"Run B (v{b.Version})", b.Warnings) })' />
+*@
+@model (string Summary, IReadOnlyList<(string? Heading, IReadOnlyList<string> Items)> Groups)
+
+@if (Model.Groups.Count > 0)
+{
+    <details class="sx-notes">
+        <summary class="sx-notes__summary">
+            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 3 20h18L12 4zM12 10v4M12 17v.5" /></svg>
+            <span>@Model.Summary</span>
+        </summary>
+        <div class="sx-notes__body">
+            @foreach (var group in Model.Groups)
+            {
+                <section class="sx-notes__group">
+                    @if (!string.IsNullOrWhiteSpace(group.Heading))
+                    {
+                        <h3 class="sx-notes__heading">@group.Heading</h3>
+                    }
+                    @if (group.Items.Count == 0)
+                    {
+                        <p class="sx-notes__empty">No engine notes</p>
+                    }
+                    else
+                    {
+                        <ul class="sx-notes__list" role="list">
+                            @foreach (var note in group.Items)
+                            {
+                                <li>
+                                    <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 4 3 20h18L12 4zM12 10v4M12 17v.5" /></svg>
+                                    <span>@note</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </section>
+            }
+        </div>
+    </details>
+}

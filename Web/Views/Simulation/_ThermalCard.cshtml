@@ -1,6 +1,6 @@
 @model BiogasApp.Model.DTOs.ThermalMechanicalDto
 
-<section class="sm-panel sm-panel--wide bp-card" id="sm-thermal" aria-labelledby="sm-th-title">
+<section class="sm-panel bp-card" id="sm-thermal" aria-labelledby="sm-th-title">
     <h2 class="sm-card-title" id="sm-th-title">Thermal, mixing and shell</h2>
 
     @if (Model.TankCount <= 0)
@@ -9,54 +9,56 @@
     }
     else
     {
-        <dl class="sm-bubbles">
-            <div class="sm-bubble"><dt>Digester tanks</dt><dd>@Model.TankCount</dd></div>
-            <div class="sm-bubble"><dt>Heat duty (all tanks)</dt><dd>@Model.TotalThermalDutyKw.ToString("N1") <small>kW</small></dd></div>
-            <div class="sm-bubble"><dt>Heat duty (per tank)</dt><dd>@Model.TotalThermalDutyKwPerTank.ToString("N1") <small>kW</small></dd></div>
-            <div class="sm-bubble"><dt>Mixing power (per tank)</dt><dd>@Model.TotalMixingPowerKwPerTank.ToString("N1") <small>kW</small></dd></div>
+        <dl class="sx-metrics">
+            <div class="sx-metric"><dt>Digester tanks</dt><dd>@Model.TankCount</dd></div>
+            <div class="sx-metric"><dt>Heat duty (all tanks)</dt><dd>@Model.TotalThermalDutyKw.ToString("N1") <small>kW</small></dd></div>
+            <div class="sx-metric"><dt>Heat duty (per tank)</dt><dd>@Model.TotalThermalDutyKwPerTank.ToString("N1") <small>kW</small></dd></div>
+            <div class="sx-metric"><dt>Mixing power (per tank)</dt><dd>@Model.TotalMixingPowerKwPerTank.ToString("N1") <small>kW</small></dd></div>
         </dl>
 
-        <details class="mt-3">
-            <summary class="sm-sub-title" style="cursor:pointer;">More thermal and mixing detail</summary>
-            <dl class="sm-bubbles mt-2">
-                <div class="sm-bubble"><dt>Feed heating (per tank)</dt><dd>@Model.FeedHeatingKwPerTank.ToString("N1") <small>kW</small></dd></div>
-                <div class="sm-bubble"><dt>Transmission loss (per tank)</dt><dd>@Model.TransmissionLossKwPerTank.ToString("N1") <small>kW</small></dd></div>
-                <div class="sm-bubble"><dt>Heat exchanger area (per tank)</dt><dd>@Model.HeatExchangerAreaM2PerTank.ToString("N0") <small>m&sup2;</small></dd></div>
-                <div class="sm-bubble"><dt>Agitators (per tank)</dt><dd>@Model.AgitatorCountPerTank</dd></div>
-                <div class="sm-bubble"><dt>Power per agitator</dt><dd>@Model.PowerPerAgitatorKw.ToString("N0") <small>kW</small></dd></div>
-            </dl>
-        </details>
+        <div class="sx-cols">
+            <div>
+                <h3 class="sx-spec-title">Thermal and mixing detail</h3>
+                <dl class="sx-spec">
+                    <div><dt>Feed heating (per tank)</dt><dd>@Model.FeedHeatingKwPerTank.ToString("N1") kW</dd></div>
+                    <div><dt>Transmission loss (per tank)</dt><dd>@Model.TransmissionLossKwPerTank.ToString("N1") kW</dd></div>
+                    <div><dt>Heat exchanger area (per tank)</dt><dd>@Model.HeatExchangerAreaM2PerTank.ToString("N0") m&sup2;</dd></div>
+                    <div><dt>Agitators (per tank)</dt><dd>@Model.AgitatorCountPerTank</dd></div>
+                    <div><dt>Power per agitator</dt><dd>@Model.PowerPerAgitatorKw.ToString("N0") kW</dd></div>
+                </dl>
+            </div>
 
-        <details class="mt-3">
-            <summary class="sm-sub-title" style="cursor:pointer;">Shell courses (per tank)</summary>
-            @if (Model.ShellCourses.Count == 0)
-            {
-                <p class="bp-muted mb-0 mt-2">Shell course data was not saved for this run.</p>
-            }
-            else
-            {
-                <div class="sm-table-wrap mt-2">
-                    <table class="sm-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Course</th>
-                                <th scope="col" class="text-end">Calculated (mm)</th>
-                                <th scope="col" class="text-end">Specified (mm)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var c in Model.ShellCourses)
-                            {
+            <div>
+                <h3 class="sx-spec-title">Shell courses (per tank)</h3>
+                @if (Model.ShellCourses.Count == 0)
+                {
+                    <p class="bp-muted mb-0">Shell course data was not saved for this run.</p>
+                }
+                else
+                {
+                    <div class="sx-table-wrap sx-table-wrap--short">
+                        <table class="sx-table sx-table--tight">
+                            <thead>
                                 <tr>
-                                    <th scope="row">@c.CourseIndex</th>
-                                    <td class="text-end">@(c.CalculatedMm > 0 ? c.CalculatedMm.ToString("N2") : "-")</td>
-                                    <td class="text-end">@c.SpecifiedMm.ToString("N0")</td>
+                                    <th scope="col">Course</th>
+                                    <th scope="col" class="sx-num">Calculated (mm)</th>
+                                    <th scope="col" class="sx-num">Specified (mm)</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </details>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in Model.ShellCourses)
+                                {
+                                    <tr>
+                                        <th scope="row">@c.CourseIndex</th>
+                                        <td class="sx-num">@(c.CalculatedMm > 0 ? c.CalculatedMm.ToString("N2") : "-")</td>
+                                        <td class="sx-num">@c.SpecifiedMm.ToString("N0")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
     }
 </section>

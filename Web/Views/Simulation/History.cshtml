@@ -28,98 +28,7 @@
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/simulation.css" asp-append-version="true" />
-    <style>
-        .sx-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: .9rem;
-        }
-
-            .sx-table th {
-                text-align: left;
-                padding: 10px 8px;
-                font-size: .78rem;
-                font-weight: 600;
-                color: var(--bp-ink-mute);
-                white-space: nowrap;
-            }
-
-            .sx-table td {
-                padding: 12px 8px;
-                border-top: 1px solid var(--bp-line);
-                color: var(--bp-ink);
-                vertical-align: middle;
-            }
-
-            .sx-table .sx-num {
-                text-align: right;
-                white-space: nowrap;
-            }
-
-            .sx-table tbody tr:hover td {
-                background: rgba(91, 91, 240, .05);
-            }
-
-            .sx-table tr.is-picked td {
-                background: rgba(16, 181, 232, .08);
-            }
-
-        .sx-run {
-            font-family: var(--bp-font-display);
-            font-weight: 600;
-            color: var(--bp-link);
-            white-space: nowrap;
-        }
-
-        .sx-date {
-            font-size: .8rem;
-            color: var(--bp-ink-mute);
-            white-space: nowrap;
-        }
-
-        .sx-links {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
-            white-space: nowrap;
-        }
-
-            .sx-links a {
-                padding: 6px 12px;
-                border-radius: 999px;
-                border: 1px solid var(--bp-line);
-                background: #fff;
-                color: var(--bp-ink);
-                text-decoration: none;
-                font-size: .82rem;
-                font-weight: 600;
-            }
-
-                .sx-links a:hover {
-                    color: var(--bp-link);
-                    box-shadow: var(--bp-shadow);
-                }
-
-        .sx-cmpbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-bottom: var(--bp-gap);
-            padding: 10px 16px;
-        }
-
-        .sx-scroll {
-            overflow-x: auto;
-        }
-
-        .sx-pick input {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--bp-indigo);
-        }
-    </style>
+    <link rel="stylesheet" href="~/css/workflow.css" asp-append-version="true" />
 }
 @section Scripts {
     <script>
@@ -148,109 +57,115 @@
     </script>
 }
 
-<div class="bp-page-head">
-    <div>
-        <h1>Simulation history</h1>
-        <p class="bp-muted mb-0">
-            <strong>@projectName</strong> has @count @(count == 1 ? "run" : "runs")
-        </p>
-    </div>
-    <div class="sm-actions">
-        <a class="bp-btn bp-btn--flame" asp-action="Mixer" asp-route-projectId="@projectId">New run</a>
-        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@projectId">Back to project</a>
-    </div>
-</div>
-
-@if (count == 0)
-{
-    <section class="sm-empty bp-card" aria-live="polite">
-        <span class="sm-empty__icon" aria-hidden="true">
-            <svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="m8 5 11 7-11 7V5z" /></svg>
-        </span>
-        <h2>No simulations yet</h2>
-        <p class="bp-muted">Blend your feedstock and run the first simulation for this plant.</p>
-        <a class="bp-btn bp-btn--flame" asp-action="Mixer" asp-route-projectId="@projectId">Open the mixer</a>
-    </section>
-}
-else
-{
-    <form method="get" asp-action="Compare" class="sm-history" data-sm-compare>
-        <input type="hidden" name="runA" value="" />
-        <input type="hidden" name="runB" value="" />
-
-        @if (count > 1)
-        {
-            <div class="sx-cmpbar bp-card">
-                <p class="mb-0 bp-muted" data-sx-note aria-live="polite">0 of 2 runs selected</p>
-                <button type="submit" class="bp-btn bp-btn--primary" data-sx-compare disabled>Compare</button>
+<div class="sx-page sx-page--history">
+    <header class="bp-page-head sx-head">
+        <div class="sx-head__main">
+            <h1 class="sx-head__title">Simulation history</h1>
+            <div class="sx-head__chips">
+                <strong class="sx-head__project">@projectName</strong>
+                <span class="bp-chip bp-chip--simulated">@count @(count == 1 ? "run" : "runs")</span>
             </div>
-        }
+        </div>
+        <div class="sx-head-actions">
+            <a class="bp-btn bp-btn--flame" asp-action="Mixer" asp-route-projectId="@projectId">New run</a>
+            <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@projectId">Back to project</a>
+        </div>
+    </header>
 
-        <section class="bp-card sx-scroll">
-            <table class="sx-table">
-                <thead>
-                    <tr>
-                        @if (count > 1)
-                        {
-                            <th><span class="visually-hidden">Select</span></th>
-                        }
-                        <th>Run</th>
-                        <th>Date</th>
-                        <th class="sx-num">Feed (TPD)</th>
-                        <th class="sx-num">Raw biogas (Nm&sup3;/day)</th>
-                        <th class="sx-num">Net (kg/day)</th>
-                        <th class="sx-num">C:N</th>
-                        <th class="sx-num">Retention (days)</th>
-                        <th class="sx-num">Notes</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var run in Model)
-                    {
-                        var warns = WarningCount(run.WarningsJson);
-                        <tr>
-                            @if (count > 1)
-                            {
-                                <td>
-                                    <label class="sx-pick">
-                                        <input type="checkbox" value="@run.Id" aria-label="Select run v@(run.RunVersion) to compare" />
-                                    </label>
-                                </td>
-                            }
-                            <td class="sx-run">
-                                v@(run.RunVersion)
-                                @if (run.Id == latestId)
-                                {
-                                    <span class="bp-chip bp-chip--approved">Latest</span>
-                                }
-                            </td>
-                            <td class="sx-date"><time datetime="@run.CreatedAt.ToString("o")">@run.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</time></td>
-                            <td class="sx-num">@run.TotalFeedTpd.ToString("N1")</td>
-                            <td class="sx-num">@run.RawBiogasNm3Day.ToString("N0")</td>
-                            <td class="sx-num">@run.NetCbgKgDay.ToString("N0")</td>
-                            <td class="sx-num">@run.BlendedCnRatio.ToString("N1")</td>
-                            <td class="sx-num">@run.HrtDays.ToString("N1")</td>
-                            <td class="sx-num">
-                                @if (warns > 0)
-                                {
-                                    <span class="bp-chip bp-chip--archived">@warns</span>
-                                }
-                                else
-                                {
-                                    <span class="bp-muted">0</span>
-                                }
-                            </td>
-                            <td>
-                                <div class="sx-links">
-                                    <a asp-action="Dashboard" asp-route-runId="@run.Id">Dashboard</a>
-                                    <a asp-action="Results" asp-route-runId="@run.Id">Full results</a>
-                                </div>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
+    @if (count == 0)
+    {
+        <section class="sm-empty bp-card" aria-live="polite">
+            <span class="sm-empty__icon" aria-hidden="true">
+                <svg class="bp-ico" viewBox="0 0 24 24" focusable="false"><path d="m8 5 11 7-11 7V5z" /></svg>
+            </span>
+            <h2>No simulations yet</h2>
+            <p class="bp-muted">Blend your feedstock and run the first simulation for this plant.</p>
+            <a class="bp-btn bp-btn--flame" asp-action="Mixer" asp-route-projectId="@projectId">Open the mixer</a>
         </section>
-    </form>
-}
+    }
+    else
+    {
+        <form method="get" asp-action="Compare" class="sm-history" data-sm-compare>
+            <input type="hidden" name="runA" value="" />
+            <input type="hidden" name="runB" value="" />
+
+            @if (count > 1)
+            {
+                <div class="sx-cmpbar bp-card">
+                    <p class="mb-0 bp-muted" data-sx-note aria-live="polite">0 of 2 runs selected</p>
+                    <button type="submit" class="bp-btn bp-btn--primary" data-sx-compare disabled>Compare</button>
+                </div>
+            }
+
+            <section class="bp-card sx-card-flush">
+                <div class="sx-scroll-box sx-scroll-box--tall">
+                    <table class="sx-table sx-table--history">
+                        <caption class="visually-hidden">Simulation runs</caption>
+                        <thead>
+                            <tr>
+                                @if (count > 1)
+                                {
+                                    <th scope="col"><span class="visually-hidden">Select</span></th>
+                                }
+                                <th scope="col">Run</th>
+                                <th scope="col">Date</th>
+                                <th scope="col" class="sx-num">Feed (TPD)</th>
+                                <th scope="col" class="sx-num">Raw biogas (Nm&sup3;/day)</th>
+                                <th scope="col" class="sx-num">Net (kg/day)</th>
+                                <th scope="col" class="sx-num">C:N</th>
+                                <th scope="col" class="sx-num">Retention (days)</th>
+                                <th scope="col" class="sx-num">Notes</th>
+                                <th scope="col"><span class="visually-hidden">Links</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var run in Model)
+                            {
+                                var warns = WarningCount(run.WarningsJson);
+                                <tr>
+                                    @if (count > 1)
+                                    {
+                                        <td>
+                                            <label class="sx-pick">
+                                                <input type="checkbox" value="@run.Id" aria-label="Select run v@(run.RunVersion) to compare" />
+                                            </label>
+                                        </td>
+                                    }
+                                    <td class="sx-run">
+                                        v@(run.RunVersion)
+                                        @if (run.Id == latestId)
+                                        {
+                                            <span class="bp-chip bp-chip--approved">Latest</span>
+                                        }
+                                    </td>
+                                    <td class="sx-date"><time datetime="@run.CreatedAt.ToString("o")">@run.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</time></td>
+                                    <td class="sx-num">@run.TotalFeedTpd.ToString("N1")</td>
+                                    <td class="sx-num">@run.RawBiogasNm3Day.ToString("N0")</td>
+                                    <td class="sx-num">@run.NetCbgKgDay.ToString("N0")</td>
+                                    <td class="sx-num">@run.BlendedCnRatio.ToString("N1")</td>
+                                    <td class="sx-num">@run.HrtDays.ToString("N1")</td>
+                                    <td class="sx-num">
+                                        @if (warns > 0)
+                                        {
+                                            <span class="bp-chip bp-chip--archived">@warns</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="bp-muted">0</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="sx-links">
+                                            <a asp-action="Dashboard" asp-route-runId="@run.Id">Dashboard</a>
+                                            <a asp-action="Results" asp-route-runId="@run.Id">Full results</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </form>
+    }
+</div>

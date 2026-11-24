@@ -6,7 +6,7 @@
     var hasDispatch = p.CbgTonnesPerDay > 0 || p.TankerLoadsPerDay > 0;
 }
 
-<section class="sm-panel sm-panel--wide bp-card" id="sm-digestate" aria-labelledby="sm-dg-title">
+<section class="sm-panel bp-card" id="sm-digestate" aria-labelledby="sm-dg-title">
     <h2 class="sm-card-title" id="sm-dg-title">Digestate, civils and dispatch</h2>
 
     @if (!hasDigestate && !hasDispatch)
@@ -15,42 +15,42 @@
     }
     else
     {
-        <h3 class="sm-sub-title">Digestate split</h3>
-        <dl class="sm-bubbles">
-            <div class="sm-bubble"><dt>Solid cake</dt><dd>@d.SolidCakeTpd.ToString("N2") <small>TPD</small></dd></div>
-            <div class="sm-bubble"><dt>Liquid (LFOM)</dt><dd>@d.LiquidLfomTpd.ToString("N2") <small>TPD</small></dd></div>
+        <dl class="sx-metrics">
+            <div class="sx-metric"><dt>Solid cake</dt><dd>@d.SolidCakeTpd.ToString("N2") <small>TPD</small></dd></div>
+            <div class="sx-metric"><dt>Liquid (LFOM)</dt><dd>@d.LiquidLfomTpd.ToString("N2") <small>TPD</small></dd></div>
+            @if (hasDispatch)
+            {
+                <div class="sx-metric"><dt>Output per day</dt><dd>@p.CbgTonnesPerDay.ToString("N2") <small>tonnes</small></dd></div>
+                <div class="sx-metric"><dt>Tanker loads</dt><dd>@p.TankerLoadsPerDay <small>per day</small></dd></div>
+            }
         </dl>
 
-        <h3 class="sm-sub-title">Compressed biogas dispatch</h3>
-        @if (!hasDispatch)
-        {
-            <p class="bp-muted mb-0">Dispatch data was not saved for this run.</p>
-        }
-        else
-        {
-            <dl class="sm-bubbles">
-                <div class="sm-bubble"><dt>Output per day</dt><dd>@p.CbgTonnesPerDay.ToString("N2") <small>tonnes</small></dd></div>
-                <div class="sm-bubble"><dt>Output per year</dt><dd>@p.CbgTonnesPerYear.ToString("N0") <small>tonnes</small></dd></div>
-                <div class="sm-bubble"><dt>Tanker loads</dt><dd>@p.TankerLoadsPerDay <small>per day</small></dd></div>
-            </dl>
+        <div class="sx-cols">
+            <div>
+                <h3 class="sx-spec-title">Compressed biogas dispatch</h3>
+                @if (!hasDispatch)
+                {
+                    <p class="bp-muted mb-0">Dispatch data was not saved for this run.</p>
+                }
+                else
+                {
+                    <dl class="sx-spec">
+                        <div><dt>Output per year</dt><dd>@p.CbgTonnesPerYear.ToString("N0") tonnes</dd></div>
+                        <div><dt>Tanker payload</dt><dd>@p.TankerPayloadKg.ToString("N0") kg</dd></div>
+                        <div><dt>Fill time per tanker</dt><dd>@p.FillTimeHoursPerTanker.ToString("N1") hours</dd></div>
+                        <div><dt>Cascade buffer</dt><dd>@p.BufferHoursAvailable.ToString("N1") hours</dd></div>
+                    </dl>
+                }
+            </div>
 
-            <details class="mt-3">
-                <summary class="sm-sub-title" style="cursor:pointer;">More dispatch detail</summary>
-                <dl class="sm-bubbles mt-2">
-                    <div class="sm-bubble"><dt>Tanker payload</dt><dd>@p.TankerPayloadKg.ToString("N0") <small>kg</small></dd></div>
-                    <div class="sm-bubble"><dt>Fill time per tanker</dt><dd>@p.FillTimeHoursPerTanker.ToString("N1") <small>hours</small></dd></div>
-                    <div class="sm-bubble"><dt>Cascade buffer</dt><dd>@p.BufferHoursAvailable.ToString("N1") <small>hours</small></dd></div>
+            <div>
+                <h3 class="sx-spec-title">Civil quantities</h3>
+                <dl class="sx-spec">
+                    <div><dt>Excavation</dt><dd>@d.ExcavationM3.ToString("N0") m&sup3;</dd></div>
+                    <div><dt>RCC concrete</dt><dd>@d.RccConcreteM3.ToString("N0") m&sup3;</dd></div>
+                    <div><dt>Structural steel and rebar</dt><dd>@d.SteelRebarTons.ToString("N0") tons</dd></div>
                 </dl>
-            </details>
-        }
-
-        <details class="mt-3">
-            <summary class="sm-sub-title" style="cursor:pointer;">Civil quantities</summary>
-            <dl class="sm-bubbles mt-2">
-                <div class="sm-bubble"><dt>Excavation</dt><dd>@d.ExcavationM3.ToString("N0") <small>m&sup3;</small></dd></div>
-                <div class="sm-bubble"><dt>RCC concrete</dt><dd>@d.RccConcreteM3.ToString("N0") <small>m&sup3;</small></dd></div>
-                <div class="sm-bubble"><dt>Structural steel and rebar</dt><dd>@d.SteelRebarTons.ToString("N0") <small>tons</small></dd></div>
-            </dl>
-        </details>
+            </div>
+        </div>
     }
 </section>

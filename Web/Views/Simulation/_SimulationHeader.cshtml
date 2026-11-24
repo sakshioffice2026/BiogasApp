@@ -1,0 +1,75 @@
+@*
+    Shared header for Dashboard and Results.
+    Usage:
+    <partial name="_SimulationHeader" model='("Simulation results", Model.ProjectName, Model.RunVersion, Model.ProjectStatus.Css(), Model.ProjectStatus.Label(), Model.ProjectId, Model.SimulationRunId, "Dashboard")' />
+    Page is "Dashboard" or "Results" and decides which menu items are shown.
+*@
+@model (string Title, string? ProjectName, int RunVersion, string? StatusCss, string? StatusLabel, Guid ProjectId, Guid RunId, string Page)
+@{
+    var isDashboard = string.Equals(Model.Page, "Dashboard", StringComparison.OrdinalIgnoreCase);
+}
+
+<header class="bp-page-head sx-head">
+    <div class="sx-head__main">
+        <h1 class="sx-head__title">@Model.Title</h1>
+        <div class="sx-head__chips">
+            @if (!string.IsNullOrWhiteSpace(Model.ProjectName))
+            {
+                <strong class="sx-head__project">@Model.ProjectName</strong>
+            }
+            <span class="bp-chip bp-chip--simulated">Run v@(Model.RunVersion)</span>
+            @if (!string.IsNullOrWhiteSpace(Model.StatusLabel))
+            {
+                <span class="bp-chip bp-chip--@Model.StatusCss">@Model.StatusLabel</span>
+            }
+        </div>
+    </div>
+
+    <div class="sx-head-actions">
+        @if (isDashboard)
+        {
+            <a class="bp-btn bp-btn--ghost" asp-action="Results" asp-route-runId="@Model.RunId">Full results</a>
+        }
+        else
+        {
+            <a class="bp-btn bp-btn--ghost" asp-action="Dashboard" asp-route-runId="@Model.RunId">Dashboard</a>
+        }
+
+        <details class="sx-more" data-sx-more>
+            <summary class="bp-btn bp-btn--ghost" aria-haspopup="menu">More &#9662;</summary>
+            <div class="sx-more__menu" role="menu">
+                @if (isDashboard)
+                {
+                    <a role="menuitem" asp-action="Mixer" asp-route-projectId="@Model.ProjectId">Adjust mixer</a>
+                }
+                <a role="menuitem" asp-action="History" asp-route-projectId="@Model.ProjectId">History</a>
+                @if (!isDashboard)
+                {
+                    <a role="menuitem" asp-controller="Proposal" asp-action="Index" asp-route-runId="@Model.RunId">Proposal</a>
+                }
+                <a role="menuitem" asp-controller="Layout" asp-action="Editor" asp-route-projectId="@Model.ProjectId">Generate layout</a>
+                @if (!isDashboard)
+                {
+                    <a role="menuitem" asp-controller="Cad" asp-action="Index" asp-route-runId="@Model.RunId">PFD drawing</a>
+                }
+                <a role="menuitem" asp-controller="Pid" asp-action="Index" asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.RunId">@(isDashboard ? "Open P&ID" : "P&ID drawing")</a>
+            </div>
+        </details>
+    </div>
+</header>
+
+<script>
+    (function () {
+        if (window.__sxMoreBound) return;
+        window.__sxMoreBound = true;
+        document.addEventListener('click', function (e) {
+            var m = document.querySelector('.sx-more[open]');
+            if (m && !m.contains(e.target)) m.removeAttribute('open');
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key !== 'Escape') return;
+            var m = document.querySelector('.sx-more[open]');
+            if (m) { m.removeAttribute('open'); var s = m.querySelector('summary'); if (s) s.focus(); }
+        });
+    })();
+</script>

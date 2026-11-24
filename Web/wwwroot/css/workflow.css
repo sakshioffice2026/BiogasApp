@@ -1,6 +1,6 @@
 .wf-layout {
     display: grid;
-    grid-template-columns: 270px minmax(0, 1fr);
+    grid-template-columns: 310px minmax(0, 1fr);
     grid-auto-rows: min-content;
     column-gap: 1.25rem;
     row-gap: 0;
@@ -30,6 +30,10 @@
     box-shadow: var(--bp-shadow);
     position: sticky;
     top: calc(var(--bp-top-h) + 1rem);
+    max-height: calc(100vh - var(--bp-top-h) - 2rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 0;
 }
 
 .wf__head,
@@ -68,27 +72,35 @@
         width: 2px;
         background: var(--bp-line);
         transform: translateX(-1px);
+        pointer-events: none;
     }
 
 .wf__card {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-width: 0;
-    padding: 6px 8px;
+    padding: 6px 6px;
     background: #fff;
     border: 1px solid var(--bp-line);
     border-radius: var(--bp-radius-sm);
-    font-size: .8rem;
-    line-height: 1.25;
+    font-size: .78rem;
+    line-height: 1.2;
     color: var(--bp-ink-mute);
+    overflow: hidden;
     transition: border-color .2s var(--bp-ease), background .2s var(--bp-ease);
 }
 
+    .wf__card > span {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        hyphens: auto;
+    }
+
     .wf__card .bp-ico {
         flex: none;
-        width: 19px;
-        height: 19px;
+        width: 18px;
+        height: 18px;
         fill: none;
         stroke: currentColor;
         stroke-width: 1.8;
@@ -276,6 +288,7 @@
 .wfs__item.is-current .wfs__txt strong {
     color: var(--bp-ink);
 }
+
 .wf-content > .pj-hero,
 .wf-content > .pj-columns,
 .wf-content > .pj-mix,
