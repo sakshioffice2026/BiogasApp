@@ -36,7 +36,7 @@ public class ProjectController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> Detail(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Detail(Guid id, bool details = false, CancellationToken cancellationToken = default)
     {
         var project = await _projects.GetByIdAsync(id, cancellationToken);
         if (project == null)
@@ -45,6 +45,11 @@ public class ProjectController : Controller
         }
 
         var latestRun = await _simulations.GetLatestRunAsync(id, cancellationToken);
+        if (!details && latestRun != null)
+        {
+            return RedirectToAction("Results", "Simulation", new { runId = latestRun.Id });
+        }
+
         ViewData["LatestRunId"] = latestRun?.Id;
 
         project.FeedstockMix = await _projects.GetFeedstockMixAsync(id, cancellationToken);
@@ -141,7 +146,7 @@ public class ProjectController : Controller
 
         await _projects.UpdateAsync(project, cancellationToken);
         TempData["Success"] = "Project updated.";
-        return RedirectToAction(nameof(Detail), new { id });
+        return RedirectToAction(nameof(Detail), new { id, details = true });
     }
 
     [HttpPost]
@@ -156,7 +161,7 @@ public class ProjectController : Controller
 
         await _projects.SetStatusAsync(id, status, cancellationToken);
         TempData["Success"] = "Project status updated.";
-        return RedirectToAction(nameof(Detail), new { id });
+        return RedirectToAction(nameof(Detail), new { id, details = true });
     }
 
     [HttpPost]
@@ -188,7 +193,7 @@ public class ProjectController : Controller
 
         await _projects.SaveFeedstockMixAsync(id, cleaned, cancellationToken);
         TempData["Success"] = "Feedstock mix saved.";
-        return RedirectToAction(nameof(Detail), new { id });
+        return RedirectToAction(nameof(Detail), new { id, details = true });
     }
 
     [HttpPost]

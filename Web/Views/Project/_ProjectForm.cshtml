@@ -284,7 +284,8 @@
 
         <a class="bp-btn bp-btn--ghost"
            asp-action="@(isEdit ? "Detail" : "Index")"
-           asp-route-id="@Model.Id">
+           asp-route-id="@Model.Id"
+           asp-route-details="@(isEdit ? "true" : null)">
             Cancel
         </a>
     </div>

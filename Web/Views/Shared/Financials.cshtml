@@ -1,0 +1,105 @@
+@model BiogasApp.Model.ViewModel.ProposalViewModel
+@{
+    ViewData["Title"] = "Financials";
+    ViewData["RunId"] = Model.SimulationRunId;
+    ViewData["ProjectId"] = Model.ProjectId;
+    ViewData["WorkflowStep"] = 6;
+    var m = Model.Metrics;
+}
+
+<div class="bp-page-head">
+    <div>
+        <h1>Financials</h1>
+        <p class="bp-muted mb-0">@Model.ProjectName</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@Model.ProjectId" asp-route-details="true">Back to project</a>
+        <a class="bp-btn bp-btn--ghost" asp-action="Index" asp-route-runId="@Model.SimulationRunId">Back to proposal</a>
+        <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="Results" asp-route-runId="@Model.SimulationRunId">Results</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-5">
+        <form method="post" asp-action="Financials" class="bp-card p-4" novalidate>
+            <input type="hidden" asp-for="SimulationRunId" />
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+            <h2 class="h5 mb-3">Inputs</h2>
+
+            <div class="row g-3">
+                <div class="col-12 col-sm-6">
+                    <label class="form-label" asp-for="FinancialInputs.CbgSellingPricePerKg">CBG price (per kg)</label>
+                    <input class="form-control" asp-for="FinancialInputs.CbgSellingPricePerKg" type="number" step="any" min="0" inputmode="decimal" />
+                    <span class="text-danger small" asp-validation-for="FinancialInputs.CbgSellingPricePerKg"></span>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label class="form-label" asp-for="FinancialInputs.FomSellingPricePerTon">FOM price (per ton)</label>
+                    <input class="form-control" asp-for="FinancialInputs.FomSellingPricePerTon" type="number" step="any" min="0" inputmode="decimal" />
+                    <span class="text-danger small" asp-validation-for="FinancialInputs.FomSellingPricePerTon"></span>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label class="form-label" asp-for="FinancialInputs.DiscountRatePercent">Discount rate (%)</label>
+                    <input class="form-control" asp-for="FinancialInputs.DiscountRatePercent" type="number" step="any" min="0" max="100" inputmode="decimal" />
+                    <span class="text-danger small" asp-validation-for="FinancialInputs.DiscountRatePercent"></span>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label class="form-label" asp-for="FinancialInputs.ProjectLifeYears">Project life (years)</label>
+                    <input class="form-control" asp-for="FinancialInputs.ProjectLifeYears" type="number" step="1" min="1" max="50" inputmode="numeric" />
+                    <span class="text-danger small" asp-validation-for="FinancialInputs.ProjectLifeYears"></span>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label class="form-label" asp-for="FinancialInputs.DebtRatioPercent">Debt ratio (%)</label>
+                    <input class="form-control" asp-for="FinancialInputs.DebtRatioPercent" type="number" step="any" min="0" max="100" inputmode="decimal" />
+                    <span class="text-danger small" asp-validation-for="FinancialInputs.DebtRatioPercent"></span>
+                </div>
+                <div class="col-12 col-sm-6">
+                    <label class="form-label" asp-for="FinancialInputs.InterestRatePercent">Interest rate (%)</label>
+                    <input class="form-control" asp-for="FinancialInputs.InterestRatePercent" type="number" step="any" min="0" max="100" inputmode="decimal" />
+                    <span class="text-danger small" asp-validation-for="FinancialInputs.InterestRatePercent"></span>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="bp-btn bp-btn--flame">Generate proposal</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-12 col-lg-7">
+        <section class="bp-card p-4 h-100" aria-label="Financial results" aria-live="polite">
+            <h2 class="h5 mb-3">Results</h2>
+            @if (m == null)
+            {
+                <p class="bp-muted mb-0">Enter the inputs and generate the proposal to see CAPEX, OPEX, NPV and IRR.</p>
+            }
+            else
+            {
+                <dl class="sx-metrics">
+                    <div class="sx-metric"><dt>CAPEX</dt><dd>@m.CapexTotal.ToString("N0")</dd></div>
+                    <div class="sx-metric"><dt>OPEX (annual)</dt><dd>@m.OpexAnnual.ToString("N0")</dd></div>
+                    <div class="sx-metric"><dt>Revenue (annual)</dt><dd>@m.AnnualRevenue.ToString("N0")</dd></div>
+                    <div class="sx-metric"><dt>NPV</dt><dd>@m.Npv.ToString("N0")</dd></div>
+                    <div class="sx-metric"><dt>IRR</dt><dd>@(m.IrrPercent.HasValue? m.IrrPercent.Value.ToString("N1") + " %" : "n/a")</dd></div>
+                    <div class="sx-metric"><dt>Payback</dt><dd>@(m.PaybackPeriodYears.HasValue? m.PaybackPeriodYears.Value.ToString("N1") + " yrs" : "n/a")</dd></div>
+                    <div class="sx-metric"><dt>Min DSCR</dt><dd>@(m.MinDscr.HasValue? m.MinDscr.Value.ToString("N2") : "n/a")</dd></div>
+                </dl>
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    @if (!string.IsNullOrWhiteSpace(Model.ProposalPdfUrl))
+                    {
+                        <a class="bp-btn bp-btn--primary" href="@Model.ProposalPdfUrl">Download proposal PDF</a>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.ExcelBomUrl))
+                    {
+                        <a class="bp-btn bp-btn--ghost" href="@Model.ExcelBomUrl">Download BOM Excel</a>
+                    }
+                    <a class="bp-btn bp-btn--ghost" asp-action="Bom" asp-route-runId="@Model.SimulationRunId">View BOM</a>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

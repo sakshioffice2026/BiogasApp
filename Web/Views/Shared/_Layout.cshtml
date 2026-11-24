@@ -191,26 +191,6 @@
 
             <ul class="bp-rail__list" role="list">
 
-                <!-- Overview -->
-                <li>
-                    <a class="bp-node @Active("dashboard")"
-                       asp-controller="Dashboard"
-                       asp-action="Index"
-                       aria-current="@Current("dashboard")">
-
-                        <span class="bp-node__dot">
-                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
-                                <rect x="3" y="3" width="7" height="7" rx="2" />
-                                <rect x="14" y="3" width="7" height="7" rx="2" />
-                                <rect x="3" y="14" width="7" height="7" rx="2" />
-                                <rect x="14" y="14" width="7" height="7" rx="2" />
-                            </svg>
-                        </span>
-
-                        <span class="bp-node__label">Overview</span>
-                    </a>
-                </li>
-
                 @if (isAdmin)
                 {
                     <!-- Enquiries -->

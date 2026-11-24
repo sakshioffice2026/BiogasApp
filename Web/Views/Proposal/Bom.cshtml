@@ -17,7 +17,7 @@
         <p class="bp-muted mb-0">@projectName</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@projectId">Back to project</a>
+        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@projectId" asp-route-details="true">Back to project</a>
         <a class="bp-btn bp-btn--ghost" asp-action="Index" asp-route-runId="@runId">Back to proposal</a>
         <a class="bp-btn bp-btn--primary" asp-action="BomExcel" asp-route-runId="@runId">Download Excel</a>
     </div>

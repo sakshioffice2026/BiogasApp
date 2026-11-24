@@ -19,6 +19,24 @@
     });
     if (!sections.length) return;
 
+    var pills = Array.prototype.slice.call(document.querySelectorAll(".sx-pill"));
+    var pillTargets = pills.map(function (a) {
+        return document.getElementById((a.getAttribute("href") || "").replace("#", ""));
+    });
+
+    function setPill(line) {
+        var active = -1;
+        pillTargets.forEach(function (el, i) {
+            if (el && el.getBoundingClientRect().top <= line) active = i;
+        });
+        if (active < 0 && pills.length) active = 0;
+        pills.forEach(function (a, i) {
+            a.classList.toggle("is-active", i === active);
+            if (i === active) a.setAttribute("aria-current", "true");
+            else a.removeAttribute("aria-current");
+        });
+    }
+
     var rows = wf.querySelectorAll(".wf__row");
     var tag = wf.querySelector(".wf__tag");
     var CHECK = "M5 12l5 5 9-10";
@@ -61,6 +79,7 @@
         });
 
         setStep(step);
+        setPill(line);
     }
 
     function queue() {

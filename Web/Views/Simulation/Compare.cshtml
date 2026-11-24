@@ -42,7 +42,7 @@
             }),
             ("Equipment", new List<(string Label, string Unit, int Digits, double A, double B)>
             {
-                ("Equipment total", "cost", 0, (double)a.EquipmentSizing.Sum(e => e.TotalCost), (double)b.EquipmentSizing.Sum(e => e.TotalCost))
+                ("Equipment total cost", "", 0, (double)a.EquipmentSizing.Sum(e => e.TotalCost), (double)b.EquipmentSizing.Sum(e => e.TotalCost))
             })
         };
 

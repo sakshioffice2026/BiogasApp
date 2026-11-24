@@ -61,7 +61,7 @@
     </div>
     <div class="mx-head-actions">
         <a class="bp-btn bp-btn--ghost" asp-action="History" asp-route-projectId="@Model.ProjectId">History</a>
-        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@Model.ProjectId">
+        <a class="bp-btn bp-btn--ghost" asp-controller="Project" asp-action="Detail" asp-route-id="@Model.ProjectId" asp-route-details="true">
             <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 6-6 6 6 6" /></svg>
             Back to project
         </a>
