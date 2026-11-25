@@ -20,8 +20,8 @@
 }
 
 .ac-brand__kicker {
-    color: var(--bp-ink-mute);
-    font-size: .95rem;
+    color: var(--bp-ink-soft);
+    font-size: 1rem;
     margin-bottom: 10px;
 }
 
@@ -69,8 +69,8 @@
     }
 
     .ac-pipe__text small {
-        color: var(--bp-ink-mute);
-        font-size: .88rem;
+        color: var(--bp-ink-soft);
+        font-size: .92rem;
     }
 
 /* Login card */
@@ -91,7 +91,7 @@
 }
 
 .ac-panel > .bp-muted {
-    color: var(--bp-ink-mute);
+    color: var(--bp-ink-soft);
     margin-bottom: 24px;
 }
 
@@ -151,8 +151,9 @@
 
 /* Validation messages */
 .field-validation-error {
-    color: #b4233d;
-    font-size: .82rem;
+    color: #A3162F;
+    font-size: .88rem;
+    font-weight: 600;
 }
 
     .field-validation-error:empty {

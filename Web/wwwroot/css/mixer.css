@@ -184,9 +184,9 @@
 
     .mx-stat__value small {
         font-family: var(--bp-font);
-        font-size: .8rem;
-        font-weight: 600;
-        color: var(--bp-ink-mute);
+        font-size: .85rem;
+        font-weight: 700;
+        color: var(--bp-ink-soft);
     }
 
 .mx-gauges .bp-gauge--ring {
@@ -246,7 +246,7 @@
 }
 
 .mx-gauges .bp-gauge__scale {
-    font-size: .66rem;
+    font-size: .74rem;
     gap: .2rem;
 }
 
@@ -344,8 +344,8 @@
     }
 
 .mx-row__cat {
-    font-size: .78rem;
-    color: var(--bp-ink-mute);
+    font-size: .84rem;
+    color: var(--bp-ink-soft);
 }
 
 .mx-share {

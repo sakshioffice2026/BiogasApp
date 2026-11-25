@@ -234,16 +234,16 @@
 }
 
     .wfs__txt strong {
-        font-size: .76rem;
-        font-weight: 600;
-        color: var(--bp-ink-mute);
+        font-size: .8rem;
+        font-weight: 700;
+        color: var(--bp-ink-soft);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
     .wfs__txt small {
-        font-size: .68rem;
+        font-size: .74rem;
         color: var(--bp-ink-mute);
         white-space: nowrap;
         overflow: hidden;

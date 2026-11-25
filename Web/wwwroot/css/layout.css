@@ -41,8 +41,8 @@
 
 .receptor-empty,
 .nobuild-empty {
-    color: var(--bp-ink-mute, #5a6c99);
-    font-size: .85rem;
+    color: var(--bp-ink-soft, #2C4380);
+    font-size: .88rem;
 }
 
 /* ---------- Layout editor ---------- */
@@ -126,8 +126,8 @@
 }
 
 .eq-size {
-    color: var(--bp-ink-mute, #5a6c99);
-    font-size: .75rem;
+    color: var(--bp-ink-soft, #2C4380);
+    font-size: .8rem;
 }
 
 .warning-list {

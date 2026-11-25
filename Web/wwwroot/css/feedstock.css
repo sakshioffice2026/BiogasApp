@@ -298,8 +298,8 @@
 .fs-meter__note {
     display: block;
     margin-top: .2rem;
-    font-size: .8rem;
-    color: var(--bp-ink-mute);
+    font-size: .85rem;
+    color: var(--bp-ink-soft);
 }
 
 /* ---------- Card footer ---------- */
@@ -476,8 +476,8 @@
 .fs-help {
     display: block;
     margin-top: .25rem;
-    font-size: .82rem;
-    color: var(--bp-ink-mute);
+    font-size: .86rem;
+    color: var(--bp-ink-soft);
 }
 
     .fs-help[data-state="warn"] {
@@ -631,8 +631,8 @@
 
 .fs-preview__note {
     margin: 0;
-    font-size: .82rem;
-    color: var(--bp-ink-mute);
+    font-size: .86rem;
+    color: var(--bp-ink-soft);
 }
 
 /* ---------- Responsive ---------- */

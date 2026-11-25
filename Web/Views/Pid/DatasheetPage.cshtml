@@ -27,6 +27,8 @@
         }
     }
 
+    var hasLayout = item != null && (item.Zone != null || item.HazardClass != null || item.DiameterM.HasValue || item.WidthM.HasValue || item.LengthM.HasValue);
+
     string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
     string Num(decimal? v) => v.HasValue ? v.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "-";
 }
@@ -104,12 +106,15 @@ else
                         </div>
                     </div>
 
-                    <div class="row g-2">
-                        <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Zone</div><div>@Dash(item.Zone)</div></div></div>
-                        <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Hazard class</div><div>@Dash(item.HazardClass)</div></div></div>
-                        <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Diameter (m)</div><div>@Num(item.DiameterM)</div></div></div>
-                        <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Width x length (m)</div><div>@Num(item.WidthM) x @Num(item.LengthM)</div></div></div>
-                    </div>
+                    @if (hasLayout)
+                    {
+                        <div class="row g-2">
+                            <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Zone</div><div>@Dash(item.Zone)</div></div></div>
+                            <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Hazard class</div><div>@Dash(item.HazardClass)</div></div></div>
+                            <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Diameter (m)</div><div>@Num(item.DiameterM)</div></div></div>
+                            <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Width x length (m)</div><div>@Num(item.WidthM) x @Num(item.LengthM)</div></div></div>
+                        </div>
+                    }
                 </div>
             </div>
 

@@ -152,8 +152,8 @@
 
     .pj-facts dt {
         flex: 0 0 5.2rem;
-        font-weight: 500;
-        color: var(--bp-ink-mute);
+        font-weight: 600;
+        color: var(--bp-ink-soft);
     }
 
     .pj-facts dd {
@@ -166,8 +166,8 @@
     flex-wrap: wrap;
     gap: .25rem 1rem;
     margin: .9rem 0 0;
-    font-size: .85rem;
-    color: var(--bp-ink-mute);
+    font-size: .88rem;
+    color: var(--bp-ink-soft);
 }
 
 .pj-empty {
@@ -525,8 +525,8 @@ fieldset.pj-section > legend.pj-section__title {
 
     .pj-spec dt {
         font-size: .85rem;
-        font-weight: 500;
-        color: var(--bp-ink-mute);
+        font-weight: 600;
+        color: var(--bp-ink-soft);
     }
 
     .pj-spec dd {
@@ -538,7 +538,7 @@ fieldset.pj-section > legend.pj-section__title {
         .pj-spec dd small {
             display: block;
             font-size: .85rem;
-            font-weight: 400;
+            font-weight: 500;
             color: var(--bp-ink-soft);
         }
 

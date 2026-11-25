@@ -247,7 +247,7 @@
         ringLayer.clearLayers();
         L.circle([lat, lon], { radius: 100, color: '#f2a900', weight: 1, dashArray: '4 4', fill: false, interactive: false })
             .bindTooltip('100 m (PESO surroundings)').addTo(ringLayer);
-        L.circle([lat, lon], { radius: 500, color: '#6c757d', weight: 1, dashArray: '4 4', fill: false, interactive: false })
+        L.circle([lat, lon], { radius: 500, color: '#4A5F96', weight: 1, dashArray: '4 4', fill: false, interactive: false })
             .bindTooltip('500 m (odour)').addTo(ringLayer);
 
         if (pan) map.setView([lat, lon], Math.max(map.getZoom(), 17));

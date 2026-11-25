@@ -66,9 +66,9 @@
     }
 
 .db-stat-label {
-    color: var(--bp-ink-mute);
-    font-size: .86rem;
-    font-weight: 600;
+    color: var(--bp-ink-soft);
+    font-size: .9rem;
+    font-weight: 700;
 }
 
 .db-stat-value {
@@ -81,7 +81,7 @@
 
 .db-stat-note {
     color: var(--bp-ink-mute);
-    font-size: .8rem;
+    font-size: .85rem;
 }
 
 /* Sections */
@@ -120,9 +120,9 @@
     }
 
 .db-status-label {
-    font-size: .82rem;
-    color: var(--bp-ink-mute);
-    font-weight: 600;
+    font-size: .86rem;
+    color: var(--bp-ink-soft);
+    font-weight: 700;
 }
 
 .db-status-value {
@@ -165,8 +165,8 @@
 
     .db-latest-item span {
         display: block;
-        font-size: .82rem;
-        color: var(--bp-ink-mute);
+        font-size: .86rem;
+        color: var(--bp-ink-soft);
         line-height: 1.5;
     }
 

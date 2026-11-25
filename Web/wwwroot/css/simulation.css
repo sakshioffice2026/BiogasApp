@@ -182,8 +182,8 @@
     justify-content: space-between;
     gap: .5rem;
     margin: 0;
-    font-size: .78rem;
-    color: var(--bp-ink-mute);
+    font-size: .84rem;
+    color: var(--bp-ink-soft);
 }
 
 /* ==========================================================================
@@ -360,15 +360,15 @@
 
     .sm-kpi__value small {
         font-family: var(--bp-font);
-        font-size: .75rem;
+        font-size: .82rem;
         font-weight: 600;
-        color: var(--bp-ink-mute);
+        color: var(--bp-ink-soft);
     }
 
 .sm-kpi__sub {
     margin: 0;
-    font-size: .78rem;
-    color: var(--bp-ink-mute);
+    font-size: .84rem;
+    color: var(--bp-ink-soft);
 }
 
 /* ==========================================================================
@@ -710,9 +710,9 @@
 
         .sx-metric dd small {
             font-family: var(--bp-font);
-            font-size: .72rem;
+            font-size: .78rem;
             font-weight: 600;
-            color: var(--bp-ink-mute);
+            color: var(--bp-ink-soft);
         }
 
 .sx-spec {
