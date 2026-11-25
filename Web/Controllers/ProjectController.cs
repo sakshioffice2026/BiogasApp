@@ -124,6 +124,10 @@ public class ProjectController : Controller
             return BadRequest();
         }
 
+        // Plot size is not part of the edit form.
+        ModelState.Remove(nameof(model.PlotLengthM));
+        ModelState.Remove(nameof(model.PlotWidthM));
+
         if (!ModelState.IsValid)
         {
             return View(model);

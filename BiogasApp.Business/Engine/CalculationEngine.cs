@@ -11,17 +11,25 @@ public class CalculationEngine : ICalculationEngine
     private readonly DigestateBomService _bom;
     private readonly PreTreatmentService _preTreatment;
     private readonly CbgDispatchService _dispatch;
+    private readonly GasTreatmentService _gasTreatment;
+    private readonly GasHolderService _gasHolder;
+    private readonly PumpPipingService _pumpPiping;
+    private readonly UtilitiesService _utilities;
 
     public CalculationEngine(
-        FeedstockBlendingService blending,
-        DigesterSizingService digester,
-        GasYieldService gas,
-        HeatBalanceService heat,
-        MechanicalSizingService mechanical,
-        UpgradingService upgrading,
-        DigestateBomService bom,
-        PreTreatmentService preTreatment,
-        CbgDispatchService dispatch)
+    FeedstockBlendingService blending,
+    DigesterSizingService digester,
+    GasYieldService gas,
+    HeatBalanceService heat,
+    MechanicalSizingService mechanical,
+    UpgradingService upgrading,
+    DigestateBomService bom,
+    PreTreatmentService preTreatment,
+    CbgDispatchService dispatch,
+    GasTreatmentService gasTreatment,
+    GasHolderService gasHolder,
+    PumpPipingService pumpPiping,
+    UtilitiesService utilities)
     {
         _blending = blending;
         _digester = digester;
@@ -32,6 +40,10 @@ public class CalculationEngine : ICalculationEngine
         _bom = bom;
         _preTreatment = preTreatment;
         _dispatch = dispatch;
+        _gasTreatment = gasTreatment;
+        _gasHolder = gasHolder;
+        _pumpPiping = pumpPiping;
+        _utilities = utilities;
     }
 
     public CalculationResult Run(CalculationInput input)
@@ -56,6 +68,14 @@ public class CalculationEngine : ICalculationEngine
             digester.LiquidHeightM,
             HeatBalanceService.GetOperatingTempC(input.Regime),
             input.AmbientTempMinC);
+
+
+        var heatSeasonal = _heat.CalculateSeasonal(
+            blending.QSlurryM3Day / digester.NumTanks,
+            digester.DiameterM,
+            digester.TotalHeightM,
+            digester.LiquidHeightM,
+            HeatBalanceService.GetOperatingTempC(input.Regime));
 
         // 3.5 Mechanical sizing (per tank)
         var mechanical = _mechanical.Calculate(
@@ -87,26 +107,56 @@ public class CalculationEngine : ICalculationEngine
             upgrading.MCbgKgDay,
             upgrading.CascadeWaterCapacityLiters);
 
+
+        // 3.10 Gas treatment (H2S removal, chiller, booster, flare)
+        var gasTreatment = _gasTreatment.Calculate(gas.QBiogasNm3Day, gas.MH2sKgDay);
+
+        // 3.11 Gas holder and dome
+        var gasHolder = _gasHolder.Calculate(
+            gas.QBiogasNm3Day,
+            digester.DiameterM,
+            digester.NumTanks);
+
+        // 3.12 Pumps and piping
+        var pumpPiping = _pumpPiping.Calculate(
+            blending.QSlurryM3Day,
+            gas.QBiogasNm3Hr);
+
         var parasiticHeatKw = heat.QTotalThermalDutyKw * digester.NumTanks;
         var parasiticPowerKw =
         (mechanical.TotalMixingPowerKw * digester.NumTanks) +
         upgrading.UpgradingPowerKw +
         upgrading.CompressorPowerKw +
         preTreatment.ShredderPowerKw +
-        preTreatment.MixerPowerKw;
+        preTreatment.MixerPowerKw +
+        preTreatment.FeedTankMixerPowerKw +
+        gasTreatment.BoosterPowerKw +
+        pumpPiping.FeedPump.PowerKw +
+        pumpPiping.DigestatePump.PowerKw;
+
+        // 3.13 Utilities (process water, fire water, hot water generator, MCC, transformer, DG)
+        var utilities = _utilities.Calculate(
+            preTreatment.DilutionWaterM3Day,
+            parasiticPowerKw,
+            parasiticHeatKw);
 
         return new CalculationResult(
-            Blending: blending,
-            Digester: digester,
-            Gas: gas,
-            Heat: heat,
-            Mechanical: mechanical,
-            Upgrading: upgrading,
-            Bom: bom,
-            PreTreatment: preTreatment,
-            Dispatch: dispatch,
-            ParasiticHeatKw: parasiticHeatKw,
-            ParasiticPowerKw: parasiticPowerKw,
-            Warnings: blending.Warnings);
+    Blending: blending,
+    Digester: digester,
+    Gas: gas,
+    Heat: heat,
+    Mechanical: mechanical,
+    Upgrading: upgrading,
+    Bom: bom,
+    PreTreatment: preTreatment,
+    Dispatch: dispatch,
+    ParasiticHeatKw: parasiticHeatKw,
+    ParasiticPowerKw: parasiticPowerKw,
+    Warnings: blending.Warnings,
+    HeatSeasonal: heatSeasonal,
+    GasTreatment: gasTreatment,
+    GasHolder: gasHolder,
+    PumpPiping: pumpPiping,
+    Utilities: utilities);
     }
 }

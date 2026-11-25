@@ -7,12 +7,18 @@ public record DigestateBomResult(
     double DigestateLiquidLfomTpd,
     double CivilExcavationM3,
     double CivilRccConcreteM3,
-    double StructuralSteelRebarTons);
-
+    double StructuralSteelRebarTons,
+    double LagoonVolumeM3,
+    double LagoonLengthM,
+    double LagoonWidthM,
+    double LagoonDepthM);
 public class DigestateBomService
 {
     private const double VsDestructionFraction = 0.55;
-
+    private const double LagoonStorageDays = 15.0;
+    private const double LagoonDepthM = 3.0;
+    private const double LagoonFreeboardM = 0.5;
+    private const double LagoonLengthToWidthRatio = 1.2;
     public DigestateBomResult Calculate(
         double qSlurryM3Day,
         double blendedTsPct,
@@ -46,6 +52,14 @@ public class DigestateBomService
         mSolidCakeTpd = Math.Clamp(mSolidCakeTpd, 0.0, mDig);
         var mLiquidLfomTpd = mDig - mSolidCakeTpd;
 
+
+        // Liquid digestate (LFOM) storage lagoon
+        var lagoonLiquidM3Day = mLiquidLfomTpd / EngineeringConstants.DigestateDensityTPerM3;
+        var lagoonVolumeM3 = Math.Ceiling(lagoonLiquidM3Day * LagoonStorageDays);
+        var lagoonSurfaceAreaM2 = lagoonVolumeM3 / (LagoonDepthM - LagoonFreeboardM);
+        var lagoonWidthM = Math.Ceiling(Math.Sqrt(lagoonSurfaceAreaM2 / LagoonLengthToWidthRatio));
+        var lagoonLengthM = Math.Ceiling(lagoonWidthM * LagoonLengthToWidthRatio);
+
         // Civil quantities
         var radius = diameterM / 2.0;
         var wallThickness = EngineeringConstants.RccWallThicknessM;
@@ -67,10 +81,14 @@ public class DigestateBomService
         var steelTonnageTons = (totalConcreteM3 * EngineeringConstants.RebarKgPerM3Concrete) / 1000.0;
 
         return new DigestateBomResult(
-            DigestateSolidCakeTpd: mSolidCakeTpd,
-            DigestateLiquidLfomTpd: mLiquidLfomTpd,
-            CivilExcavationM3: Math.Ceiling(excavationVolM3),
-            CivilRccConcreteM3: Math.Ceiling(totalConcreteM3),
-            StructuralSteelRebarTons: Math.Ceiling(steelTonnageTons));
+    DigestateSolidCakeTpd: mSolidCakeTpd,
+    DigestateLiquidLfomTpd: mLiquidLfomTpd,
+    CivilExcavationM3: Math.Ceiling(excavationVolM3),
+    CivilRccConcreteM3: Math.Ceiling(totalConcreteM3),
+    StructuralSteelRebarTons: Math.Ceiling(steelTonnageTons),
+    LagoonVolumeM3: lagoonVolumeM3,
+    LagoonLengthM: lagoonLengthM,
+    LagoonWidthM: lagoonWidthM,
+    LagoonDepthM: LagoonDepthM);
     }
 }

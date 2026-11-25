@@ -101,8 +101,21 @@ public class ProjectRepository : IProjectRepository
         var entity = await _db.Projects.FirstOrDefaultAsync(p => p.Id == id, cancellationToken)
             ?? throw new KeyNotFoundException($"Project {id} was not found.");
 
+        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+        // Rows that block the cascade (restricted foreign keys) are removed first.
+        await _db.EnquiryProposals
+            .Where(x => x.ProjectId == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await _db.SiteLayoutItems
+            .Where(x => _db.SiteLayouts.Any(l => l.Id == x.SiteLayoutId && l.ProjectId == id))
+            .ExecuteDeleteAsync(cancellationToken);
+
         _db.Projects.Remove(entity);
         await _db.SaveChangesAsync(cancellationToken);
+
+        await tx.CommitAsync(cancellationToken);
     }
 
     /// <exception cref="KeyNotFoundException">Project does not exist.</exception>

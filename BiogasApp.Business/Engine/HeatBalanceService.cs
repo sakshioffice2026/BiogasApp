@@ -9,6 +9,11 @@ public record HeatBalanceResult(
     double QTotalThermalDutyKw,
     double HeatExchangerAreaM2);
 
+public record SeasonalHeatResult(
+    double WinterDutyKw,
+    double MonsoonDutyKw,
+    double SummerDutyKw,
+    double DesignDutyKw);
 public class HeatBalanceService
 {
     private const double ThermalBridgeAllowanceFactor = 1.05;
@@ -44,7 +49,7 @@ public class HeatBalanceService
             (EngineeringConstants.UWallWPerM2K * aWallExposed * deltaT) +
             (EngineeringConstants.URoofWPerM2K * aRoof * deltaT);
         var qLossKw = (qLossW * ThermalBridgeAllowanceFactor) / 1000.0;
-        
+
 
         var qTotalKw = (qFeedKw + qLossKw) * EngineeringConstants.HeatSafetyFactor;
 
@@ -57,4 +62,30 @@ public class HeatBalanceService
             QTotalThermalDutyKw: qTotalKw,
             HeatExchangerAreaM2: Math.Ceiling(aHxM2 * EngineeringConstants.HxAreaMargin));
     }
+
+    public SeasonalHeatResult CalculateSeasonal(
+        double qSlurryM3Day,
+        double diameterM,
+        double totalHeightM,
+        double liquidHeightM,
+        double tOpC = EngineeringConstants.MesophilicOperatingTempC)
+    {
+        var winter = Calculate(qSlurryM3Day, diameterM, totalHeightM, liquidHeightM,
+            tOpC, EngineeringConstants.WinterAmbientTempC);
+        var monsoon = Calculate(qSlurryM3Day, diameterM, totalHeightM, liquidHeightM,
+            tOpC, EngineeringConstants.MonsoonAmbientTempC);
+        var summer = Calculate(qSlurryM3Day, diameterM, totalHeightM, liquidHeightM,
+            tOpC, EngineeringConstants.SummerAmbientTempC);
+
+        var designDutyKw = Math.Max(
+            winter.QTotalThermalDutyKw,
+            Math.Max(monsoon.QTotalThermalDutyKw, summer.QTotalThermalDutyKw));
+
+        return new SeasonalHeatResult(
+            WinterDutyKw: winter.QTotalThermalDutyKw,
+            MonsoonDutyKw: monsoon.QTotalThermalDutyKw,
+            SummerDutyKw: summer.QTotalThermalDutyKw,
+            DesignDutyKw: designDutyKw);
+    }
 }
+

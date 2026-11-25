@@ -22,7 +22,12 @@ public record CalculationResult(
     CbgDispatchResult Dispatch,
     double ParasiticHeatKw,
     double ParasiticPowerKw,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings,
+    SeasonalHeatResult HeatSeasonal,
+    GasTreatmentResult GasTreatment,
+    GasHolderResult GasHolder,
+    PumpPipingResult PumpPiping,
+    UtilitiesResult Utilities);
 
 public interface ICalculationEngine
 {

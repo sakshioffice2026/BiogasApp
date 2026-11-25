@@ -28,39 +28,23 @@ public static class DatasheetPdfWriter
                 ("Revision / Status", $"Rev {set.RevisionNo} / {set.Status}")
             });
 
-            string[] headers;
-            double[] widths;
-            if (isEpc)
-            {
-                headers = new[] { "Tag", "Name", "Type", "Qty", "Zone", "Hazard", "Dia (m)", "Width (m)", "Length (m)", "Make", "Model", "Material" };
-                widths = new double[] { 48, 85, 60, 24, 32, 38, 36, 36, 36, 40, 40, 40 };
-            }
-            else
-            {
-                headers = new[] { "Tag", "Name", "Type", "Qty", "Zone", "Hazard", "Dia (m)", "Width (m)", "Length (m)" };
-                widths = new double[] { 60, 120, 90, 30, 45, 50, 40, 40, 40 };
-            }
+            var headers = new[] { "Tag", "Name", "Type", "Qty", "Zone", "Hazard", "Dia", "Wid", "Len" };
+            var widths = new double[] { 50, 114, 118, 26, 44, 56, 36, 36, 35 };
 
             var rows = new List<string[]>();
             foreach (var i in items)
             {
-                var row = new List<string>
-                {
-                    S(i.Tag), S(i.Name), S(i.EquipmentType),
+                var row = new[]
+{
+                    S(i.Tag), S(i.Name), Humanize(i.EquipmentType),
                     i.Quantity.ToString(CultureInfo.InvariantCulture),
-                    S(i.Zone), S(i.HazardClass),
+                    Humanize(i.Zone), Humanize(i.HazardClass),
                     Dec(i.DiameterM), Dec(i.WidthM), Dec(i.LengthM)
                 };
-                if (isEpc)
-                {
-                    row.Add(S(i.Vendor.Make));
-                    row.Add(S(i.Vendor.Model));
-                    row.Add(S(i.Vendor.Material));
-                }
-                rows.Add(row.ToArray());
+                rows.Add(row);
             }
 
-            pdf.Section("Equipment list");
+            pdf.Section("Equipment list (Dia, Wid, Len in m)");
             pdf.Table(headers, widths, rows);
             first = false;
         }
@@ -174,6 +158,15 @@ public static class DatasheetPdfWriter
     }
 
     private static string S(string? value) => value ?? string.Empty;
+
+    private static string Humanize(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return string.Empty;
+        var text = System.Text.RegularExpressions.Regex
+            .Replace(value.Replace('_', ' '), "([a-z0-9])([A-Z])", "$1 $2")
+            .ToLowerInvariant();
+        return char.ToUpperInvariant(text[0]) + text.Substring(1);
+    }
 
     private static string Dash(string? value) => string.IsNullOrWhiteSpace(value) ? "-" : value;
 

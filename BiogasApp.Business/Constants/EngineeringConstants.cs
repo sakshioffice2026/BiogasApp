@@ -62,6 +62,20 @@ public static class EngineeringConstants
 
     public static readonly int[] CommercialThicknessesMm = { 6, 8, 10, 12, 14, 16, 20, 22, 25 };
 
+
+    // ---------- Shell wind, seismic and roof checks ----------
+    public const double DesignWindSpeedMs = 39.0;
+    public const double WindPressureCoefficient = 0.60;
+    public const double AirDensityKgPerM3 = 1.2;
+    public const double SeismicZoneFactor = 0.16;
+    public const double SeismicImportanceFactor = 1.2;
+    public const double SeismicResponseReductionFactor = 3.0;
+    public const double SteelDensityKgPerM3 = 7850.0;
+    public const double RoofLiveLoadKpa = 1.2;
+    public const double RoofMinThicknessMm = 5.0;
+    public const double GravityMs2 = 9.81;
+
+
     // ---------- 3.6 Upgrading & compression ----------
     public const double CbgDensityKgPerNm3 = 0.72;
     public const double CompressorSpecificEnergyKwhPerNm3 = 0.25;
@@ -120,4 +134,10 @@ public static class EngineeringConstants
     public const double OfficeControlMinM = 15.0;
     public const double AtexZone1RadiusM = 3.0;
     public const double MinPlotAreaM2 = 2500.0;
+
+
+    // ---------- Seasonal ambient temperature ----------
+    public const double SummerAmbientTempC = 40.0;
+    public const double MonsoonAmbientTempC = 28.0;
+    public const double WinterAmbientTempC = 10.0;
 }

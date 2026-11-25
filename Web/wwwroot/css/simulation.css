@@ -768,6 +768,11 @@
     overflow-x: auto;
 }
 
+
+.sx-scroll-box > .sx-table-wrap {
+    overflow: visible;
+}
+
 .sx-table-wrap--short {
     max-height: 190px;
     overflow-y: auto;

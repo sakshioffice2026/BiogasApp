@@ -10,10 +10,19 @@ public record UpgradingResult(
     double CompressorPowerKw,
     double CompressorCapacityNm3Hr,
     double CascadeWaterCapacityLiters,
-    int NumCascadeBanks3000L);
+    int NumCascadeBanks3000L,
+    double SkidLengthM,
+    double SkidWidthM,
+    double SkidHeightM);
 
 public class UpgradingService
 {
+
+    private const double SkidReferenceFlowNm3Hr = 600.0;
+    private const double SkidReferenceLengthM = 12.0;
+    private const double SkidReferenceWidthM = 3.5;
+    private const double SkidReferenceHeightM = 3.0;
+    private const double SkidMinScale = 0.5;
     public UpgradingResult Calculate(
         double qBiogasNm3Day,
         double ch4Pct,
@@ -44,6 +53,12 @@ public class UpgradingService
 
         var numCascades = (int)Math.Ceiling(waterCapacityLitersReq / EngineeringConstants.CascadeCylinderLiters);
 
+        // Upgrading skid footprint scaled from the reference skid by raw biogas flow
+        var skidScale = Math.Max(Math.Sqrt(qBiogasNm3Hr / SkidReferenceFlowNm3Hr), SkidMinScale);
+        var skidLengthM = Math.Ceiling(SkidReferenceLengthM * skidScale * 2.0) / 2.0;
+        var skidWidthM = Math.Ceiling(SkidReferenceWidthM * skidScale * 2.0) / 2.0;
+
+
         return new UpgradingResult(
             QCbgNm3Day: qCbgNm3Day,
             MCbgKgDay: mCbgKgDay,
@@ -51,6 +66,9 @@ public class UpgradingService
             CompressorPowerKw: pCompressorKw,
             CompressorCapacityNm3Hr: Math.Ceiling(qCbgNm3Hr * EngineeringConstants.CompressorSurgeFactor),
             CascadeWaterCapacityLiters: Math.Ceiling(waterCapacityLitersReq),
-            NumCascadeBanks3000L: numCascades);
+            NumCascadeBanks3000L: numCascades,
+            SkidLengthM: skidLengthM,
+            SkidWidthM: skidWidthM,
+            SkidHeightM: SkidReferenceHeightM);
     }
 }

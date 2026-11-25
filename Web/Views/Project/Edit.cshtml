@@ -1,7 +1,15 @@
 @model BiogasApp.Model.ViewModel.ProjectFormViewModel
+@using BiogasApp.Database.Enums
+@using Web.Helpers
 @{
     ViewData["Title"] = "Edit " + Model.Name;
     ViewData["WorkflowStep"] = 1;
+
+    // value:label[:css] pairs, read by quick-edit.js
+    var statusOptions = string.Join("|", Enum.GetValues<ProjectStatus>().Select(s => $"{(int)s}:{s.Label()}:{s.Css()}"));
+    var regulatoryOptions = string.Join("|", Enum.GetValues<RegulatoryStandard>().Select(s => $"{s}:{s.Label()}"));
+    var regimeOptions = string.Join("|", Enum.GetValues<DigesterRegime>().Select(s => $"{s}:{s.Label()}"));
+    var upgradingOptions = string.Join("|", Enum.GetValues<UpgradingTech>().Select(s => $"{s}:{s.Label()}"));
 }
 @section Styles {
     <link rel="stylesheet" href="~/css/project.css" asp-append-version="true" />
@@ -11,6 +19,7 @@
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/project.js" asp-append-version="true"></script>
     <script src="~/js/project-steps.js" asp-append-version="true"></script>
+    <script src="~/js/quick-edit.js" asp-append-version="true"></script>
 }
 
 @*
@@ -21,8 +30,75 @@
 <div class="bp-page-head">
     <div>
         <h1>Edit project</h1>
-        <p class="bp-muted mb-0">@Model.Name</p>
+        <p class="bp-muted mb-0" data-qe-title>@Model.Name</p>
     </div>
 </div>
+
+<section class="qe bp-card" aria-label="Quick edit" data-qe>
+    <div class="qe__head">
+        <h2 class="qe__title">Quick edit</h2>
+        <span class="qe__save" data-qe-save-wrap hidden>
+            <span class="qe__note">Changed. Not saved yet.</span>
+            <button type="button" class="bp-btn bp-btn--primary" data-qe-save>Save changes</button>
+        </span>
+    </div>
+
+    <div class="qe__chips">
+        <button type="button" class="qe-chip" aria-expanded="false"
+                data-qe-field="Name" data-qe-type="text" data-qe-label="Project name"
+                data-qe-value="@Model.Name">
+            <small>Name</small>
+            <span data-qe-out>@Model.Name</span>
+        </button>
+
+        <button type="button" class="qe-chip" aria-expanded="false"
+                data-qe-field="LocationCountry" data-qe-type="text" data-qe-label="Location (Country)"
+                data-qe-value="@Model.LocationCountry">
+            <small>Location</small>
+            <span data-qe-out>@Model.LocationCountry</span>
+        </button>
+
+        <button type="button" class="qe-chip" aria-expanded="false"
+                data-qe-field="Status" data-qe-type="select" data-qe-label="Status" data-qe-instant="true"
+                data-qe-value="@((int)Model.Status)" data-qe-options="@statusOptions">
+            <small>Status</small>
+            <span><span class="bp-chip bp-chip--@(Model.Status.Css())" data-qe-badge data-qe-out>@Model.Status.Label()</span></span>
+        </button>
+
+        <button type="button" class="qe-chip" aria-expanded="false"
+                data-qe-field="RegulatoryStandard" data-qe-type="radio" data-qe-label="Regulatory code"
+                data-qe-value="@Model.RegulatoryStandard" data-qe-options="@regulatoryOptions">
+            <small>Regulatory code</small>
+            <span data-qe-out>@Model.RegulatoryStandard.Label()</span>
+        </button>
+
+        <button type="button" class="qe-chip" aria-expanded="false"
+                data-qe-field="DigesterRegime" data-qe-type="radio" data-qe-label="Digester regime"
+                data-qe-value="@Model.DigesterRegime" data-qe-options="@regimeOptions">
+            <small>Digester regime</small>
+            <span data-qe-out>@Model.DigesterRegime.Label()</span>
+        </button>
+
+        <button type="button" class="qe-chip" aria-expanded="false"
+                data-qe-field="UpgradingTech" data-qe-type="radio" data-qe-label="Gas upgrading"
+                data-qe-value="@Model.UpgradingTech" data-qe-options="@upgradingOptions">
+            <small>Gas upgrading</small>
+            <span data-qe-out>@Model.UpgradingTech.Label()</span>
+        </button>
+    </div>
+
+    <div class="qe__editor" data-qe-editor hidden role="group" aria-live="polite">
+        <div class="qe__field">
+            <label class="form-label" data-qe-editor-label for="qe-input">Value</label>
+            <span data-qe-host></span>
+        </div>
+        <button type="button" class="bp-btn bp-btn--primary" data-qe-apply>Apply</button>
+        <button type="button" class="bp-btn" data-qe-cancel>Cancel</button>
+    </div>
+</section>
+
+<form asp-action="SetStatus" asp-route-id="@Model.Id" method="post" data-qe-status-form hidden>
+    <input type="hidden" name="status" value="@((int)Model.Status)" />
+</form>
 
 <partial name="_ProjectForm" model="Model" />

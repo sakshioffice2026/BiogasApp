@@ -44,7 +44,7 @@ public class ProjectFormViewModel : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (PlotLengthM * PlotWidthM < 2500)
+        if (!Id.HasValue && PlotLengthM * PlotWidthM < 2500)
         {
             yield return new ValidationResult(
                 "Plot area must be at least 2500 m².",

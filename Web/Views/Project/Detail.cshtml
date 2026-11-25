@@ -38,6 +38,21 @@
             <a class="bp-btn bp-btn--ghost" asp-controller="Simulation" asp-action="History" asp-route-projectId="@Model.Id">Simulation history</a>
             <a class="bp-btn bp-btn--ghost" asp-action="Edit" asp-route-id="@Model.Id">Edit details</a>
         </div>
+        @if (Model.Status == ProjectStatus.Archived)
+        {
+            <form asp-action="SetStatus" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <input type="hidden" name="status" value="@((int)ProjectStatus.Draft)" />
+                <button type="submit" class="bp-btn bp-btn--ghost">Restore project</button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="SetStatus" asp-route-id="@Model.Id" method="post" class="d-inline"
+                  onsubmit="return confirm('Archive this project?');">
+                <input type="hidden" name="status" value="@((int)ProjectStatus.Archived)" />
+                <button type="submit" class="bp-btn bp-btn--ghost">Archive project</button>
+            </form>
+        }
     </div>
 
     <ol class="pj-life" aria-label="Project lifecycle">

@@ -272,8 +272,17 @@ public class AssessmentRepository : IAssessmentRepository
         if (a.Status == AssessmentStatus.Converted)
             throw new InvalidOperationException("A converted assessment cannot be deleted.");
 
+        await using var tx = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+        // Layout items hold a restricted link to equipment items, so they go first.
+        await _db.AssessmentLayoutItems
+            .Where(x => _db.AssessmentLayouts.Any(l => l.Id == x.AssessmentLayoutId && l.AssessmentId == id))
+            .ExecuteDeleteAsync(cancellationToken);
+
         _db.SiteAssessments.Remove(a);
         await _db.SaveChangesAsync(cancellationToken);
+
+        await tx.CommitAsync(cancellationToken);
     }
 
     // ------------------------------------------------------------------ receptors and no-build zones

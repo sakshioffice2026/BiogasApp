@@ -7,10 +7,16 @@ public record PreTreatmentResult(
     double ShredderPowerKw,
     double MixTankVolumeM3,
     double MixerPowerKw,
-    double DilutionWaterM3Day);
+    double DilutionWaterM3Day,
+    double FeedTankVolumeM3,
+    double FeedTankDiameterM,
+    double FeedTankHeightM,
+    double FeedTankMixerPowerKw);
 
 public class PreTreatmentService
 {
+    private const double FeedTankBufferDays = 1.0;
+    private const double FeedTankHeightM = 5.0;
     public PreTreatmentResult Calculate(
         double mFeedTotalTpd,
         double mWaterTpd,
@@ -33,11 +39,24 @@ public class PreTreatmentService
         var dilutionWaterM3Day =
             mWaterTpd / EngineeringConstants.WaterDensityTPerM3;
 
+
+        // Feed tank (buffer between mix tank and digester)
+        var feedTankVolumeM3 = Math.Ceiling(qSlurryM3Day * FeedTankBufferDays);
+        var feedTankDiameterM = Math.Ceiling(
+            Math.Sqrt((4.0 * feedTankVolumeM3) / (Math.PI * FeedTankHeightM))
+            / EngineeringConstants.DiameterRoundingStepM) * EngineeringConstants.DiameterRoundingStepM;
+        var feedTankMixerPowerKw =
+            feedTankVolumeM3 * EngineeringConstants.MixTankPowerDensityWPerM3 / 1000.0;
+
         return new PreTreatmentResult(
-            ShredderCapacityTph: shredderCapacityTph,
-            ShredderPowerKw: shredderPowerKw,
-            MixTankVolumeM3: mixTankVolumeM3,
-            MixerPowerKw: mixerPowerKw,
-            DilutionWaterM3Day: dilutionWaterM3Day);
+    ShredderCapacityTph: shredderCapacityTph,
+    ShredderPowerKw: shredderPowerKw,
+    MixTankVolumeM3: mixTankVolumeM3,
+    MixerPowerKw: mixerPowerKw,
+    DilutionWaterM3Day: dilutionWaterM3Day,
+    FeedTankVolumeM3: feedTankVolumeM3,
+    FeedTankDiameterM: feedTankDiameterM,
+    FeedTankHeightM: FeedTankHeightM,
+    FeedTankMixerPowerKw: feedTankMixerPowerKw);
     }
 }

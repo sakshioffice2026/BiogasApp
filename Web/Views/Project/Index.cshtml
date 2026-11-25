@@ -12,6 +12,18 @@
 }
 @section Scripts {
     <script src="~/js/project.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var modal = document.getElementById('pj-delete');
+            if (!modal) { return; }
+            modal.addEventListener('show.bs.modal', function (e) {
+                var btn = e.relatedTarget;
+                if (!btn) { return; }
+                modal.querySelector('[data-pj-delete-name]').textContent = btn.getAttribute('data-name');
+                modal.querySelector('form').setAttribute('action', btn.getAttribute('data-url'));
+            });
+        })();
+    </script>
 }
 
 <div class="bp-page-head">
@@ -83,6 +95,7 @@ else
                     <th scope="col">P&amp;ID</th>
                     <th scope="col">Site</th>
                     <th scope="col">CAD drawings</th>
+                    <th scope="col" class="text-end">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -124,9 +137,41 @@ else
                                 <span class="small bp-muted">Run a simulation first</span>
                             }
                         </td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-outline-primary"
+                               asp-action="Edit" asp-route-id="@p.Id"
+                               aria-label="Edit @p.Name">Edit</a>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    data-bs-toggle="modal" data-bs-target="#pj-delete"
+                                    data-name="@p.Name"
+                                    data-url="@Url.Action("Delete", "Project", new { id = p.Id })"
+                                    aria-label="Delete @p.Name">
+                                Delete
+                            </button>
+                        </td>
                     </tr>
                 }
             </tbody>
         </table>
+    </div>
+
+    <div class="modal fade" id="pj-delete" tabindex="-1" aria-labelledby="pj-delete-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content pj-modal">
+                <div class="modal-header border-0">
+                    <h2 class="modal-title fs-4" id="pj-delete-title">Delete this project?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">You are about to delete <strong data-pj-delete-name></strong>. This cannot be undone.</p>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="bp-btn bp-btn--ghost" data-bs-dismiss="modal">Keep project</button>
+                    <form asp-action="Delete" asp-route-id="@Guid.Empty" method="post">
+                        <button type="submit" class="bp-btn pj-btn-danger">Delete project</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 }

@@ -21,11 +21,11 @@
     @{
         var wizardSteps = new List<(string Title, string Hint)>
         {
-            ("Site", "Plot and location"),
-            ("Climate", "Temperature range"),
-            ("Regulatory code", "Safety standard"),
-            ("Digester regime", "Process temperature"),
-            ("Upgrading", "Gas upgrading")
+        ("Site", "Plot and location"),
+        ("Climate", "Temperature range"),
+        ("Regulatory code", "Safety standard"),
+        ("Digester regime", "Process temperature"),
+        ("Upgrading", "Gas upgrading")
         };
         if (isEdit)
         {
@@ -81,38 +81,44 @@
                 <span asp-validation-for="LocationCountry" class="field-validation-error"></span>
             </div>
 
-            <div class="pj-field">
-                <label asp-for="PlotLengthM" class="form-label"></label>
-                <span class="pj-req" aria-hidden="true">*</span>
+            @if (!isEdit)
+            {
+                <div class="pj-field">
+                    <label asp-for="PlotLengthM" class="form-label"></label>
+                    <span class="pj-req" aria-hidden="true">*</span>
 
-                <input asp-for="PlotLengthM"
-                       class="form-control"
-                       inputmode="decimal"
-                       data-plot-length
-                       aria-required="true" />
+                    <input asp-for="PlotLengthM"
+                           class="form-control"
+                           inputmode="decimal"
+                           data-plot-length
+                           aria-required="true" />
 
-                <span asp-validation-for="PlotLengthM" class="field-validation-error"></span>
-            </div>
+                    <span asp-validation-for="PlotLengthM" class="field-validation-error"></span>
+                </div>
 
-            <div class="pj-field">
-                <label asp-for="PlotWidthM" class="form-label"></label>
-                <span class="pj-req" aria-hidden="true">*</span>
+                <div class="pj-field">
+                    <label asp-for="PlotWidthM" class="form-label"></label>
+                    <span class="pj-req" aria-hidden="true">*</span>
 
-                <input asp-for="PlotWidthM"
-                       class="form-control"
-                       inputmode="decimal"
-                       data-plot-width
-                       aria-required="true" />
+                    <input asp-for="PlotWidthM"
+                           class="form-control"
+                           inputmode="decimal"
+                           data-plot-width
+                           aria-required="true" />
 
-                <span asp-validation-for="PlotWidthM" class="field-validation-error"></span>
-            </div>
+                    <span asp-validation-for="PlotWidthM" class="field-validation-error"></span>
+                </div>
+            }
         </div>
 
-        <p class="pj-plot" data-plot-output aria-live="polite">
-            Plot area
-            <strong data-plot-value>0 m&sup2;</strong>
-            <span data-plot-note>Needs at least 2,500 m&sup2;</span>
-        </p>
+        @if (!isEdit)
+        {
+            <p class="pj-plot" data-plot-output aria-live="polite">
+                Plot area
+                <strong data-plot-value>0 m&sup2;</strong>
+                <span data-plot-note>Needs at least 2,500 m&sup2;</span>
+            </p>
+        }
 
         <p class="field-validation-error" data-pj-step-error role="alert" hidden></p>
     </section>
