@@ -139,8 +139,9 @@ public class DatasheetExportRepository : IDatasheetExport
         return set;
     }
 
-    public async Task<byte[]> BuildDatasheetExcelAsync(Guid pidDiagramId, string? tag = null, CancellationToken cancellationToken = default)
+    public async Task<byte[]> BuildDatasheetExcelAsync(Guid pidDiagramId, string? tag = null, string? view = null, CancellationToken cancellationToken = default)
     {
+        var v = NormalizeView(view);
         var set = await GetDatasheetsAsync(pidDiagramId, cancellationToken);
 
         var items = string.IsNullOrWhiteSpace(tag)
@@ -153,13 +154,13 @@ public class DatasheetExportRepository : IDatasheetExport
         using var wb = new XLWorkbook();
 
         if (string.IsNullOrWhiteSpace(tag))
-            BuildIndexSheet(wb.AddWorksheet("Index"), set, items);
+            BuildIndexSheet(wb.AddWorksheet("Index"), set, items, v);
 
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Index" };
         foreach (var item in items)
         {
             var ws = wb.AddWorksheet(UniqueSheetName(item.Tag, used));
-            BuildEquipmentSheet(ws, set, item);
+            BuildEquipmentSheet(ws, set, item, v);
         }
 
         using var ms = new MemoryStream();
@@ -167,6 +168,20 @@ public class DatasheetExportRepository : IDatasheetExport
         return ms.ToArray();
     }
 
+    public async Task<byte[]> BuildDatasheetPdfAsync(Guid pidDiagramId, string? tag = null, string? view = null, CancellationToken cancellationToken = default)
+    {
+        var v = NormalizeView(view);
+        var set = await GetDatasheetsAsync(pidDiagramId, cancellationToken);
+
+        var items = string.IsNullOrWhiteSpace(tag)
+            ? set.Items
+            : set.Items.Where(i => string.Equals(i.Tag, tag.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+
+        if (items.Count == 0)
+            throw new InvalidOperationException("No equipment found for this datasheet.");
+
+        return DatasheetPdfWriter.Build(set, items, v, string.IsNullOrWhiteSpace(tag));
+    }
     public async Task SaveVendorDataAsync(Guid pidDiagramId, EquipmentVendorDataDto data, string? updatedBy, CancellationToken cancellationToken = default)
     {
         var tag = (data.Tag ?? string.Empty).Trim();
@@ -203,9 +218,10 @@ public class DatasheetExportRepository : IDatasheetExport
 
     // ---------------------------------------------------------------- sheets
 
-    private static void BuildIndexSheet(IXLWorksheet ws, EquipmentDatasheetSetDto set, List<EquipmentDatasheetDto> items)
+    private static void BuildIndexSheet(IXLWorksheet ws, EquipmentDatasheetSetDto set, List<EquipmentDatasheetDto> items, string view)
     {
         const int headerRow = 6;
+        var showVendor = view == "epc";
 
         Text(ws, 1, 1, "EQUIPMENT DATASHEET INDEX");
         ws.Cell(1, 1).Style.Font.Bold = true;
@@ -219,16 +235,17 @@ public class DatasheetExportRepository : IDatasheetExport
         Text(ws, 4, 2, $"Rev {set.RevisionNo} / {set.Status}");
         ws.Range(2, 1, 4, 1).Style.Font.Bold = true;
 
-        var headers = new[]
+        var headers = new List<string>
         {
             "Tag", "Name", "Type", "Qty", "Zone", "Hazard class",
-            "Diameter (m)", "Width (m)", "Length (m)", "Make", "Model", "Material"
+            "Diameter (m)", "Width (m)", "Length (m)"
         };
+        if (showVendor) headers.AddRange(new[] { "Make", "Model", "Material" });
 
-        for (var c = 0; c < headers.Length; c++)
+        for (var c = 0; c < headers.Count; c++)
             Text(ws, headerRow, c + 1, headers[c]);
 
-        var head = ws.Range(headerRow, 1, headerRow, headers.Length);
+        var head = ws.Range(headerRow, 1, headerRow, headers.Count);
         head.Style.Font.Bold = true;
         head.Style.Font.FontColor = XLColor.White;
         head.Style.Fill.BackgroundColor = XLColor.FromHtml("#1F4E78");
@@ -245,13 +262,16 @@ public class DatasheetExportRepository : IDatasheetExport
             Number(ws, r, 7, i.DiameterM);
             Number(ws, r, 8, i.WidthM);
             Number(ws, r, 9, i.LengthM);
-            Text(ws, r, 10, i.Vendor.Make);
-            Text(ws, r, 11, i.Vendor.Model);
-            Text(ws, r, 12, i.Vendor.Material);
+            if (showVendor)
+            {
+                Text(ws, r, 10, i.Vendor.Make);
+                Text(ws, r, 11, i.Vendor.Model);
+                Text(ws, r, 12, i.Vendor.Material);
+            }
             r++;
         }
 
-        var table = ws.Range(headerRow, 1, r - 1, headers.Length);
+        var table = ws.Range(headerRow, 1, r - 1, headers.Count);
         table.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         table.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
 
@@ -259,9 +279,12 @@ public class DatasheetExportRepository : IDatasheetExport
         ws.Columns().AdjustToContents();
     }
 
-    private static void BuildEquipmentSheet(IXLWorksheet ws, EquipmentDatasheetSetDto set, EquipmentDatasheetDto e)
+    private static void BuildEquipmentSheet(IXLWorksheet ws, EquipmentDatasheetSetDto set, EquipmentDatasheetDto e, string view)
     {
-        Text(ws, 1, 1, "EQUIPMENT DATASHEET");
+        var isEpc = view == "epc";
+        var isVendor = view == "vendor";
+
+        Text(ws, 1, 1, isVendor ? "EQUIPMENT DATASHEET - VENDOR RFQ" : view == "client" ? "EQUIPMENT DATASHEET - CLIENT" : "EQUIPMENT DATASHEET");
         ws.Cell(1, 1).Style.Font.Bold = true;
         ws.Cell(1, 1).Style.Font.FontSize = 14;
 
@@ -287,44 +310,64 @@ public class DatasheetExportRepository : IDatasheetExport
 
         r = FieldSection(ws, r, "Process data", e.Process);
         r = FieldSection(ws, r, "Mechanical data", e.Mechanical);
-        r = FieldSection(ws, r, "Utilities", e.Utilities);
 
-        r = TableSection(ws, r, "Instruments",
-            new[] { "Tag", "Type", "Service", "Range min", "Range max", "Unit" },
-            e.Instruments.OrderBy(i => i.Tag, StringComparer.OrdinalIgnoreCase).Select(i => new[]
-            {
-                i.Tag, i.InstrumentType.ToString(), i.Service,
-                Dec(i.RangeMin), Dec(i.RangeMax), i.Unit
-            }).ToList());
+        if (isEpc || isVendor)
+        {
+            r = FieldSection(ws, r, "Utilities", e.Utilities);
 
-        r = TableSection(ws, r, "Connected lines",
-            new[] { "Line No", "Medium", "Size DN (mm)", "Material", "Insulated" },
-            e.ConnectedLines.Select(l => new[]
-            {
-                l.LineNo, l.Medium.ToString(), Dec(l.NominalSizeMm), l.Material, l.IsInsulated ? "Yes" : "No"
-            }).ToList());
+            r = TableSection(ws, r, "Instruments",
+                new[] { "Tag", "Type", "Service", "Range min", "Range max", "Unit" },
+                e.Instruments.OrderBy(i => i.Tag, StringComparer.OrdinalIgnoreCase).Select(i => new[]
+                {
+                    i.Tag, i.InstrumentType.ToString(), i.Service,
+                    Dec(i.RangeMin), Dec(i.RangeMax), i.Unit
+                }).ToList());
 
-        var lineNo = e.ConnectedLines.ToDictionary(l => l.Id, l => l.LineNo);
-        r = TableSection(ws, r, "Valves on connected lines",
-            new[] { "Valve tag", "Type", "Line No", "Size DN (mm)", "Normal position" },
-            e.Valves.OrderBy(v => v.Tag, StringComparer.OrdinalIgnoreCase).Select(v => new[]
-            {
-                v.Tag, v.ValveType.ToString(), lineNo.GetValueOrDefault(v.PidLineId),
-                Dec(v.NominalSizeMm), v.IsNormallyOpen ? "Open" : "Closed"
-            }).ToList());
+            r = TableSection(ws, r, "Connected lines",
+                new[] { "Line No", "Medium", "Size DN (mm)", "Material", "Insulated" },
+                e.ConnectedLines.Select(l => new[]
+                {
+                    l.LineNo, l.Medium.ToString(), Dec(l.NominalSizeMm), l.Material, l.IsInsulated ? "Yes" : "No"
+                }).ToList());
 
-        r = FieldSection(ws, r, "Notes", e.Notes);
+            var lineNo = e.ConnectedLines.ToDictionary(l => l.Id, l => l.LineNo);
+            r = TableSection(ws, r, "Valves on connected lines",
+                new[] { "Valve tag", "Type", "Line No", "Size DN (mm)", "Normal position" },
+                e.Valves.OrderBy(v => v.Tag, StringComparer.OrdinalIgnoreCase).Select(v => new[]
+                {
+                    v.Tag, v.ValveType.ToString(), lineNo.GetValueOrDefault(v.PidLineId),
+                    Dec(v.NominalSizeMm), v.IsNormallyOpen ? "Open" : "Closed"
+                }).ToList());
+        }
 
-        r = Section(ws, r, "Vendor data (to be filled)");
-        var vendorStart = r;
-        r = KeyValue(ws, r, "Make", e.Vendor.Make, null);
-        r = KeyValue(ws, r, "Model", e.Vendor.Model, null);
-        r = KeyValue(ws, r, "Material", e.Vendor.Material, null);
-        r = KeyValue(ws, r, "Weight", Dec(e.Vendor.WeightKg), "kg");
-        r = KeyValue(ws, r, "Price", Dec(e.Vendor.Price), e.Vendor.Currency);
-        r = KeyValue(ws, r, "Delivery", e.Vendor.DeliveryWeeks?.ToString(CultureInfo.InvariantCulture), "weeks");
-        r = KeyValue(ws, r, "Remarks", e.Vendor.Remarks, null);
-        ws.Range(vendorStart, 2, r - 1, 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF2CC");
+        if (!isVendor)
+            r = FieldSection(ws, r, "Notes", e.Notes);
+
+        if (isEpc)
+        {
+            r = Section(ws, r, "Vendor data (to be filled)");
+            var vendorStart = r;
+            r = KeyValue(ws, r, "Make", e.Vendor.Make, null);
+            r = KeyValue(ws, r, "Model", e.Vendor.Model, null);
+            r = KeyValue(ws, r, "Material", e.Vendor.Material, null);
+            r = KeyValue(ws, r, "Weight", Dec(e.Vendor.WeightKg), "kg");
+            r = KeyValue(ws, r, "Price", Dec(e.Vendor.Price), e.Vendor.Currency);
+            r = KeyValue(ws, r, "Delivery", e.Vendor.DeliveryWeeks?.ToString(CultureInfo.InvariantCulture), "weeks");
+            r = KeyValue(ws, r, "Remarks", e.Vendor.Remarks, null);
+            ws.Range(vendorStart, 2, r - 1, 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF2CC");
+        }
+        else if (isVendor)
+        {
+            r = Section(ws, r, "Vendor data (to be filled by vendor)");
+            var vendorStart = r;
+            r = KeyValue(ws, r, "Make", null, null);
+            r = KeyValue(ws, r, "Model", null, null);
+            r = KeyValue(ws, r, "Material", null, null);
+            r = KeyValue(ws, r, "Weight", null, "kg");
+            r = KeyValue(ws, r, "Price", null, null);
+            r = KeyValue(ws, r, "Delivery", null, "weeks");
+            ws.Range(vendorStart, 2, r - 1, 2).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF2CC");
+        }
 
         ws.Column(1).Width = 28;
         ws.Column(2).Width = 28;
@@ -423,6 +466,11 @@ public class DatasheetExportRepository : IDatasheetExport
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
+    private static string NormalizeView(string? view)
+    {
+        var v = (view ?? string.Empty).Trim().ToLowerInvariant();
+        return v == "client" || v == "vendor" ? v : "epc";
+    }
     private static bool IsUtility(string label)
     {
         var l = label.ToLowerInvariant();

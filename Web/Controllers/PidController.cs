@@ -253,17 +253,45 @@ public class PidController : Controller
 
 
     [HttpGet]
-    public async Task<IActionResult> ExportDatasheetExcel(Guid id, string? tag, CancellationToken cancellationToken)
+    public async Task<IActionResult> ExportDatasheetExcel(Guid id, string? tag, string? view, CancellationToken cancellationToken)
     {
         var d = await _pid.GetByIdAsync(id, cancellationToken);
         if (d == null) return NotFound();
 
+        var v = (view ?? string.Empty).Trim().ToLowerInvariant();
+        if (v != "client" && v != "vendor") v = "epc";
+
         try
         {
-            var bytes = await _datasheet.BuildDatasheetExcelAsync(id, tag, cancellationToken);
+            var bytes = await _datasheet.BuildDatasheetExcelAsync(id, tag, v, cancellationToken);
             var suffix = string.IsNullOrWhiteSpace(tag) ? "Datasheets" : $"Datasheet_{tag.Trim()}";
-            var fileName = $"{d.DrawingNo}_Rev{d.RevisionNo}_{suffix}.xlsx";
+            var viewSuffix = v == "client" ? "Client" : v == "vendor" ? "VendorRFQ" : "EPC";
+            var fileName = $"{d.DrawingNo}_Rev{d.RevisionNo}_{suffix}_{viewSuffix}.xlsx";
             return File(bytes, XlsxMime, fileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
+
+    [HttpGet]
+    public async Task<IActionResult> ExportDatasheetPdf(Guid id, string? tag, string? view, CancellationToken cancellationToken)
+    {
+        var d = await _pid.GetByIdAsync(id, cancellationToken);
+        if (d == null) return NotFound();
+
+        var v = (view ?? string.Empty).Trim().ToLowerInvariant();
+        if (v != "client" && v != "vendor") v = "epc";
+
+        try
+        {
+            var bytes = await _datasheet.BuildDatasheetPdfAsync(id, tag, v, cancellationToken);
+            var suffix = string.IsNullOrWhiteSpace(tag) ? "Datasheets" : $"Datasheet_{tag.Trim()}";
+            var viewSuffix = v == "client" ? "Client" : v == "vendor" ? "VendorRFQ" : "EPC";
+            var fileName = $"{d.DrawingNo}_Rev{d.RevisionNo}_{suffix}_{viewSuffix}.pdf";
+            return File(bytes, "application/pdf", fileName);
         }
         catch (InvalidOperationException ex)
         {
@@ -313,12 +341,15 @@ public class PidController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> DatasheetPage(Guid id, string? tag, CancellationToken cancellationToken)
+    public async Task<IActionResult> DatasheetPage(Guid id, string? tag, string? view, CancellationToken cancellationToken)
     {
         try
         {
             var set = await _datasheet.GetDatasheetsAsync(id, cancellationToken);
+            var v = (view ?? string.Empty).Trim().ToLowerInvariant();
+            if (v != "client" && v != "vendor") v = "epc";
             ViewData["SelectedTag"] = tag;
+            ViewData["View"] = v;
             return View(set);
         }
         catch (InvalidOperationException)

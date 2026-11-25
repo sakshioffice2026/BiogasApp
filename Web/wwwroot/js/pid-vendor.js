@@ -129,6 +129,16 @@
     }
 
     el.tag.addEventListener('change', function () { fill(el.tag.value); });
+    var dsLink = $('btnDatasheetPage');
+    if (dsLink) {
+        var dsBase = dsLink.getAttribute('href');
+        var dsSync = function () {
+            var t = el.tag.value;
+            dsLink.setAttribute('href', t ? dsBase + (dsBase.indexOf('?') < 0 ? '?' : '&') + 'tag=' + encodeURIComponent(t) : dsBase);
+        };
+        el.tag.addEventListener('change', dsSync);
+        dsLink.addEventListener('click', dsSync);
+    }
     el.save.addEventListener('click', save);
 
     load();

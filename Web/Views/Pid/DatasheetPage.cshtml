@@ -3,6 +3,12 @@
 @{
     ViewData["Title"] = "Datasheets";
     var selectedTag = ViewData["SelectedTag"] as string;
+    var view = (ViewData["View"] as string ?? "epc").ToLowerInvariant();
+    if (view != "client" && view != "vendor") { view = "epc"; }
+    var isEpc = view == "epc";
+    var isClient = view == "client";
+    var isVendor = view == "vendor";
+
     var item = Model.Items.FirstOrDefault(i => string.Equals(i.Tag, selectedTag, StringComparison.OrdinalIgnoreCase))
                ?? Model.Items.FirstOrDefault();
 
@@ -11,8 +17,14 @@
     {
         groups.Add(("Process data", item.Process));
         groups.Add(("Mechanical data", item.Mechanical));
-        groups.Add(("Utilities", item.Utilities));
-        groups.Add(("Notes", item.Notes));
+        if (isEpc || isVendor)
+        {
+            groups.Add(("Utilities", item.Utilities));
+        }
+        if (!isVendor)
+        {
+            groups.Add(("Notes", item.Notes));
+        }
     }
 
     string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
@@ -28,16 +40,34 @@
             <span class="badge text-bg-secondary">@Model.Status</span>
         </div>
     </div>
-    <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-outline-secondary btn-sm" asp-controller="Pid" asp-action="DatasheetProjects">Back</a>
-        <a class="btn btn-outline-secondary btn-sm" asp-controller="Pid" asp-action="Editor" asp-route-id="@Model.PidDiagramId">Open P&amp;ID editor</a>
-        <a class="btn btn-outline-primary btn-sm" asp-controller="Pid" asp-action="ExportDatasheetExcel" asp-route-id="@Model.PidDiagramId">Excel (all)</a>
-        @if (item != null)
-        {
-            <a class="btn btn-primary btn-sm" asp-controller="Pid" asp-action="ExportDatasheetExcel"
-               asp-route-id="@Model.PidDiagramId" asp-route-tag="@item.Tag">Excel (@item.Tag)</a>
-        }
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <a class="btn btn-outline-primary btn-sm" asp-controller="Pid" asp-action="DatasheetProjects">Back</a>
+        <a class="btn btn-outline-primary btn-sm" asp-controller="Pid" asp-action="Editor" asp-route-id="@Model.PidDiagramId">Open P&amp;ID editor</a>
+        <div class="dropdown">
+            <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Export</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><h6 class="dropdown-header">All equipment</h6></li>
+                <li><a class="dropdown-item" asp-controller="Pid" asp-action="ExportDatasheetExcel" asp-route-id="@Model.PidDiagramId" asp-route-view="@view">Excel</a></li>
+                <li><a class="dropdown-item" asp-controller="Pid" asp-action="ExportDatasheetPdf" asp-route-id="@Model.PidDiagramId" asp-route-view="@view">PDF</a></li>
+                @if (item != null)
+                {
+                    <li><hr class="dropdown-divider" /></li>
+                    <li><h6 class="dropdown-header">@item.Tag only</h6></li>
+                    <li><a class="dropdown-item" asp-controller="Pid" asp-action="ExportDatasheetExcel" asp-route-id="@Model.PidDiagramId" asp-route-tag="@item.Tag" asp-route-view="@view">Excel</a></li>
+                    <li><a class="dropdown-item" asp-controller="Pid" asp-action="ExportDatasheetPdf" asp-route-id="@Model.PidDiagramId" asp-route-tag="@item.Tag" asp-route-view="@view">PDF</a></li>
+                }
+            </ul>
+        </div>
     </div>
+</div>
+
+<div class="btn-group btn-group-sm mb-3" role="group" aria-label="Datasheet view">
+    <a class="btn @(isEpc ? "btn-primary" : "btn-outline-primary")" asp-controller="Pid" asp-action="DatasheetPage"
+       asp-route-id="@Model.PidDiagramId" asp-route-tag="@item?.Tag" asp-route-view="epc">EPC</a>
+    <a class="btn @(isClient ? "btn-primary" : "btn-outline-primary")" asp-controller="Pid" asp-action="DatasheetPage"
+       asp-route-id="@Model.PidDiagramId" asp-route-tag="@item?.Tag" asp-route-view="client">Client</a>
+    <a class="btn @(isVendor ? "btn-primary" : "btn-outline-primary")" asp-controller="Pid" asp-action="DatasheetPage"
+       asp-route-id="@Model.PidDiagramId" asp-route-tag="@item?.Tag" asp-route-view="vendor">Vendor RFQ</a>
 </div>
 
 @if (item == null)
@@ -56,7 +86,7 @@ else
                         var active = string.Equals(i.Tag, item.Tag, StringComparison.OrdinalIgnoreCase);
                         <a class="list-group-item list-group-item-action py-2 small @(active ? "active" : "")"
                            asp-controller="Pid" asp-action="DatasheetPage"
-                           asp-route-id="@Model.PidDiagramId" asp-route-tag="@i.Tag">
+                           asp-route-id="@Model.PidDiagramId" asp-route-tag="@i.Tag" asp-route-view="@view">
                             <strong>@i.Tag</strong> - @i.Name
                         </a>
                     }
@@ -104,7 +134,7 @@ else
                 </div>
             }
 
-            @if (item.Instruments.Count > 0)
+            @if ((isEpc || isVendor) && item.Instruments.Count > 0)
             {
                 <div class="card mb-3">
                     <div class="card-header py-2">Instruments</div>
@@ -128,7 +158,7 @@ else
                 </div>
             }
 
-            @if (item.ConnectedLines.Count > 0)
+            @if ((isEpc || isVendor) && item.ConnectedLines.Count > 0)
             {
                 <div class="card mb-3">
                     <div class="card-header py-2">Connected lines</div>
@@ -152,7 +182,7 @@ else
                 </div>
             }
 
-            @if (item.Valves.Count > 0)
+            @if ((isEpc || isVendor) && item.Valves.Count > 0)
             {
                 <div class="card mb-3">
                     <div class="card-header py-2">Valves on connected lines</div>
@@ -175,25 +205,46 @@ else
                 </div>
             }
 
-            <div class="card mb-3">
-                <div class="card-header py-2 d-flex justify-content-between align-items-center">
-                    <span>Vendor data</span>
-                    <a class="btn btn-outline-secondary btn-sm" asp-controller="Pid" asp-action="Editor" asp-route-id="@Model.PidDiagramId">Edit in P&amp;ID editor</a>
+            @if (isEpc)
+            {
+                <div class="card mb-3">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <span>Vendor data</span>
+                        <a class="btn btn-outline-primary btn-sm" asp-controller="Pid" asp-action="Editor" asp-route-id="@Model.PidDiagramId">Edit in P&amp;ID editor</a>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                <tr><td class="text-muted" style="width: 45%;">Make</td><td>@Dash(item.Vendor.Make)</td></tr>
+                                <tr><td class="text-muted">Model</td><td>@Dash(item.Vendor.Model)</td></tr>
+                                <tr><td class="text-muted">Material</td><td>@Dash(item.Vendor.Material)</td></tr>
+                                <tr><td class="text-muted">Weight (kg)</td><td>@Num(item.Vendor.WeightKg)</td></tr>
+                                <tr><td class="text-muted">Price</td><td>@Num(item.Vendor.Price) @item.Vendor.Currency</td></tr>
+                                <tr><td class="text-muted">Delivery (weeks)</td><td>@(item.Vendor.DeliveryWeeks?.ToString() ?? "-")</td></tr>
+                                <tr><td class="text-muted">Remarks</td><td>@Dash(item.Vendor.Remarks)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <tbody>
-                            <tr><td class="text-muted" style="width: 45%;">Make</td><td>@Dash(item.Vendor.Make)</td></tr>
-                            <tr><td class="text-muted">Model</td><td>@Dash(item.Vendor.Model)</td></tr>
-                            <tr><td class="text-muted">Material</td><td>@Dash(item.Vendor.Material)</td></tr>
-                            <tr><td class="text-muted">Weight (kg)</td><td>@Num(item.Vendor.WeightKg)</td></tr>
-                            <tr><td class="text-muted">Price</td><td>@Num(item.Vendor.Price) @item.Vendor.Currency</td></tr>
-                            <tr><td class="text-muted">Delivery (weeks)</td><td>@(item.Vendor.DeliveryWeeks?.ToString() ?? "-")</td></tr>
-                            <tr><td class="text-muted">Remarks</td><td>@Dash(item.Vendor.Remarks)</td></tr>
-                        </tbody>
-                    </table>
+            }
+            else if (isVendor)
+            {
+                <div class="card mb-3">
+                    <div class="card-header py-2">Vendor data (to be filled by vendor)</div>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                <tr><td class="text-muted" style="width: 45%;">Make</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
+                                <tr><td class="text-muted">Model</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
+                                <tr><td class="text-muted">Material</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
+                                <tr><td class="text-muted">Weight (kg)</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
+                                <tr><td class="text-muted">Price</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
+                                <tr><td class="text-muted">Delivery (weeks)</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            }
         </div>
     </div>
 }

@@ -7,9 +7,46 @@
 
 @section Styles {
     <style>
+        .pe-shell {
+            display: flex;
+            gap: .75rem;
+            height: calc(100vh - 230px);
+            min-height: 480px;
+        }
+
+        .pe-left {
+            flex: 0 0 200px;
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .pe-main {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .pe-right {
+            flex: 0 0 300px;
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+            .pe-right .tab-content {
+                flex: 1 1 auto;
+                overflow-y: auto;
+                min-height: 0;
+            }
+
         #pidCanvas {
-            height: 70vh;
-            min-height: 420px;
+            flex: 1 1 auto;
+            height: auto;
+            min-height: 0;
             border: 1px solid var(--bs-border-color, #dee2e6);
             border-radius: .375rem;
             background: var(--bs-body-bg, #fff);
@@ -29,13 +66,36 @@
         }
 
         #pidLegend {
-            max-height: 40vh;
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
             overflow-y: auto;
         }
 
         #pidProps {
-            max-height: 40vh;
-            overflow-y: auto;
+            max-height: none;
+        }
+
+        @@media (max-width: 991.98px) {
+            .pe-shell {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .pe-left,
+            .pe-right {
+                flex: 0 0 auto;
+                width: 100%;
+            }
+
+                .pe-left #pidLegend {
+                    max-height: 220px;
+                }
+
+            #pidCanvas {
+                flex: 0 0 auto;
+                height: 60vh;
+            }
         }
     </style>
 }
@@ -50,7 +110,7 @@
 
     @Html.AntiForgeryToken()
 
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
         <div>
             <h1 class="h4 mb-0">P&amp;ID editor</h1>
             <div class="text-muted">
@@ -60,17 +120,24 @@
                 <span id="statusBadge" class="badge text-bg-secondary">@Model.Diagram.Status</span>
             </div>
         </div>
-        <div class="d-flex gap-2">
-            <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-controller="Pid"
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <a class="btn btn-outline-primary btn-sm" asp-action="Index" asp-controller="Pid"
                asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Back</a>
-            <a class="btn btn-outline-primary btn-sm" asp-action="ExportExcel" asp-controller="Pid"
-               asp-route-id="@Model.PidDiagramId">Download lists (Excel)</a>
-            <a class="btn btn-outline-primary btn-sm" asp-action="ExportPdf" asp-controller="Pid"
-               asp-route-id="@Model.PidDiagramId">Download PDF</a>
-            <a class="btn btn-outline-primary btn-sm" asp-action="ExportDxf" asp-controller="Pid"
-               asp-route-id="@Model.PidDiagramId">Download DXF</a>
-            <a class="btn btn-outline-primary btn-sm" asp-action="ExportDatasheetExcel" asp-controller="Pid"
-               asp-route-id="@Model.PidDiagramId">Datasheet (Excel)</a>
+            <a class="btn btn-primary btn-sm" id="btnDatasheetPage" asp-action="DatasheetPage" asp-controller="Pid"
+               asp-route-id="@Model.PidDiagramId">Datasheet</a>
+            <div class="dropdown">
+                <button type="button" class="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Export</button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><h6 class="dropdown-header">Drawing</h6></li>
+                    <li><a class="dropdown-item" asp-action="ExportExcel" asp-controller="Pid" asp-route-id="@Model.PidDiagramId">Lists (Excel)</a></li>
+                    <li><a class="dropdown-item" asp-action="ExportPdf" asp-controller="Pid" asp-route-id="@Model.PidDiagramId">Drawing (PDF)</a></li>
+                    <li><a class="dropdown-item" asp-action="ExportDxf" asp-controller="Pid" asp-route-id="@Model.PidDiagramId">Drawing (DXF)</a></li>
+                    <li><hr class="dropdown-divider" /></li>
+                    <li><h6 class="dropdown-header">Datasheets</h6></li>
+                    <li><a class="dropdown-item" asp-action="ExportDatasheetExcel" asp-controller="Pid" asp-route-id="@Model.PidDiagramId">Datasheets (Excel)</a></li>
+                    <li><a class="dropdown-item" asp-action="ExportDatasheetPdf" asp-controller="Pid" asp-route-id="@Model.PidDiagramId">Datasheets (PDF)</a></li>
+                </ul>
+            </div>
         </div>
     </div>
 
@@ -83,114 +150,133 @@
 
     <div id="pidMessage" class="d-none"></div>
 
-    <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+    <div class="border rounded bg-body-tertiary p-2 mb-2 d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" class="btn btn-outline-primary btn-sm" id="btnTogglePalette" title="Show or hide symbols">Symbols</button>
+
+        <div class="vr"></div>
+
         <button type="button" class="btn btn-success btn-sm" id="btnSave" disabled>Save</button>
 
+        <div class="vr"></div>
+
         <div class="btn-group btn-group-sm" role="group" aria-label="Undo and redo">
-            <button type="button" class="btn btn-outline-secondary" id="btnUndo" title="Undo (Ctrl+Z)" disabled>Undo</button>
-            <button type="button" class="btn btn-outline-secondary" id="btnRedo" title="Redo (Ctrl+Y)" disabled>Redo</button>
+            <button type="button" class="btn btn-outline-primary" id="btnUndo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+            <button type="button" class="btn btn-outline-primary" id="btnRedo" title="Redo (Ctrl+Y)" disabled>Redo</button>
         </div>
 
         <div class="vr"></div>
 
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnConnect" title="Draw a pipe between two equipment items">Connect</button>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="btnConnect" title="Draw a pipe between two equipment items">Connect</button>
         <button type="button" class="btn btn-outline-danger btn-sm" id="btnDelete" title="Delete selected (Delete key)" disabled>Delete</button>
 
         <div class="vr"></div>
 
         <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
-            <button type="button" class="btn btn-outline-secondary" id="btnZoomOut">-</button>
-            <button type="button" class="btn btn-outline-secondary" id="btnZoomFit">Fit</button>
-            <button type="button" class="btn btn-outline-secondary" id="btnZoomIn">+</button>
-        </div>
-
-        <div class="vr"></div>
-
-        <div class="d-flex flex-wrap gap-2 align-items-center">
-            <span class="fw-semibold small">Approval</span>
-            <select class="form-select form-select-sm w-auto" id="statusSelect" aria-label="Status">
-                @foreach (var s in statuses)
-                {
-                    <option value="@s" selected="@(s == Model.Diagram.Status.ToString())">@s</option>
-                }
-            </select>
-            <input type="text" class="form-control form-control-sm w-auto" id="statusRemarks" maxlength="500" placeholder="Remarks" aria-label="Remarks" style="min-width: 160px;" />
-            <button type="button" class="btn btn-primary btn-sm" id="btnSetStatus">Apply status</button>
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnNewRevision" disabled>New revision</button>
+            <button type="button" class="btn btn-outline-primary" id="btnZoomOut">-</button>
+            <button type="button" class="btn btn-outline-primary" id="btnZoomFit">Fit</button>
+            <button type="button" class="btn btn-outline-primary" id="btnZoomIn">+</button>
         </div>
     </div>
 
-    <div class="row g-3">
-        <div class="col-lg-9">
-            <div id="pidCanvas"></div>
-            <div class="small text-muted mt-1">
-                Drag equipment to move it. Drag a valve along its pipe. Select a pipe, then click a valve symbol to add one.
-                Mouse wheel zooms, drag the background to pan.
-            </div>
-        </div>
-
-        <div class="col-lg-3">
-            <div class="mb-3">
-                <input type="text" class="form-control form-control-sm" id="diagramTitle" maxlength="200" placeholder="Drawing title" value="@Model.Diagram.Title" />
-            </div>
-
-            <div class="card mb-3">
+    <div class="pe-shell">
+        <div class="pe-left" id="pidLeft">
+            <div class="card h-100">
                 <div class="card-header py-2">Symbols @(Model.IsReadOnly ? "" : "(click to add)")</div>
                 <div class="card-body py-2" id="pidLegend"></div>
             </div>
+        </div>
 
-            <div class="card mb-3">
-                <div class="card-header py-2">Properties</div>
-                <div class="card-body py-2" id="pidProps"></div>
+        <div class="pe-main">
+            <div id="pidCanvas"></div>
+            <div class="small text-muted mt-1">
+                Drag equipment to move. Select a pipe, then click a valve symbol to add one. Wheel zooms, drag background pans.
             </div>
+        </div>
 
-            <div class="card mb-3" id="vendorCard"
-                 data-datasheets-url="@Url.Action("Datasheets", "Pid")"
-                 data-save-url="@Url.Action("SaveVendorData", "Pid")">
-                <div class="card-header py-2">Vendor data</div>
-                <div class="card-body py-2">
-                    <div class="mb-2">
-                        <label class="form-label small text-muted mb-1" for="vendorTag">Equipment</label>
-                        <select class="form-select form-select-sm" id="vendorTag"></select>
+        <div class="pe-right">
+            <div class="card h-100">
+                <div class="card-header p-2">
+                    <div class="btn-group btn-group-sm w-100" role="tablist">
+                        <button class="btn btn-outline-primary active" id="tabProps" type="button" data-bs-toggle="tab" data-bs-target="#paneProps" role="tab">Properties</button>
+                        <button class="btn btn-outline-primary" id="tabVendor" type="button" data-bs-toggle="tab" data-bs-target="#vendorCard" role="tab">Vendor data</button>
+                        <button class="btn btn-outline-primary" id="tabDrawing" type="button" data-bs-toggle="tab" data-bs-target="#paneDrawing" role="tab">Drawing</button>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small text-muted mb-1" for="vendorMake">Make</label>
-                        <input type="text" class="form-control form-control-sm" id="vendorMake" maxlength="150" />
+                </div>
+
+                <div class="tab-content p-2">
+                    <div class="tab-pane fade show active" id="paneProps" role="tabpanel">
+                        <div id="pidProps"></div>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small text-muted mb-1" for="vendorModel">Model</label>
-                        <input type="text" class="form-control form-control-sm" id="vendorModel" maxlength="150" />
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small text-muted mb-1" for="vendorMaterial">Material</label>
-                        <input type="text" class="form-control form-control-sm" id="vendorMaterial" maxlength="150" />
-                    </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label small text-muted mb-1" for="vendorWeight">Weight (kg)</label>
-                            <input type="number" step="any" class="form-control form-control-sm" id="vendorWeight" />
+
+                    <div class="tab-pane fade" id="vendorCard" role="tabpanel"
+                         data-datasheets-url="@Url.Action("Datasheets", "Pid")"
+                         data-save-url="@Url.Action("SaveVendorData", "Pid")">
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="vendorTag">Equipment</label>
+                            <select class="form-select form-select-sm" id="vendorTag"></select>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label small text-muted mb-1" for="vendorDelivery">Delivery (weeks)</label>
-                            <input type="number" step="1" class="form-control form-control-sm" id="vendorDelivery" />
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="vendorMake">Make</label>
+                            <input type="text" class="form-control form-control-sm" id="vendorMake" maxlength="150" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="vendorModel">Model</label>
+                            <input type="text" class="form-control form-control-sm" id="vendorModel" maxlength="150" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="vendorMaterial">Material</label>
+                            <input type="text" class="form-control form-control-sm" id="vendorMaterial" maxlength="150" />
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-1" for="vendorWeight">Weight (kg)</label>
+                                <input type="number" step="any" class="form-control form-control-sm" id="vendorWeight" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small text-muted mb-1" for="vendorDelivery">Delivery (weeks)</label>
+                                <input type="number" step="1" class="form-control form-control-sm" id="vendorDelivery" />
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-8">
+                                <label class="form-label small text-muted mb-1" for="vendorPrice">Price</label>
+                                <input type="number" step="any" class="form-control form-control-sm" id="vendorPrice" />
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label small text-muted mb-1" for="vendorCurrency">Currency</label>
+                                <input type="text" class="form-control form-control-sm" id="vendorCurrency" maxlength="10" placeholder="INR" />
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="vendorRemarks">Remarks</label>
+                            <input type="text" class="form-control form-control-sm" id="vendorRemarks" maxlength="500" />
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" id="btnVendorSave">Save vendor data</button>
+                        <div id="vendorMsg" class="small mt-2"></div>
+                    </div>
+
+                    <div class="tab-pane fade" id="paneDrawing" role="tabpanel">
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="diagramTitle">Title</label>
+                            <input type="text" class="form-control form-control-sm" id="diagramTitle" maxlength="200" placeholder="Drawing title" value="@Model.Diagram.Title" />
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="statusSelect">Approval</label>
+                            <select class="form-select form-select-sm" id="statusSelect" aria-label="Status">
+                                @foreach (var s in statuses)
+                                {
+                                    <option value="@s" selected="@(s == Model.Diagram.Status.ToString())">@s</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" class="form-control form-control-sm" id="statusRemarks" maxlength="500" placeholder="Remarks" aria-label="Remarks" />
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary btn-sm" id="btnSetStatus">Apply status</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="btnNewRevision" disabled>New revision</button>
                         </div>
                     </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-8">
-                            <label class="form-label small text-muted mb-1" for="vendorPrice">Price</label>
-                            <input type="number" step="any" class="form-control form-control-sm" id="vendorPrice" />
-                        </div>
-                        <div class="col-4">
-                            <label class="form-label small text-muted mb-1" for="vendorCurrency">Currency</label>
-                            <input type="text" class="form-control form-control-sm" id="vendorCurrency" maxlength="10" placeholder="INR" />
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small text-muted mb-1" for="vendorRemarks">Remarks</label>
-                        <input type="text" class="form-control form-control-sm" id="vendorRemarks" maxlength="500" />
-                    </div>
-                    <button type="button" class="btn btn-primary btn-sm" id="btnVendorSave">Save vendor data</button>
-                    <div id="vendorMsg" class="small mt-2"></div>
                 </div>
             </div>
         </div>
@@ -202,4 +288,26 @@
     <script src="~/js/pid-symbols.js" asp-append-version="true"></script>
     <script src="~/js/pid-editor.js" asp-append-version="true"></script>
     <script src="~/js/pid-vendor.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            var props = document.getElementById('pidProps');
+            var tabProps = document.getElementById('tabProps');
+            if (props && tabProps && window.bootstrap) {
+                new MutationObserver(function () {
+                    var t = props.textContent || '';
+                    if (t.indexOf('Click an item') < 0 && t.indexOf('Loading') < 0) {
+                        bootstrap.Tab.getOrCreateInstance(tabProps).show();
+                    }
+                }).observe(props, { childList: true });
+            }
+
+            var toggle = document.getElementById('btnTogglePalette');
+            var left = document.getElementById('pidLeft');
+            if (toggle && left) {
+                toggle.addEventListener('click', function () {
+                    left.classList.toggle('d-none');
+                });
+            }
+        })();
+    </script>
 }
