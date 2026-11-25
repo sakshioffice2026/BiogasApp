@@ -33,13 +33,131 @@
     string Num(decimal? v) => v.HasValue ? v.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "-";
 }
 
+@section Styles {
+    <style>
+        .ds-badge {
+            background: #FFF1C9;
+            color: #7A4B00;
+            border: 1px solid #FFD27A;
+            font-size: .75rem;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 999px;
+            letter-spacing: .3px;
+        }
+
+        .ds-seg {
+            display: inline-flex;
+            background: #fff;
+            border: 1px solid var(--bp-line);
+            border-radius: 999px;
+            padding: 4px;
+            box-shadow: var(--bp-shadow);
+        }
+
+            .ds-seg a {
+                padding: 8px 20px;
+                border-radius: 999px;
+                color: var(--bp-ink-soft);
+                font-weight: 700;
+                font-size: .9rem;
+                text-decoration: none;
+            }
+
+                .ds-seg a:hover {
+                    background: var(--bp-tint-2);
+                    color: var(--bp-ink);
+                }
+
+                .ds-seg a.on {
+                    background: var(--bp-grad-deep);
+                    color: #fff;
+                    box-shadow: 0 6px 14px rgba(3, 105, 161, .3);
+                }
+
+        .ds-tagpill {
+            display: inline-block;
+            min-width: 66px;
+            text-align: center;
+            padding: 3px 8px;
+            border-radius: 7px;
+            background: var(--bp-tint);
+            color: var(--bp-ink);
+            font-family: var(--bp-font-display);
+            font-size: .8rem;
+            font-weight: 700;
+            margin-right: 8px;
+        }
+
+        .list-group-item.active .ds-tagpill {
+            background: rgba(255, 255, 255, .25);
+            color: #fff;
+        }
+
+        .ds-tag {
+            display: inline-block;
+            background: var(--bp-tint);
+            color: #2531B8;
+            font-size: .75rem;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--bp-line);
+            letter-spacing: .3px;
+        }
+
+        .ds-title {
+            font-family: var(--bp-font-display);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--bp-ink);
+            letter-spacing: -.3px;
+        }
+
+        .ds-chip {
+            height: 100%;
+            border: 1px solid var(--bp-line);
+            background: linear-gradient(180deg, #fff, var(--bp-tint-2));
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-family: var(--bp-font-display);
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--bp-ink);
+        }
+
+            .ds-chip small {
+                display: block;
+                font-family: var(--bp-font);
+                color: var(--bp-ink-mute);
+                font-size: .72rem;
+                font-weight: 700;
+                margin-bottom: 4px;
+                text-transform: uppercase;
+                letter-spacing: .6px;
+            }
+
+        .ds-w45 {
+            width: 45%;
+        }
+
+        .ds-fill {
+            background: #FFF2CC;
+        }
+
+        .table td, .table th {
+            font-size: 1rem;
+        }
+    </style>
+}
+
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
-        <h1 class="h4 mb-0">Datasheets</h1>
-        <div class="text-muted">
+        <h1 class="mb-0">Datasheets</h1>
+        <div class="text-muted d-flex align-items-center gap-2">
             @Model.ProjectName - @Model.DrawingNo
             <span>Rev @Model.RevisionNo</span>
-            <span class="badge text-bg-secondary">@Model.Status</span>
+            <span class="ds-badge">@Model.Status</span>
         </div>
     </div>
     <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -63,18 +181,18 @@
     </div>
 </div>
 
-<div class="btn-group btn-group-sm mb-3" role="group" aria-label="Datasheet view">
-    <a class="btn @(isEpc ? "btn-primary" : "btn-outline-primary")" asp-controller="Pid" asp-action="DatasheetPage"
+<div class="ds-seg mb-3" role="group" aria-label="Datasheet view">
+    <a class="@(isEpc ? "on" : "")" asp-controller="Pid" asp-action="DatasheetPage"
        asp-route-id="@Model.PidDiagramId" asp-route-tag="@item?.Tag" asp-route-view="epc">EPC</a>
-    <a class="btn @(isClient ? "btn-primary" : "btn-outline-primary")" asp-controller="Pid" asp-action="DatasheetPage"
+    <a class="@(isClient ? "on" : "")" asp-controller="Pid" asp-action="DatasheetPage"
        asp-route-id="@Model.PidDiagramId" asp-route-tag="@item?.Tag" asp-route-view="client">Client</a>
-    <a class="btn @(isVendor ? "btn-primary" : "btn-outline-primary")" asp-controller="Pid" asp-action="DatasheetPage"
+    <a class="@(isVendor ? "on" : "")" asp-controller="Pid" asp-action="DatasheetPage"
        asp-route-id="@Model.PidDiagramId" asp-route-tag="@item?.Tag" asp-route-view="vendor">Vendor RFQ</a>
 </div>
 
 @if (item == null)
 {
-    <div class="alert alert-info py-2 small">No equipment on this drawing.</div>
+    <div class="alert alert-info py-2">No equipment on this drawing.</div>
 }
 else
 {
@@ -86,10 +204,10 @@ else
                     @foreach (var i in Model.Items)
                     {
                         var active = string.Equals(i.Tag, item.Tag, StringComparison.OrdinalIgnoreCase);
-                        <a class="list-group-item list-group-item-action py-2 small @(active ? "active" : "")"
+                        <a class="list-group-item list-group-item-action py-2 @(active ? "active" : "")"
                            asp-controller="Pid" asp-action="DatasheetPage"
                            asp-route-id="@Model.PidDiagramId" asp-route-tag="@i.Tag" asp-route-view="@view">
-                            <strong>@i.Tag</strong> - @i.Name
+                            <span class="ds-tagpill">@i.Tag</span>@i.Name
                         </a>
                     }
                 </div>
@@ -101,18 +219,18 @@ else
                 <div class="card-body">
                     <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
                         <div>
-                            <h2 class="h5 mb-0">@item.Tag - @item.Name</h2>
-                            <div class="small text-muted">@item.EquipmentType, qty @item.Quantity</div>
+                            <h2 class="ds-title mb-2">@item.Tag - @item.Name</h2>
+                            <span class="ds-tag">@item.EquipmentType</span> <span class="ds-tag">qty @item.Quantity</span>
                         </div>
                     </div>
 
                     @if (hasLayout)
                     {
                         <div class="row g-2">
-                            <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Zone</div><div>@Dash(item.Zone)</div></div></div>
-                            <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Hazard class</div><div>@Dash(item.HazardClass)</div></div></div>
-                            <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Diameter (m)</div><div>@Num(item.DiameterM)</div></div></div>
-                            <div class="col-6 col-md-3"><div class="border rounded p-2"><div class="small text-muted">Width x length (m)</div><div>@Num(item.WidthM) x @Num(item.LengthM)</div></div></div>
+                            <div class="col-6 col-md-3"><div class="ds-chip"><small>Zone</small>@Dash(item.Zone)</div></div>
+                            <div class="col-6 col-md-3"><div class="ds-chip"><small>Hazard class</small>@Dash(item.HazardClass)</div></div>
+                            <div class="col-6 col-md-3"><div class="ds-chip"><small>Diameter (m)</small>@Num(item.DiameterM)</div></div>
+                            <div class="col-6 col-md-3"><div class="ds-chip"><small>Width x length (m)</small>@Num(item.WidthM) x @Num(item.LengthM)</div></div>
                         </div>
                     }
                 </div>
@@ -129,7 +247,7 @@ else
                                 @foreach (var f in g.Fields)
                                 {
                                     <tr>
-                                        <td class="text-muted" style="width: 45%;">@f.Label</td>
+                                        <td class="ds-w45">@f.Label</td>
                                         <td>@Dash(f.Value) @f.Unit</td>
                                     </tr>
                                 }
@@ -220,13 +338,13 @@ else
                     <div class="table-responsive">
                         <table class="table table-sm mb-0">
                             <tbody>
-                                <tr><td class="text-muted" style="width: 45%;">Make</td><td>@Dash(item.Vendor.Make)</td></tr>
-                                <tr><td class="text-muted">Model</td><td>@Dash(item.Vendor.Model)</td></tr>
-                                <tr><td class="text-muted">Material</td><td>@Dash(item.Vendor.Material)</td></tr>
-                                <tr><td class="text-muted">Weight (kg)</td><td>@Num(item.Vendor.WeightKg)</td></tr>
-                                <tr><td class="text-muted">Price</td><td>@Num(item.Vendor.Price) @item.Vendor.Currency</td></tr>
-                                <tr><td class="text-muted">Delivery (weeks)</td><td>@(item.Vendor.DeliveryWeeks?.ToString() ?? "-")</td></tr>
-                                <tr><td class="text-muted">Remarks</td><td>@Dash(item.Vendor.Remarks)</td></tr>
+                                <tr><td class="ds-w45">Make</td><td>@Dash(item.Vendor.Make)</td></tr>
+                                <tr><td>Model</td><td>@Dash(item.Vendor.Model)</td></tr>
+                                <tr><td>Material</td><td>@Dash(item.Vendor.Material)</td></tr>
+                                <tr><td>Weight (kg)</td><td>@Num(item.Vendor.WeightKg)</td></tr>
+                                <tr><td>Price</td><td>@Num(item.Vendor.Price) @item.Vendor.Currency</td></tr>
+                                <tr><td>Delivery (weeks)</td><td>@(item.Vendor.DeliveryWeeks?.ToString() ?? "-")</td></tr>
+                                <tr><td>Remarks</td><td>@Dash(item.Vendor.Remarks)</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -239,12 +357,12 @@ else
                     <div class="table-responsive">
                         <table class="table table-sm mb-0">
                             <tbody>
-                                <tr><td class="text-muted" style="width: 45%;">Make</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
-                                <tr><td class="text-muted">Model</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
-                                <tr><td class="text-muted">Material</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
-                                <tr><td class="text-muted">Weight (kg)</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
-                                <tr><td class="text-muted">Price</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
-                                <tr><td class="text-muted">Delivery (weeks)</td><td style="background:#FFF2CC;">&nbsp;</td></tr>
+                                <tr><td class="ds-w45">Make</td><td class="ds-fill">&nbsp;</td></tr>
+                                <tr><td>Model</td><td class="ds-fill">&nbsp;</td></tr>
+                                <tr><td>Material</td><td class="ds-fill">&nbsp;</td></tr>
+                                <tr><td>Weight (kg)</td><td class="ds-fill">&nbsp;</td></tr>
+                                <tr><td>Price</td><td class="ds-fill">&nbsp;</td></tr>
+                                <tr><td>Delivery (weeks)</td><td class="ds-fill">&nbsp;</td></tr>
                             </tbody>
                         </table>
                     </div>
