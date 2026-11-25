@@ -65,6 +65,12 @@
                asp-route-projectId="@Model.ProjectId" asp-route-runId="@Model.SimulationRunId">Back</a>
             <a class="btn btn-outline-primary btn-sm" asp-action="ExportExcel" asp-controller="Pid"
                asp-route-id="@Model.PidDiagramId">Download lists (Excel)</a>
+            <a class="btn btn-outline-primary btn-sm" asp-action="ExportPdf" asp-controller="Pid"
+               asp-route-id="@Model.PidDiagramId">Download PDF</a>
+            <a class="btn btn-outline-primary btn-sm" asp-action="ExportDxf" asp-controller="Pid"
+               asp-route-id="@Model.PidDiagramId">Download DXF</a>
+            <a class="btn btn-outline-primary btn-sm" asp-action="ExportDatasheetExcel" asp-controller="Pid"
+               asp-route-id="@Model.PidDiagramId">Datasheet (Excel)</a>
         </div>
     </div>
 
@@ -98,8 +104,19 @@
             <button type="button" class="btn btn-outline-secondary" id="btnZoomIn">+</button>
         </div>
 
-        <div class="ms-auto" style="min-width: 220px;">
-            <input type="text" class="form-control form-control-sm" id="diagramTitle" maxlength="200" placeholder="Drawing title" value="@Model.Diagram.Title" />
+        <div class="vr"></div>
+
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="fw-semibold small">Approval</span>
+            <select class="form-select form-select-sm w-auto" id="statusSelect" aria-label="Status">
+                @foreach (var s in statuses)
+                {
+                    <option value="@s" selected="@(s == Model.Diagram.Status.ToString())">@s</option>
+                }
+            </select>
+            <input type="text" class="form-control form-control-sm w-auto" id="statusRemarks" maxlength="500" placeholder="Remarks" aria-label="Remarks" style="min-width: 160px;" />
+            <button type="button" class="btn btn-primary btn-sm" id="btnSetStatus">Apply status</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnNewRevision" disabled>New revision</button>
         </div>
     </div>
 
@@ -113,9 +130,8 @@
         </div>
 
         <div class="col-lg-3">
-            <div class="card mb-3">
-                <div class="card-header py-2">Properties</div>
-                <div class="card-body py-2" id="pidProps"></div>
+            <div class="mb-3">
+                <input type="text" class="form-control form-control-sm" id="diagramTitle" maxlength="200" placeholder="Drawing title" value="@Model.Diagram.Title" />
             </div>
 
             <div class="card mb-3">
@@ -124,25 +140,57 @@
             </div>
 
             <div class="card mb-3">
-                <div class="card-header py-2">Approval</div>
+                <div class="card-header py-2">Properties</div>
+                <div class="card-body py-2" id="pidProps"></div>
+            </div>
+
+            <div class="card mb-3" id="vendorCard"
+                 data-datasheets-url="@Url.Action("Datasheets", "Pid")"
+                 data-save-url="@Url.Action("SaveVendorData", "Pid")">
+                <div class="card-header py-2">Vendor data</div>
                 <div class="card-body py-2">
                     <div class="mb-2">
-                        <label class="form-label small text-muted mb-1" for="statusSelect">Status</label>
-                        <select class="form-select form-select-sm" id="statusSelect">
-                            @foreach (var s in statuses)
-                            {
-                                <option value="@s" selected="@(s == Model.Diagram.Status.ToString())">@s</option>
-                            }
-                        </select>
+                        <label class="form-label small text-muted mb-1" for="vendorTag">Equipment</label>
+                        <select class="form-select form-select-sm" id="vendorTag"></select>
                     </div>
                     <div class="mb-2">
-                        <label class="form-label small text-muted mb-1" for="statusRemarks">Remarks</label>
-                        <input type="text" class="form-control form-control-sm" id="statusRemarks" maxlength="500" />
+                        <label class="form-label small text-muted mb-1" for="vendorMake">Make</label>
+                        <input type="text" class="form-control form-control-sm" id="vendorMake" maxlength="150" />
                     </div>
-                    <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-primary btn-sm" id="btnSetStatus">Apply status</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnNewRevision" disabled>New revision</button>
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-1" for="vendorModel">Model</label>
+                        <input type="text" class="form-control form-control-sm" id="vendorModel" maxlength="150" />
                     </div>
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-1" for="vendorMaterial">Material</label>
+                        <input type="text" class="form-control form-control-sm" id="vendorMaterial" maxlength="150" />
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small text-muted mb-1" for="vendorWeight">Weight (kg)</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="vendorWeight" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted mb-1" for="vendorDelivery">Delivery (weeks)</label>
+                            <input type="number" step="1" class="form-control form-control-sm" id="vendorDelivery" />
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-8">
+                            <label class="form-label small text-muted mb-1" for="vendorPrice">Price</label>
+                            <input type="number" step="any" class="form-control form-control-sm" id="vendorPrice" />
+                        </div>
+                        <div class="col-4">
+                            <label class="form-label small text-muted mb-1" for="vendorCurrency">Currency</label>
+                            <input type="text" class="form-control form-control-sm" id="vendorCurrency" maxlength="10" placeholder="INR" />
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-1" for="vendorRemarks">Remarks</label>
+                        <input type="text" class="form-control form-control-sm" id="vendorRemarks" maxlength="500" />
+                    </div>
+                    <button type="button" class="btn btn-primary btn-sm" id="btnVendorSave">Save vendor data</button>
+                    <div id="vendorMsg" class="small mt-2"></div>
                 </div>
             </div>
         </div>
@@ -153,4 +201,5 @@
     <script src="~/js/undo-redo.js" asp-append-version="true"></script>
     <script src="~/js/pid-symbols.js" asp-append-version="true"></script>
     <script src="~/js/pid-editor.js" asp-append-version="true"></script>
+    <script src="~/js/pid-vendor.js" asp-append-version="true"></script>
 }

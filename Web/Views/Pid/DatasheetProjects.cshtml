@@ -1,0 +1,60 @@
+@model BiogasApp.Model.ViewModel.ProjectIndexViewModel
+@using BiogasApp.Model.DTOs
+@{
+    ViewData["Title"] = "Datasheets";
+    var drawings = ViewData["Drawings"] as Dictionary<Guid, List<PidDiagramDto>> ?? new Dictionary<Guid, List<PidDiagramDto>>();
+}
+
+<div class="mb-3">
+    <h1 class="h4 mb-0">Datasheets</h1>
+    <div class="text-muted">Equipment datasheets for each P&amp;ID</div>
+</div>
+
+<div class="card">
+    <div class="list-group list-group-flush">
+        @if (Model.Projects.Count == 0)
+        {
+            <div class="list-group-item text-muted small">No projects yet.</div>
+        }
+        @foreach (var p in Model.Projects)
+        {
+            drawings.TryGetValue(p.Id, out var list);
+            list ??= new List<PidDiagramDto>();
+
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div>
+                        <div>@p.Name</div>
+                        <div class="small text-muted">@p.LocationCountry, @p.Status, @p.RunCount run(s)</div>
+                    </div>
+                    <a class="btn btn-sm btn-outline-secondary"
+                       asp-controller="Pid" asp-action="Index" asp-route-projectId="@p.Id">P&amp;ID</a>
+                </div>
+
+                @if (list.Count == 0)
+                {
+                    <div class="small text-muted">No P&amp;ID yet. Generate one from the P&amp;ID page.</div>
+                }
+                else
+                {
+                    @foreach (var d in list.OrderByDescending(x => x.RevisionNo))
+                    {
+                        <div class="d-flex flex-wrap justify-content-between align-items-center border-top py-2">
+                            <div>
+                                <strong>@d.DrawingNo</strong> - @d.Title
+                                <span class="small text-muted">Rev @d.RevisionNo</span>
+                                <span class="badge text-bg-secondary">@d.Status</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a class="btn btn-sm btn-primary"
+                                   asp-controller="Pid" asp-action="DatasheetPage" asp-route-id="@d.Id">Open datasheets</a>
+                                <a class="btn btn-sm btn-outline-primary"
+                                   asp-controller="Pid" asp-action="ExportDatasheetExcel" asp-route-id="@d.Id">Excel</a>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>

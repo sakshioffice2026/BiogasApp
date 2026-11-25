@@ -54,6 +54,7 @@ builder.Services.AddScoped<IPidExport, PidExportRepository>();
 builder.Services.AddScoped<PidTagService>();
 builder.Services.AddScoped<PidTemplateBuilder>();
 builder.Services.AddScoped<PidAutoLayoutService>();
+builder.Services.AddScoped<IDatasheetExport, DatasheetExportRepository>();
 // ---------- CAD generation (built-in layout engine) ----------
 builder.Services.AddScoped<ICadGeneration, CadGenerationRepository>();
 builder.Services.AddHttpClient<IReceptorProvider, OsmReceptorProvider>(client =>

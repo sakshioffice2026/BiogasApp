@@ -49,7 +49,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<PidValve> PidValves => Set<PidValve>();
     public DbSet<PidInstrument> PidInstruments => Set<PidInstrument>();
     public DbSet<PidRevision> PidRevisions => Set<PidRevision>();
-
+    public DbSet<PidEquipmentVendorData> PidEquipmentVendorData => Set<PidEquipmentVendorData>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -1005,6 +1005,31 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(x => x.PidDiagramId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+
+
+        // ---------- pid_equipment_vendor_data ----------
+        modelBuilder.Entity<PidEquipmentVendorData>(e =>
+        {
+            e.ToTable("pid_equipment_vendor_data");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Tag).HasMaxLength(50).IsRequired();
+            e.Property(x => x.Make).HasMaxLength(150);
+            e.Property(x => x.Model).HasMaxLength(150);
+            e.Property(x => x.Material).HasMaxLength(150);
+            e.Property(x => x.WeightKg).HasColumnType("decimal(12,2)");
+            e.Property(x => x.Price).HasColumnType("decimal(14,2)");
+            e.Property(x => x.Currency).HasMaxLength(10);
+            e.Property(x => x.Remarks).HasMaxLength(500);
+            e.Property(x => x.UpdatedBy).HasMaxLength(150);
+            e.Property(x => x.UpdatedAt).HasColumnType("timestamp").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            e.HasIndex(x => new { x.PidDiagramId, x.Tag }).IsUnique();
+
+            e.HasOne(x => x.PidDiagram)
+                .WithMany()
+                .HasForeignKey(x => x.PidDiagramId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // ---------- snake_case column names for every property ----------
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
         {

@@ -267,6 +267,25 @@
                     </a>
                 </li>
 
+                <!-- Datasheets -->
+                <li>
+                    <a class="bp-node @(ctrl == "pid" && (ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty).StartsWith("Datasheet", StringComparison.OrdinalIgnoreCase) ? "is-active" : string.Empty)"
+                       asp-controller="Pid"
+                       asp-action="DatasheetProjects">
+
+                        <span class="bp-node__dot">
+                            <svg class="bp-ico" viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M6 3h9l4 4v14H6Z" />
+                                <path d="M14 3v5h5" />
+                                <path d="M9 13h7" />
+                                <path d="M9 17h7" />
+                            </svg>
+                        </span>
+
+                        <span class="bp-node__label">Datasheets</span>
+                    </a>
+                </li>
+
                 <!-- Feedstock -->
                 <li>
                     <a class="bp-node @Active("feedstock")"

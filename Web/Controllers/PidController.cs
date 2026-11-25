@@ -1,11 +1,12 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using BiogasApp.Business.Pid;
+using BiogasApp.Database.Entities;
 using BiogasApp.Database.Enums;
 using BiogasApp.Model.DTOs;
 using BiogasApp.Model.ViewModel;
 using BiogasApp.Repositories.Contracts;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Web.Controllers;
 
@@ -28,21 +29,27 @@ public class PidController : Controller
 
     private static readonly JsonSerializerOptions PidJson = CreateJson();
 
+    private readonly IProjectRepository _projects;
     private readonly IPidRepository _pid;
     private readonly IPidExport _export;
     private readonly ISiteRepository _sites;
     private readonly PidTemplateBuilder _template;
     private readonly PidAutoLayoutService _layout;
+    private readonly IDatasheetExport _datasheet;
 
     public PidController(
-        IPidRepository pid,
-        IPidExport export,
-        ISiteRepository sites,
-        PidTemplateBuilder template,
-        PidAutoLayoutService layout)
+    IPidRepository pid,
+    IPidExport export,
+    IDatasheetExport datasheet,
+    IProjectRepository projects,
+    ISiteRepository sites,
+    PidTemplateBuilder template,
+    PidAutoLayoutService layout)
     {
         _pid = pid;
         _export = export;
+        _datasheet = datasheet;
+        _projects = projects;
         _sites = sites;
         _template = template;
         _layout = layout;
@@ -242,6 +249,82 @@ public class PidController : Controller
         var bytes = PidPdfWriter.Write(d, projectName, DateTime.UtcNow);
         var fileName = $"{d.DrawingNo}_Rev{d.RevisionNo}.pdf";
         return File(bytes, "application/pdf", fileName);
+    }
+
+
+    [HttpGet]
+    public async Task<IActionResult> ExportDatasheetExcel(Guid id, string? tag, CancellationToken cancellationToken)
+    {
+        var d = await _pid.GetByIdAsync(id, cancellationToken);
+        if (d == null) return NotFound();
+
+        try
+        {
+            var bytes = await _datasheet.BuildDatasheetExcelAsync(id, tag, cancellationToken);
+            var suffix = string.IsNullOrWhiteSpace(tag) ? "Datasheets" : $"Datasheet_{tag.Trim()}";
+            var fileName = $"{d.DrawingNo}_Rev{d.RevisionNo}_{suffix}.xlsx";
+            return File(bytes, XlsxMime, fileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ex.Message);
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Datasheets(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var set = await _datasheet.GetDatasheetsAsync(id, cancellationToken);
+            return Json(set, PidJson);
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound();
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SaveVendorData(Guid id, CancellationToken cancellationToken)
+    {
+        var dto = await ReadBodyAsync<EquipmentVendorDataDto>(cancellationToken);
+        if (dto == null || string.IsNullOrWhiteSpace(dto.Tag)) return BadRequest("Invalid vendor data.");
+
+        var d = await _pid.GetByIdAsync(id, cancellationToken);
+        if (d == null) return NotFound();
+
+        await _datasheet.SaveVendorDataAsync(id, dto, User?.Identity?.Name, cancellationToken);
+        return Json(new { ok = true });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DatasheetProjects(CancellationToken cancellationToken)
+    {
+        var model = await _projects.GetIndexAsync(null, null, cancellationToken);
+
+        var drawings = new Dictionary<Guid, List<PidDiagramDto>>();
+        foreach (var p in model.Projects)
+            drawings[p.Id] = await _pid.GetByProjectAsync(p.Id, cancellationToken);
+
+        ViewData["Drawings"] = drawings;
+        return View(model);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> DatasheetPage(Guid id, string? tag, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var set = await _datasheet.GetDatasheetsAsync(id, cancellationToken);
+            ViewData["SelectedTag"] = tag;
+            return View(set);
+        }
+        catch (InvalidOperationException)
+        {
+            return NotFound();
+        }
     }
 
     [HttpPost]
