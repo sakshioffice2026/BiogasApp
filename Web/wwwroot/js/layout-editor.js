@@ -55,7 +55,11 @@
         ceSave: $('ceSave'),
         ceDelete: $('ceDelete'),
         undo: $('btnUndo'),
-        redo: $('btnRedo')
+        redo: $('btnRedo'),
+        view2d: $('btnView2d'),
+        view3d: $('btnView3d'),
+        zoomGroup: $('zoomGroup'),
+        layout3d: $('layout3d')
     };
 
     function readJson(id) {
@@ -67,6 +71,7 @@
     var layout = readJson('layoutData');
     var equipment = readJson('equipmentData') || [];
     var run = readJson('runData') || {};
+    var siteData = readJson('siteData') || {};
 
     var unsavedLayout = null;
     var selected = null;
@@ -77,6 +82,9 @@
     var pan = null;
     var busy = false;
     var hist = null;
+    var viewer3d = null;
+    var mode3d = false;
+    var clearWarnings = [];
 
     /* ---------- helpers ---------- */
 
@@ -242,6 +250,7 @@
         renderWarnings();
         renderSelected();
         renderEquipmentList();
+        sync3d();
         updateButtons();
     }
 
@@ -261,6 +270,7 @@
         renderSelected();
         renderWarnings();
         renderEquipmentList();
+        sync3d();
         updateButtons();
     }
 
@@ -307,7 +317,7 @@
             return;
         }
 
-        var list = layout.warnings || [];
+        var list = allWarnings();
         if (!list.length) {
             el.warningSummary.textContent = '0';
             el.warningList.innerHTML = '<div class="p-3 small text-muted">No warnings. This is still a draft for engineer review.</div>';
@@ -700,7 +710,7 @@
     el.warningList.addEventListener('click', function (e) {
         var row = e.target.closest('.warning-item');
         if (!row || !layout) return;
-        var w = layout.warnings[parseInt(row.getAttribute('data-idx'), 10)];
+        var w = allWarnings()[parseInt(row.getAttribute('data-idx'), 10)];
         if (w && w.equipmentItemId) select(w.equipmentItemId, w.instanceNo || 1);
     });
 
@@ -769,6 +779,7 @@
         var previous = eq.heightM;
         var v = parseFloat(e.target.value);
         eq.heightM = isFinite(v) && v >= 0 ? v : null;
+        sync3d();
         setBusy(true);
 
         saveEquipmentDto(eq).then(function (res) {
@@ -776,10 +787,12 @@
             if (!res.ok || !res.data || !res.data.success) {
                 eq.heightM = previous;
                 renderEquipmentList();
+                sync3d();
                 showMessage(failText(res, 'Could not update the height'), 'danger');
                 return;
             }
             renderEquipmentList();
+            sync3d();
             showMessage('Height updated.', 'info');
         }).catch(function () {
             setBusy(false);
@@ -909,6 +922,64 @@
             modalError('Could not reach the server. Try again.');
         });
     });
+
+    /* ---------- 3D view ---------- */
+
+    function allWarnings() {
+        var base = (layout && layout.warnings) || [];
+        return base.concat(clearWarnings);
+    }
+
+    function sync3d() {
+        if (!mode3d || !viewer3d) return;
+        viewer3d.update({
+            site: siteData,
+            layout: layout,
+            equipment: equipment,
+            selected: selected
+        });
+    }
+
+    function ensureViewer(cb) {
+        if (viewer3d) { cb(); return; }
+        var url = root.getAttribute('data-viewer3d-url');
+        import(url).then(function (mod) {
+            if (!mode3d) return;
+            viewer3d = mod.createLayout3DViewer({
+                container: el.layout3d,
+                onSelect: function (eq, inst) { select(eq, inst); },
+                onClearance: function (res) {
+                    clearWarnings = (res && res.warnings) || [];
+                    renderWarnings();
+                }
+            });
+            cb();
+        }).catch(function (err) {
+            setViewMode(false);
+            showMessage('Could not load the 3D viewer: ' + (err && err.message ? err.message : err), 'danger');
+            console.error(err);
+        });
+    }
+
+    function setViewMode(is3d) {
+        mode3d = is3d;
+        el.view2d.classList.toggle('active', !is3d);
+        el.view3d.classList.toggle('active', is3d);
+        el.canvas.classList.toggle('d-none', is3d);
+        el.layout3d.classList.toggle('d-none', !is3d);
+        el.zoomGroup.classList.toggle('d-none', is3d);
+
+        if (is3d) {
+            ensureViewer(sync3d);
+        } else {
+            if (viewer3d) { viewer3d.dispose(); viewer3d = null; }
+            clearWarnings = [];
+            renderWarnings();
+        }
+    }
+
+    el.view2d.addEventListener('click', function () { if (mode3d) setViewMode(false); });
+    el.view3d.addEventListener('click', function () { if (!mode3d) setViewMode(true); });
 
     /* ---------- start ---------- */
 
