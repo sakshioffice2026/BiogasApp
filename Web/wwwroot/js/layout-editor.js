@@ -969,13 +969,55 @@
         el.layout3d.classList.toggle('d-none', !is3d);
         el.zoomGroup.classList.toggle('d-none', is3d);
 
+        var row = el.layout3d.closest('.row');
+        var cols = row ? row.children : [];
+        if (cols.length === 3) {
+            cols[0].classList.toggle('d-none', is3d);
+            cols[2].classList.toggle('d-none', is3d);
+            cols[1].classList.toggle('col-lg-7', !is3d);
+            cols[1].classList.toggle('col-lg-12', is3d);
+            var foot = cols[1].querySelector('.card-footer');
+            if (foot) foot.classList.toggle('d-none', is3d);
+        }
+        toggleMaxButton(is3d);
+
         if (is3d) {
             ensureViewer(sync3d);
         } else {
+            if (document.fullscreenElement) document.exitFullscreen();
             if (viewer3d) { viewer3d.dispose(); viewer3d = null; }
             clearWarnings = [];
             renderWarnings();
         }
+    }
+
+    var btnMax = null;
+
+    function toggleMaxButton(show) {
+        if (!btnMax) {
+            btnMax = document.createElement('button');
+            btnMax.type = 'button';
+            btnMax.className = 'btn btn-sm btn-dark';
+            btnMax.textContent = '⛶ Maximize';
+            btnMax.style.cssText = 'position:absolute;top:8px;right:8px;z-index:20';
+            btnMax.addEventListener('click', function () {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    el.layout3d.requestFullscreen();
+                }
+            });
+            el.layout3d.style.position = 'relative';
+            el.layout3d.appendChild(btnMax);
+            document.addEventListener('fullscreenchange', function () {
+                var full = document.fullscreenElement === el.layout3d;
+                el.layout3d.style.height = full ? '100vh' : '70vh';
+                btnMax.textContent = full ? '✕ Exit' : '⛶ Maximize';
+                window.dispatchEvent(new Event('resize'));
+            });
+        }
+        btnMax.classList.toggle('d-none', !show);
+        if (show && btnMax.parentNode !== el.layout3d) el.layout3d.appendChild(btnMax);
     }
 
     el.view2d.addEventListener('click', function () { if (mode3d) setViewMode(false); });

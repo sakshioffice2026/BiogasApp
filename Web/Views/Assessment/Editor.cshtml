@@ -19,7 +19,8 @@
      data-delete-version-url="@Url.Action("DeleteVersion", "Assessment")"
      data-save-equipment-url="@Url.Action("SaveEquipment", "Assessment")"
      data-delete-equipment-url="@Url.Action("DeleteEquipment", "Assessment")"
-     data-site-url="@Url.Action("Site", "Assessment", new { id = Model.ProjectId })">
+     data-site-url="@Url.Action("Site", "Assessment", new { id = Model.ProjectId })"
+     data-viewer3d-url="@Url.Content("~/js/layout-3d-viewer.js")">
 
     @Html.AntiForgeryToken()
 
@@ -73,7 +74,12 @@
 
         <div class="vr"></div>
 
-        <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
+        <div class="btn-group btn-group-sm" role="group" aria-label="View mode">
+            <button type="button" class="btn btn-outline-secondary active" id="btnView2d">2D Plan</button>
+            <button type="button" class="btn btn-outline-secondary" id="btnView3d">3D Massing</button>
+        </div>
+
+        <div class="btn-group btn-group-sm" role="group" aria-label="Zoom" id="zoomGroup">
             <button type="button" class="btn btn-outline-secondary" id="btnZoomOut">-</button>
             <button type="button" class="btn btn-outline-secondary" id="btnZoomFit">Fit</button>
             <button type="button" class="btn btn-outline-secondary" id="btnZoomIn">+</button>
@@ -111,6 +117,7 @@
                 <div class="layout-canvas" id="layoutCanvas">
                     <div class="layout-empty text-muted" id="layoutEmpty">Generate a layout to see it here.</div>
                 </div>
+                <div class="layout-3d d-none" id="layout3d" style="height:70vh;min-height:520px"></div>
                 <div class="card-footer small d-flex flex-wrap gap-3">
                     <span><i class="zone-swatch zone-dirty"></i> Dirty (feedstock, manure)</span>
                     <span><i class="zone-swatch zone-process"></i> Process (digesters, tanks)</span>
@@ -229,6 +236,7 @@
 
     <script id="layoutData" type="application/json">@Json.Serialize(Model.ActiveLayout)</script>
     <script id="equipmentData" type="application/json">@Json.Serialize(Model.Equipment)</script>
+    <script id="siteData" type="application/json">@Json.Serialize(Model.Site)</script>
     <script id="runData" type="application/json">@Json.Serialize(new { runId = Model.SimulationRunId, plotReady = Model.IsPlotReady })</script>
 </div>
 
