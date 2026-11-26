@@ -14,6 +14,7 @@ public class ProjectEquipmentItem
     public decimal? WidthM { get; set; }
     public decimal? LengthM { get; set; }
     public decimal? DiameterM { get; set; }
+    public decimal? HeightM { get; set; }
     public SizeSource SizeSource { get; set; }
     public int Quantity { get; set; } = 1;
     public bool IsEnabled { get; set; } = true;

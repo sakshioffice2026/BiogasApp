@@ -47,6 +47,7 @@
         ceWidth: $('ceWidth'),
         ceLength: $('ceLength'),
         ceDiameter: $('ceDiameter'),
+        ceHeight: $('ceHeight'),
         ceQty: $('ceQty'),
         ceRoad: $('ceRoad'),
         ceRotate: $('ceRotate'),
@@ -335,9 +336,10 @@
     }
 
     function sizeText(e) {
-        return e.shape === 'Circle'
+        var plan = e.shape === 'Circle'
             ? 'Ø' + fmt(e.diameterM) + ' m'
             : fmt(e.widthM) + ' × ' + fmt(e.lengthM) + ' m';
+        return e.heightM != null ? plan + ', H ' + fmt(e.heightM) + ' m' : plan;
     }
 
     function renderEquipmentList() {
@@ -352,7 +354,10 @@
                 '<div class="d-flex justify-content-between align-items-start gap-1">' +
                 '<div><span class="eq-tag">' + esc(e.tag) + '</span> ' + esc(e.name) +
                 (e.isCustom ? ' <span class="badge text-bg-secondary">Custom</span>' : '') +
-                '<div class="eq-size">' + esc(sizeText(e)) + ' &times; ' + (e.quantity || 1) + '</div></div>' +
+                '<div class="eq-size">' + esc(sizeText(e)) + ' &times; ' + (e.quantity || 1) + '</div>' +
+                '<div class="input-group input-group-sm mt-1" style="max-width:150px">' +
+                '<span class="input-group-text">H (m)</span>' +
+                '<input type="number" step="any" min="0" class="form-control eq-height" value="' + (e.heightM != null ? esc(String(e.heightM)) : '') + '" /></div></div>' +
                 '<div class="d-flex flex-column align-items-end gap-1">' +
                 '<input type="checkbox" class="form-check-input eq-enable" title="Include in layout"' + (e.isEnabled ? ' checked' : '') + ' />' +
                 (e.isCustom ? '<button type="button" class="btn btn-sm btn-outline-secondary py-0 eq-edit">Edit</button>' : '') +
@@ -715,6 +720,7 @@
             return;
         }
         if (e.target.classList.contains('eq-enable')) return;
+        if (e.target.classList.contains('eq-height')) return;
 
         if (layout) {
             for (var i = 0; i < layout.items.length; i++) {
@@ -754,6 +760,35 @@
         });
     });
 
+    el.equipmentList.addEventListener('change', function (e) {
+        if (!e.target.classList.contains('eq-height')) return;
+        var row = e.target.closest('.list-group-item');
+        var eq = row ? findEquipment(row.getAttribute('data-id')) : null;
+        if (!eq) return;
+
+        var previous = eq.heightM;
+        var v = parseFloat(e.target.value);
+        eq.heightM = isFinite(v) && v >= 0 ? v : null;
+        setBusy(true);
+
+        saveEquipmentDto(eq).then(function (res) {
+            setBusy(false);
+            if (!res.ok || !res.data || !res.data.success) {
+                eq.heightM = previous;
+                renderEquipmentList();
+                showMessage(failText(res, 'Could not update the height'), 'danger');
+                return;
+            }
+            renderEquipmentList();
+            showMessage('Height updated.', 'info');
+        }).catch(function () {
+            setBusy(false);
+            eq.heightM = previous;
+            renderEquipmentList();
+            showMessage('Could not reach the server. Try again.', 'danger');
+        });
+    });
+
     /* ---------- custom equipment modal ---------- */
 
     function modalInstance() {
@@ -784,6 +819,7 @@
         el.ceWidth.value = eq && eq.widthM != null ? eq.widthM : '';
         el.ceLength.value = eq && eq.lengthM != null ? eq.lengthM : '';
         el.ceDiameter.value = eq && eq.diameterM != null ? eq.diameterM : '';
+        el.ceHeight.value = eq && eq.heightM != null ? eq.heightM : '';
         el.ceQty.value = eq ? eq.quantity : 1;
         el.ceRoad.checked = eq ? eq.needsRoadAccess !== false : true;
         el.ceRotate.checked = eq ? eq.allowRotation !== false : true;
@@ -815,6 +851,7 @@
             widthM: circle ? null : numOrNull(el.ceWidth),
             lengthM: circle ? null : numOrNull(el.ceLength),
             diameterM: circle ? numOrNull(el.ceDiameter) : null,
+            heightM: numOrNull(el.ceHeight),
             sizeSource: 'UserOverride',
             quantity: Math.max(1, parseInt(el.ceQty.value, 10) || 1),
             isEnabled: true,

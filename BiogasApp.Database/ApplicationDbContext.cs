@@ -653,6 +653,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.WidthM).HasColumnType("decimal(8,2)");
             e.Property(x => x.LengthM).HasColumnType("decimal(8,2)");
             e.Property(x => x.DiameterM).HasColumnType("decimal(8,2)");
+            e.Property(x => x.HeightM).HasColumnType("decimal(8,2)");
             e.Property(x => x.SizeSource).HasConversion(sizeSource).HasMaxLength(20).IsRequired();
             e.HasIndex(x => new { x.ProjectId, x.Tag }).IsUnique();
 

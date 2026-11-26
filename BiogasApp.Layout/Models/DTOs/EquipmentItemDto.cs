@@ -21,6 +21,9 @@ public class EquipmentItemDto
     public double? WidthM { get; set; }
     public double? LengthM { get; set; }
     public double? DiameterM { get; set; }
+    public double? HeightM { get; set; }
+
+    // Simulation, Standard or UserOverride
 
     // Simulation, Standard or UserOverride
     public string SizeSource { get; set; } = "Standard";

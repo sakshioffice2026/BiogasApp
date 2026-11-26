@@ -57,9 +57,11 @@ public class DatasheetExportRepository : IDatasheetExport
                 ? projectItems.FirstOrDefault(p => p.Id == node.EquipmentItemId.Value)
                 : projectItems.FirstOrDefault(p => string.Equals(p.Tag, node.Tag, StringComparison.OrdinalIgnoreCase));
 
-            var sz = node.SizedEquipmentId.HasValue
-                ? sized.FirstOrDefault(s => s.Id == node.SizedEquipmentId.Value)
-                : sized.FirstOrDefault(s => string.Equals(s.EquipmentTag, node.Tag, StringComparison.OrdinalIgnoreCase));
+            var sz = (node.SizedEquipmentId.HasValue
+                    ? sized.FirstOrDefault(s => s.Id == node.SizedEquipmentId.Value)
+                    : null)
+                ?? sized.FirstOrDefault(s => string.Equals(s.EquipmentTag, node.Tag, StringComparison.OrdinalIgnoreCase))
+                ?? SizedByTagPrefix(sized, node.Tag);
 
             var ds = new EquipmentDatasheetDto
             {
@@ -75,6 +77,7 @@ public class DatasheetExportRepository : IDatasheetExport
                 WidthM = item?.WidthM,
                 LengthM = item?.LengthM,
                 DiameterM = item?.DiameterM,
+                HeightM = ReadHeightM(sz?.GeometryParamsJson),
                 NeedsRoadAccess = item?.NeedsRoadAccess
             };
 
@@ -238,7 +241,7 @@ public class DatasheetExportRepository : IDatasheetExport
         var headers = new List<string>
         {
             "Tag", "Name", "Type", "Qty", "Zone", "Hazard class",
-            "Diameter (m)", "Width (m)", "Length (m)"
+            "Diameter (m)", "Width (m)", "Length (m)", "Height (m)"
         };
         if (showVendor) headers.AddRange(new[] { "Make", "Model", "Material" });
 
@@ -262,11 +265,12 @@ public class DatasheetExportRepository : IDatasheetExport
             Number(ws, r, 7, i.DiameterM);
             Number(ws, r, 8, i.WidthM);
             Number(ws, r, 9, i.LengthM);
+            Number(ws, r, 10, i.HeightM);
             if (showVendor)
             {
-                Text(ws, r, 10, i.Vendor.Make);
-                Text(ws, r, 11, i.Vendor.Model);
-                Text(ws, r, 12, i.Vendor.Material);
+                Text(ws, r, 11, i.Vendor.Make);
+                Text(ws, r, 12, i.Vendor.Model);
+                Text(ws, r, 13, i.Vendor.Material);
             }
             r++;
         }
@@ -306,6 +310,7 @@ public class DatasheetExportRepository : IDatasheetExport
         r = KeyValue(ws, r, "Diameter", Dec(e.DiameterM), "m");
         r = KeyValue(ws, r, "Width", Dec(e.WidthM), "m");
         r = KeyValue(ws, r, "Length", Dec(e.LengthM), "m");
+        r = KeyValue(ws, r, "Height", Dec(e.HeightM), "m");
         r = KeyValue(ws, r, "Road access needed", e.NeedsRoadAccess.HasValue ? (e.NeedsRoadAccess.Value ? "Yes" : "No") : null, null);
 
         r = FieldSection(ws, r, "Process data", e.Process);
@@ -471,6 +476,47 @@ public class DatasheetExportRepository : IDatasheetExport
         var v = (view ?? string.Empty).Trim().ToLowerInvariant();
         return v == "client" || v == "vendor" ? v : "epc";
     }
+    private static SizedEquipment? SizedByTagPrefix(IEnumerable<SizedEquipment> sized, string? tag)
+    {
+        var prefix = (tag ?? string.Empty).Split('-')[0].Trim().ToUpperInvariant();
+        var sizedTag = prefix switch
+        {
+            "FT" => "FT-101",
+            "MT" => "MIX-101",
+            "DT" => "DT-101",
+            "AD" => "D-101",
+            _ => null
+        };
+
+        return sizedTag == null
+            ? null
+            : sized.FirstOrDefault(s => string.Equals(s.EquipmentTag, sizedTag, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static decimal? ReadHeightM(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object) return null;
+
+            foreach (var key in new[] { "totalHeightM", "heightM", "skidHeightM" })
+            {
+                if (doc.RootElement.TryGetProperty(key, out var p)
+                    && p.ValueKind == JsonValueKind.Number
+                    && p.TryGetDecimal(out var v))
+                    return v;
+            }
+        }
+        catch (JsonException)
+        {
+        }
+
+        return null;
+    }
+
     private static bool IsUtility(string label)
     {
         var l = label.ToLowerInvariant();

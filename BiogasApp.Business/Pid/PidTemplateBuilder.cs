@@ -150,13 +150,15 @@ public class PidTemplateBuilder
         var upgS = Sz("UPG-101");
         var cmpS = Sz("CMP-101");
         var cscS = Sz("CSC-101");
+        var ftS = Sz("FT-101");
+        var dtS = Sz("DT-101");
 
         var slurryDn = DnFor(ReadDuty(mixS, "slurryFlowM3Day") / 24.0, 1.5, 100m);
         var biogasDn = DnFor(ReadDuty(upgS, "rawBiogasInletNm3Hr"), 10.0, 100m);
         var cbgDn = DnFor(ReadDuty(upgS, "cbgNm3Day") / 24.0, 15.0, 25m);
 
         PidEquipmentNode? ft = ftI == null ? null
-            : Add(ftI.Tag, Label(ftI), PidSymbolType.Tank, StageFeed, ftI.Id, null);
+            : Add(ftI.Tag, Label(ftI), PidSymbolType.Tank, StageFeed, ftI.Id, ftS?.Id);
 
         PidEquipmentNode? pre = preS == null ? null
             : Add(preS.EquipmentTag, "Shredder", PidSymbolType.Vessel, StagePreTreatment, null, preS.Id);
@@ -177,7 +179,7 @@ public class PidTemplateBuilder
             ? AddPump("Digestate pump", StageDigestion) : null;
 
         PidEquipmentNode? dt = dtI == null ? null
-            : Add(dtI.Tag, Label(dtI), PidSymbolType.Tank, StageDigestion, dtI.Id, null);
+            : Add(dtI.Tag, Label(dtI), PidSymbolType.Tank, StageDigestion, dtI.Id, dtS?.Id);
 
         PidEquipmentNode? p103 = (dtI != null && slsI != null)
             ? AddPump("Digestate transfer pump", StageDigestion) : null;

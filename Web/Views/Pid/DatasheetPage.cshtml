@@ -27,7 +27,7 @@
         }
     }
 
-    var hasLayout = item != null && (item.Zone != null || item.HazardClass != null || item.DiameterM.HasValue || item.WidthM.HasValue || item.LengthM.HasValue);
+    var hasLayout = item != null && (item.Zone != null || item.HazardClass != null || item.DiameterM.HasValue || item.WidthM.HasValue || item.LengthM.HasValue || item.HeightM.HasValue);
 
     string Dash(string? v) => string.IsNullOrWhiteSpace(v) ? "-" : v;
     string Num(decimal? v) => v.HasValue ? v.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture) : "-";
@@ -231,6 +231,7 @@ else
                             <div class="col-6 col-md-3"><div class="ds-chip"><small>Hazard class</small>@Dash(item.HazardClass)</div></div>
                             <div class="col-6 col-md-3"><div class="ds-chip"><small>Diameter (m)</small>@Num(item.DiameterM)</div></div>
                             <div class="col-6 col-md-3"><div class="ds-chip"><small>Width x length (m)</small>@Num(item.WidthM) x @Num(item.LengthM)</div></div>
+                            <div class="col-6 col-md-3"><div class="ds-chip"><small>Height (m)</small>@Num(item.HeightM)</div></div>
                         </div>
                     }
                 </div>

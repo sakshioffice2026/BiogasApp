@@ -11,12 +11,15 @@ public record PreTreatmentResult(
     double FeedTankVolumeM3,
     double FeedTankDiameterM,
     double FeedTankHeightM,
-    double FeedTankMixerPowerKw);
+    double FeedTankMixerPowerKw,
+    double MixTankDiameterM,
+    double MixTankHeightM);
 
 public class PreTreatmentService
 {
     private const double FeedTankBufferDays = 1.0;
     private const double FeedTankHeightM = 5.0;
+    private const double MixTankHeightM = 4.0;
     public PreTreatmentResult Calculate(
         double mFeedTotalTpd,
         double mWaterTpd,
@@ -35,6 +38,10 @@ public class PreTreatmentService
 
         var mixerPowerKw =
             mixTankVolumeM3 * EngineeringConstants.MixTankPowerDensityWPerM3 / 1000.0;
+
+        var mixTankDiameterM = Math.Ceiling(
+            Math.Sqrt((4.0 * mixTankVolumeM3) / (Math.PI * MixTankHeightM))
+            / EngineeringConstants.DiameterRoundingStepM) * EngineeringConstants.DiameterRoundingStepM;
 
         var dilutionWaterM3Day =
             mWaterTpd / EngineeringConstants.WaterDensityTPerM3;
@@ -57,6 +64,8 @@ public class PreTreatmentService
     FeedTankVolumeM3: feedTankVolumeM3,
     FeedTankDiameterM: feedTankDiameterM,
     FeedTankHeightM: FeedTankHeightM,
-    FeedTankMixerPowerKw: feedTankMixerPowerKw);
+    FeedTankMixerPowerKw: feedTankMixerPowerKw,
+    MixTankDiameterM: mixTankDiameterM,
+    MixTankHeightM: MixTankHeightM);
     }
 }

@@ -28,8 +28,8 @@ public static class DatasheetPdfWriter
                 ("Revision / Status", $"Rev {set.RevisionNo} / {set.Status}")
             });
 
-            var headers = new[] { "Tag", "Name", "Type", "Qty", "Zone", "Hazard", "Dia", "Wid", "Len" };
-            var widths = new double[] { 50, 114, 118, 26, 44, 56, 36, 36, 35 };
+            var headers = new[] { "Tag", "Name", "Type", "Qty", "Zone", "Hazard", "Dia", "Wid", "Len", "Hgt" };
+            var widths = new double[] { 50, 98, 104, 26, 44, 56, 36, 36, 35, 30 };
 
             var rows = new List<string[]>();
             foreach (var i in items)
@@ -39,12 +39,12 @@ public static class DatasheetPdfWriter
                     S(i.Tag), S(i.Name), Humanize(i.EquipmentType),
                     i.Quantity.ToString(CultureInfo.InvariantCulture),
                     Humanize(i.Zone), Humanize(i.HazardClass),
-                    Dec(i.DiameterM), Dec(i.WidthM), Dec(i.LengthM)
+                    Dec(i.DiameterM), Dec(i.WidthM), Dec(i.LengthM), Dec(i.HeightM)
                 };
                 rows.Add(row);
             }
 
-            pdf.Section("Equipment list (Dia, Wid, Len in m)");
+            pdf.Section("Equipment list (Dia, Wid, Len, Hgt in m)");
             pdf.Table(headers, widths, rows);
             first = false;
         }
@@ -73,6 +73,7 @@ public static class DatasheetPdfWriter
                 ("Diameter", Show(Dec(e.DiameterM), "m")),
                 ("Width", Show(Dec(e.WidthM), "m")),
                 ("Length", Show(Dec(e.LengthM), "m")),
+                ("Height", Show(Dec(e.HeightM), "m")),
                 ("Road access needed", e.NeedsRoadAccess.HasValue ? (e.NeedsRoadAccess.Value ? "Yes" : "No") : "-")
             });
 

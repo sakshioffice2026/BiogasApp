@@ -455,7 +455,12 @@ public class SimulationController : Controller
             ShredderUnitCost));
 
         list.Add(Equipment(runId, "MIX-101", "SLURRY_MIX_TANK", 1,
-            new Dictionary<string, object?> { ["volumeM3"] = r.PreTreatment.MixTankVolumeM3 },
+            new Dictionary<string, object?>
+            {
+                ["volumeM3"] = r.PreTreatment.MixTankVolumeM3,
+                ["diameterM"] = r.PreTreatment.MixTankDiameterM,
+                ["totalHeightM"] = r.PreTreatment.MixTankHeightM
+            },
             new Dictionary<string, object?>
             {
                 ["mixerPowerKw"] = r.PreTreatment.MixerPowerKw,
@@ -465,6 +470,29 @@ public class SimulationController : Controller
             },
             SlurryMixTankUnitCost));
         
+
+        list.Add(Equipment(runId, "FT-101", "FEED_TANK", 1,
+            new Dictionary<string, object?>
+            {
+                ["volumeM3"] = r.PreTreatment.FeedTankVolumeM3,
+                ["diameterM"] = r.PreTreatment.FeedTankDiameterM,
+                ["totalHeightM"] = r.PreTreatment.FeedTankHeightM
+            },
+            new Dictionary<string, object?>
+            {
+                ["mixerPowerKw"] = r.PreTreatment.FeedTankMixerPowerKw
+            },
+            0m));
+
+        list.Add(Equipment(runId, "DT-101", "DIGESTATE_STORAGE_TANK", r.Digester.NumDigestateTanks,
+            new Dictionary<string, object?>
+            {
+                ["volumeM3"] = Math.Round(r.Digester.DigestateStorageVolumeM3 / r.Digester.NumDigestateTanks, 1),
+                ["diameterM"] = r.Digester.DigestateTankDiameterM,
+                ["totalHeightM"] = r.Digester.DigestateTankHeightM
+            },
+            new Dictionary<string, object?>(),
+            0m));
 
         // Stage 6 digestate, civil and dispatch
         list.Add(Equipment(runId, "DIG-101", "DIGESTATE_SEPARATOR", 1,

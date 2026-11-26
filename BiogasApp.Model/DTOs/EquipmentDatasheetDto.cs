@@ -30,6 +30,7 @@ public class EquipmentDatasheetDto
     public decimal? WidthM { get; set; }
     public decimal? LengthM { get; set; }
     public decimal? DiameterM { get; set; }
+    public decimal? HeightM { get; set; }
     public bool? NeedsRoadAccess { get; set; }
 
     public List<DatasheetFieldDto> Process { get; set; } = new();

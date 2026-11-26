@@ -210,6 +210,7 @@ public class SiteRepository : ISiteRepository
             WidthM = ToDouble(e.WidthM),
             LengthM = ToDouble(e.LengthM),
             DiameterM = ToDouble(e.DiameterM),
+            HeightM = ToDouble(e.HeightM),
             SizeSource = e.SizeSource.ToString(),
             Quantity = e.Quantity,
             IsEnabled = e.IsEnabled,
@@ -241,6 +242,7 @@ public class SiteRepository : ISiteRepository
         e.WidthM = ToDecimal(dto.WidthM);
         e.LengthM = ToDecimal(dto.LengthM);
         e.DiameterM = ToDecimal(dto.DiameterM);
+        e.HeightM = ToDecimal(dto.HeightM);
         e.SizeSource = ParseEnum(dto.SizeSource, SizeSource.Standard);
         e.Quantity = Math.Max(1, dto.Quantity);
         e.IsEnabled = dto.IsEnabled;
@@ -270,7 +272,13 @@ public class SiteRepository : ISiteRepository
             return 0;
 
         var digester = await _db.SizedEquipment.AsNoTracking()
-            .FirstOrDefaultAsync(s => s.SimulationRunId == runId && s.EquipmentType == "PRIMARY_DIGESTER_CSTR", cancellationToken);
+                        .FirstOrDefaultAsync(s => s.SimulationRunId == runId && s.EquipmentType == "PRIMARY_DIGESTER_CSTR", cancellationToken);
+
+        var sizedRows = await _db.SizedEquipment.AsNoTracking()
+            .Where(s => s.SimulationRunId == runId)
+            .ToListAsync(cancellationToken);
+
+        
 
         var plan = new (string Key, int Qty)[]
         {
@@ -299,6 +307,18 @@ public class SiteRepository : ISiteRepository
             double? simDia = key == "digester" ? ReadDiameter(digester?.GeometryParamsJson) : null;
             double dia = simDia ?? f.DiameterM;
 
+            var sizedType = key switch
+            {
+                "digester" => "PRIMARY_DIGESTER_CSTR",
+                "mixing_tank" => "SLURRY_MIX_TANK",
+                "feed_tank" => "FEED_TANK",
+                "digestate_tank" => "DIGESTATE_STORAGE_TANK",
+                _ => null
+            };
+            double? simHeight = sizedType == null
+                ? null
+                : ReadNumber(sizedRows.FirstOrDefault(s => s.EquipmentType == sizedType)?.GeometryParamsJson, "totalHeightM");
+
             _db.ProjectEquipmentItems.Add(new ProjectEquipmentItem
             {
                 Id = Guid.NewGuid(),
@@ -311,6 +331,7 @@ public class SiteRepository : ISiteRepository
                 WidthM = isCircle ? null : (decimal)f.WidthM,
                 LengthM = isCircle ? null : (decimal)f.LengthM,
                 DiameterM = isCircle ? (decimal)dia : null,
+                HeightM = simHeight.HasValue ? (decimal)simHeight.Value : null,
                 SizeSource = simDia.HasValue ? SizeSource.Simulation : SizeSource.Standard,
                 Quantity = qty,
                 IsEnabled = true,
@@ -338,6 +359,20 @@ public class SiteRepository : ISiteRepository
             return null;
         }
     }
+    private static double? ReadNumber(string? json, string key)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty(key, out var p) && p.TryGetDouble(out var d) && d > 0 ? d : null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
     private static List<PointDto> ReadPoints(string? json)
     {
         if (string.IsNullOrWhiteSpace(json)) return new();
