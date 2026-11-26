@@ -672,6 +672,7 @@ public class AssessmentRepository : IAssessmentRepository
                 WidthM = e.WidthM,
                 LengthM = e.LengthM,
                 DiameterM = e.DiameterM,
+                HeightM = StandardHeightM(e.Tag),
                 SizeSource = e.SizeSource,
                 Quantity = e.Quantity,
                 IsEnabled = e.IsEnabled,
@@ -691,6 +692,43 @@ public class AssessmentRepository : IAssessmentRepository
         return project.Id;
     }
 
+    private static decimal? StandardHeightM(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag)) return null;
+
+        var prefix = tag.Split('-')[0].Trim().ToUpperInvariant();
+
+        return prefix switch
+        {
+            "AD" => 12.0m,
+            "MT" => 4.0m,
+            "FT" => 5.0m,
+            "DT" => 6.0m,
+            "PH" => 4.0m,
+            "PWT" => 4.0m,
+            "PWP" => 4.0m,
+            "SLS" => 6.0m,
+            "LG" => 3.0m,
+            "WY" => 2.0m,
+            "FS" => 3.0m,
+            "FB" => 3.0m,
+            "DY" => 1.0m,
+            "MB" => 5.0m,
+            "SU" => 6.0m,
+            "CF" => 5.0m,
+            "FL" => 12.0m,
+            "HWG" => 5.0m,
+            "MCC" => 4.0m,
+            "TR" => 4.0m,
+            "SEC" => 3.0m,
+            "FWT" => 5.0m,
+            "FWP" => 4.0m,
+            "WB" => 0.5m,
+            "ADM" => 4.0m,
+            "PK" => 0.5m,
+            _ => null
+        };
+    }
     public async Task LinkEnquiryAsync(Guid assessmentId, Guid enquiryId, CancellationToken cancellationToken = default)
     {
         var a = await _db.SiteAssessments.FirstOrDefaultAsync(x => x.Id == assessmentId, cancellationToken)

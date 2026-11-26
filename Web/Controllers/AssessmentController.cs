@@ -145,6 +145,8 @@ public class AssessmentController : Controller
         var ctx = await LoadContextAsync(request.ProjectId, cancellationToken);
         if (ctx.Error != null) return ctx.Error;
 
+        foreach (var eq in ctx.Equipment.Where(e => !e.HeightM.HasValue || e.HeightM.Value <= 0))
+            eq.HeightM = StandardHeightM(eq.Tag);
         var locked = request.LockedItems.Where(i => i.IsLocked)
             .Select(i => new LockedPlacement(i.EquipmentItemId, i.InstanceNo, i.X, i.Y, i.RotationDeg))
             .ToList();
@@ -153,6 +155,44 @@ public class AssessmentController : Controller
         var result = new PlacementEngine(ctx.Provider!).Generate(input);
 
         return Json(ToDto(ctx, input, result, "Auto"));
+    }
+
+    private static double? StandardHeightM(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag)) return null;
+
+        var prefix = tag.Split('-')[0].Trim().ToUpperInvariant();
+
+        return prefix switch
+        {
+            "AD" => 12.0,
+            "MT" => 4.0,
+            "FT" => 5.0,
+            "DT" => 6.0,
+            "PH" => 4.0,
+            "PWT" => 4.0,
+            "PWP" => 4.0,
+            "SLS" => 6.0,
+            "LG" => 3.0,
+            "WY" => 2.0,
+            "FS" => 3.0,
+            "FB" => 3.0,
+            "DY" => 1.0,
+            "MB" => 5.0,
+            "SU" => 6.0,
+            "CF" => 5.0,
+            "FL" => 12.0,
+            "HWG" => 5.0,
+            "MCC" => 4.0,
+            "TR" => 4.0,
+            "SEC" => 3.0,
+            "FWT" => 5.0,
+            "FWP" => 4.0,
+            "WB" => 0.5,
+            "ADM" => 4.0,
+            "PK" => 0.5,
+            _ => null
+        };
     }
 
     [HttpPost]
@@ -517,6 +557,7 @@ public class AssessmentController : Controller
             WidthM = (decimal?)e.WidthM,
             LengthM = (decimal?)e.LengthM,
             DiameterM = (decimal?)e.DiameterM,
+            HeightM = (decimal?)(e.HeightM ?? StandardHeightM(e.Tag)),
             Quantity = e.Quantity,
             IsEnabled = e.IsEnabled,
             AllowRotation = e.AllowRotation,

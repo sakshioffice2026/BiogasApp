@@ -278,7 +278,7 @@ public class SiteRepository : ISiteRepository
             .Where(s => s.SimulationRunId == runId)
             .ToListAsync(cancellationToken);
 
-        
+
 
         var plan = new (string Key, int Qty)[]
         {
@@ -331,7 +331,7 @@ public class SiteRepository : ISiteRepository
                 WidthM = isCircle ? null : (decimal)f.WidthM,
                 LengthM = isCircle ? null : (decimal)f.LengthM,
                 DiameterM = isCircle ? (decimal)dia : null,
-                HeightM = simHeight.HasValue ? (decimal)simHeight.Value : null,
+                HeightM = simHeight.HasValue ? (decimal)simHeight.Value : StandardHeightM(f.TagPrefix),
                 SizeSource = simDia.HasValue ? SizeSource.Simulation : SizeSource.Standard,
                 Quantity = qty,
                 IsEnabled = true,
@@ -344,6 +344,44 @@ public class SiteRepository : ISiteRepository
 
         await _db.SaveChangesAsync(cancellationToken);
         return added;
+    }
+
+    private static decimal? StandardHeightM(string? tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag)) return null;
+
+        var prefix = tag.Split('-')[0].Trim().ToUpperInvariant();
+
+        return prefix switch
+        {
+            "AD" => 12.0m,
+            "MT" => 4.0m,
+            "FT" => 5.0m,
+            "DT" => 6.0m,
+            "PH" => 4.0m,
+            "PWT" => 4.0m,
+            "PWP" => 4.0m,
+            "SLS" => 6.0m,
+            "LG" => 3.0m,
+            "WY" => 2.0m,
+            "FS" => 3.0m,
+            "FB" => 3.0m,
+            "DY" => 1.0m,
+            "MB" => 5.0m,
+            "SU" => 6.0m,
+            "CF" => 5.0m,
+            "FL" => 12.0m,
+            "HWG" => 5.0m,
+            "MCC" => 4.0m,
+            "TR" => 4.0m,
+            "SEC" => 3.0m,
+            "FWT" => 5.0m,
+            "FWP" => 4.0m,
+            "WB" => 0.5m,
+            "ADM" => 4.0m,
+            "PK" => 0.5m,
+            _ => null
+        };
     }
 
     private static double? ReadDiameter(string? json)

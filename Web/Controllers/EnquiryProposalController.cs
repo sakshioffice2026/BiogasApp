@@ -79,13 +79,17 @@ public class EnquiryProposalController : Controller
         {
             ModelState.AddModelError(string.Empty, ex.Message);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return new EmptyResult();
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Proposal creation failed for enquiry {EnquiryId}", model.EnquiryId);
             ModelState.AddModelError(string.Empty, "Proposal generation failed. Check the inputs and try again.");
         }
 
-        await RefillAsync(model, cancellationToken);
+        await RefillAsync(model, CancellationToken.None);
         return View(model);
     }
 
