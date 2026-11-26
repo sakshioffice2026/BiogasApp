@@ -1,4 +1,4 @@
-import * as THREE from '../lib/three/three.module.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
 
 const COL = {
     ground: 0xd6d2c9,
@@ -6,9 +6,9 @@ const COL = {
     grid: 0xc4bfb3,
     pad: 0x52525b,
     curb: 0xf4f4f5,
-    road: 0x71717a,
+    road: 0x64748b,
     fence: 0xa1a1aa,
-    equip: 0x1e2229,
+    equip: 0x6b7280,
     edge: 0xd4d4d8,
     edgeLight: 0x9ca3af,
     hospital: 0xffffff,
@@ -33,16 +33,34 @@ const PHASE = 3;
 const DEG = Math.PI / 180;
 const EARTH_R = 6371008.8;
 
+const ROAD_STYLES = {
+    main: { key: 'main', label: 'Main / Access / Approach Road', color: 0x475569 },
+    internal: { key: 'internal', label: 'Internal / Service / Loop Road', color: 0x94a3b8 },
+    haul: { key: 'haul', label: 'Heavy Haul / Feedstock Road', color: 0xc29b61 },
+    fire: { key: 'fire', label: 'Fire Tender / Emergency Access Lane', color: 0xb95c4b },
+    generic: { key: 'generic', label: 'Road', color: 0x64748b }
+};
+
+function roadStyle(rd) {
+    const s = ((rd.roadType || rd.type || rd.kind || rd.category || rd.roadClass || '') + ' ' + (rd.name || '')).toLowerCase();
+    if (/fire|emergency|tender/.test(s)) return ROAD_STYLES.fire;
+    if (/haul|feedstock|heavy/.test(s)) return ROAD_STYLES.haul;
+    if (/internal|service|loop/.test(s)) return ROAD_STYLES.internal;
+    if (/main|access|approach/.test(s)) return ROAD_STYLES.main;
+    return ROAD_STYLES.generic;
+}
+
 const STYLE = '' +
     '.l3d-canvas{display:block;width:100%;height:100%;outline:none;touch-action:none}' +
     '.l3d-labels{position:absolute;left:0;top:0;right:0;bottom:0;overflow:hidden;pointer-events:none}' +
     '.l3d-label{position:absolute;left:0;top:0;pointer-events:none;white-space:nowrap;font:11px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.9);color:#1e2229;border:1px solid #d4d4d8;will-change:transform}' +
     '.l3d-label.l3d-tag{background:rgba(30,34,41,.88);color:#f4f4f5;border-color:transparent}' +
     '.l3d-label.l3d-bad{background:#dc2626;color:#fff;border-color:#dc2626}' +
+    '.l3d-label.l3d-road{background:rgba(71,85,105,.82);color:#f8fafc;border-color:transparent;font-size:10px}' +
     '.l3d-hud{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;font:12px/1.35 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#f4f4f5}' +
     '.l3d-col{position:absolute;display:flex;flex-direction:column;gap:6px}' +
     '.l3d-tl{left:8px;top:8px;max-width:70%}' +
-    '.l3d-tr{right:8px;top:8px}' +
+    '.l3d-tr{right:8px;top:48px;max-width:320px}' +
     '.l3d-bl{left:8px;bottom:8px;max-width:60%}' +
     '.l3d-panel{pointer-events:auto;background:rgba(30,34,41,.88);border-radius:6px;padding:6px 8px}' +
     '.l3d-panel.l3d-ro{pointer-events:none}' +
@@ -52,7 +70,8 @@ const STYLE = '' +
     '.l3d-btn:disabled{opacity:.45;cursor:not-allowed}' +
     '.l3d-badge{display:inline-block;padding:3px 9px;border-radius:4px;font-weight:600;background:#27272a;color:#f4f4f5}' +
     '.l3d-badge.l3d-bad{background:#dc2626;color:#fff}' +
-    '.l3d-layer{display:flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap}' +
+    '.l3d-layer{display:flex;gap:6px;align-items:center;cursor:pointer;white-space:nowrap;color:#f4f4f5}' +
+    '.l3d-layer span{color:#f4f4f5}' +
     '.l3d-title{font-weight:600;margin-bottom:2px}' +
     '.l3d-muted{color:#a1a1aa}' +
     '.l3d-insp-title{font-weight:600}' +
@@ -171,6 +190,22 @@ function polyDistance(fp, poly) {
         if (n && n.d < d) d = n.d;
     });
     return d;
+}
+
+const EQUIP_COLORS = {
+    DigesterGas: 0x3f7d6e,
+    GasVessel: 0x4a7fb0,
+    Tank: 0x6b8ba4,
+    Flare: 0xc2603a,
+    Building: 0x8b7e74,
+    Scrubber: 0x7c6aa6,
+    Compressor: 0xc99a2e,
+    Cascade: 0x5a8f5a,
+    Electrical: 0xb04a5a
+};
+
+function equipColor(hazard) {
+    return EQUIP_COLORS[hazard] != null ? EQUIP_COLORS[hazard] : COL.equip;
 }
 
 function defaultHeight(hazard) {
@@ -300,6 +335,8 @@ export function createLayout3DViewer(options) {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     const canvas = renderer.domElement;
     canvas.className = 'l3d-canvas';
     canvas.setAttribute('tabindex', '0');
@@ -315,10 +352,14 @@ export function createLayout3DViewer(options) {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(COL.bg);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b4a8, 0.85));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b4a8, 0.7));
+    const sun = new THREE.DirectionalLight(0xfff4e0, 1.0);
     sun.position.set(120, 200, 80);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.0005;
     scene.add(sun);
+    scene.add(sun.target);
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.5, 8000);
     camera.position.set(80, 70, 90);
@@ -334,20 +375,25 @@ export function createLayout3DViewer(options) {
     const upv = new THREE.Vector3();
     const delta = new THREE.Vector3();
 
-    const layers = { ht: true, rec: true, lines: true, edges: true };
-    let previewOn = false;
+    const layers = { ht: true, rec: true, lines: true, edges: true, roads: true };
+    let previewOn = true;
 
     let data = { site: null, layout: null, equipment: [], selected: null };
     let world = null;
     let gHT = null;
     let gRec = null;
     let gLines = null;
+    let gRoads = null;
     const labels = [];
     let pickables = [];
     let itemRecs = [];
     let edgeLines = [];
     let hoverInfo = null;
     let selectedKey = null;
+    let callout = null;
+    let pinnedKey = null;
+    let pinnedInfo = null;
+    let roadInfoMap = {};
     let M = { cx: 0, cz: 0, R: 60, tall: 8, recR: 0, wire: null };
     let corridors = [];
     let corridorKind = 'none';
@@ -373,11 +419,15 @@ export function createLayout3DViewer(options) {
     const presetBtns = {};
     const colTL = el('div', 'l3d-col l3d-tl');
     const presetPanel = el('div', 'l3d-panel l3d-row');
-    [['overview', 'Overview'], ['wire', 'Wire Clearance'], ['nbr', 'Neighborhood'],
-    ['top', 'Top Plan'], ['front', 'Front'], ['side', 'Side']].forEach(function (p) {
+    [['zin', 'Zoom In'], ['zout', 'Zoom Out'], ['nbr', 'Fit'],
+    ['top', 'Top View'], ['front', 'Front View'], ['side', 'Side View']].forEach(function (p) {
         const b = el('button', 'l3d-btn', p[1]);
         b.type = 'button';
-        b.addEventListener('click', function () { goPreset(p[0], false); });
+        b.addEventListener('click', function () {
+            if (p[0] === 'zin') zoomBy(0.75);
+            else if (p[0] === 'zout') zoomBy(1.33);
+            else goPreset(p[0], false);
+        });
         presetPanel.appendChild(b);
         presetBtns[p[0]] = b;
     });
@@ -386,7 +436,6 @@ export function createLayout3DViewer(options) {
     const badgePanel = el('div', 'l3d-panel l3d-row');
     const badge = el('span', 'l3d-badge', '');
     badgePanel.appendChild(badge);
-    colTL.appendChild(badgePanel);
 
     const htPanel = el('div', 'l3d-panel l3d-row');
     const htText = el('span', '', '');
@@ -399,13 +448,12 @@ export function createLayout3DViewer(options) {
     });
     htPanel.appendChild(htText);
     htPanel.appendChild(previewBtn);
-    colTL.appendChild(htPanel);
     hud.appendChild(colTL);
 
     const colTR = el('div', 'l3d-col l3d-tr');
     const layerPanel = el('div', 'l3d-panel');
     layerPanel.appendChild(el('div', 'l3d-title', 'LAYERS'));
-    [['ht', 'HT Towers & Overhead Wires'], ['rec', 'Hospital, School & Houses'],
+    [['ht', 'HT Towers & Overhead Wires'], ['rec', 'Hospital, School & Houses'], ['roads', 'Roads'],
     ['lines', 'Receptor Distance Lines'], ['edges', 'CAD Wireframe Overlay']].forEach(function (l) {
         const lab = el('label', 'l3d-layer');
         const cb = document.createElement('input');
@@ -419,7 +467,17 @@ export function createLayout3DViewer(options) {
         lab.appendChild(el('span', '', l[1]));
         layerPanel.appendChild(lab);
     });
-    colTR.appendChild(layerPanel);
+    const pvLab = el('label', 'l3d-layer');
+    const pvCb = document.createElement('input');
+    pvCb.type = 'checkbox';
+    pvCb.checked = previewOn;
+    pvCb.addEventListener('change', function () {
+        previewOn = pvCb.checked;
+        rebuild();
+    });
+    pvLab.appendChild(pvCb);
+    pvLab.appendChild(el('span', '', 'HT Preview Corridor (not saved)'));
+    layerPanel.appendChild(pvLab);
     hud.appendChild(colTR);
 
     const colBL = el('div', 'l3d-col l3d-bl');
@@ -428,22 +486,22 @@ export function createLayout3DViewer(options) {
     const inspBody = el('div', '', '');
     inspPanel.appendChild(inspTitle);
     inspPanel.appendChild(inspBody);
-    colBL.appendChild(inspPanel);
+    colTR.appendChild(inspPanel);
     hud.appendChild(colBL);
 
     function setInspector(info) {
-        let show = info;
+        let show = info || pinnedInfo;
         if (!show && selectedKey) {
             const rec = itemRecs.find(function (r) { return r.key === selectedKey; });
             if (rec) show = rec.info;
         }
         inspBody.textContent = '';
         if (!show) {
-            inspTitle.textContent = 'Inspector';
-            const d = el('div', 'l3d-muted', 'Hover or click equipment, receptors or towers.');
-            inspBody.appendChild(d);
+            inspTitle.textContent = '';
+            inspPanel.style.display = 'none';
             return;
         }
+        inspPanel.style.display = '';
         inspTitle.textContent = show.title;
         show.lines.forEach(function (ln) {
             inspBody.appendChild(el('div', ln.bad ? 'l3d-insp-bad' : '', ln.text));
@@ -455,18 +513,45 @@ export function createLayout3DViewer(options) {
     function addLabel(text, pos, cls, layer) {
         const n = el('div', 'l3d-label' + (cls ? ' ' + cls : ''), text);
         labelLayer.appendChild(n);
-        labels.push({ el: n, pos: pos, layer: layer || '' });
+        const entry = { el: n, pos: pos, layer: layer || '' };
+        labels.push(entry);
+        return entry;
     }
 
     function clearLabels() {
         labels.forEach(function (l) { l.el.remove(); });
         labels.length = 0;
+        callout = null;
+    }
+
+    function showCallout() {
+        if (callout) {
+            callout.el.remove();
+            const i = labels.indexOf(callout);
+            if (i >= 0) labels.splice(i, 1);
+            callout = null;
+        }
+        itemRecs.forEach(function (r) {
+            if (r.dimGroup) r.dimGroup.visible = r.key === selectedKey;
+        });
+        const rec = selectedKey ? itemRecs.find(function (r) { return r.key === selectedKey; }) : null;
+        if (rec && rec.info) {
+            callout = addLabel(rec.it.tag + ' · ' + rec.it.name + ' · ' + rec.info.lines[0].text,
+                v3(rec.it.x, rec.it.y, rec.topY + 0.8), 'l3d-tag', '');
+        } else if (pinnedInfo && pinnedInfo.pos) {
+            callout = addLabel(pinnedInfo.title, pinnedInfo.pos, 'l3d-road', 'roads');
+        }
+        invalidate();
     }
 
     function updateLabels() {
         const w = size.w;
         const h = size.h;
         labels.forEach(function (l) {
+            if (l.only && l.only !== selectedKey) {
+                l.el.style.display = 'none';
+                return;
+            }
             if (l.layer && !layers[l.layer]) {
                 l.el.style.display = 'none';
                 return;
@@ -554,6 +639,14 @@ export function createLayout3DViewer(options) {
                     t: c
                 };
         }
+    }
+
+    function zoomBy(f) {
+        anim = null;
+        offset.copy(camera.position).sub(target);
+        offset.setLength(Math.max(4, Math.min(5000, offset.length() * f)));
+        camera.position.copy(target).add(offset);
+        invalidate();
     }
 
     function goPreset(name, instant) {
@@ -669,8 +762,32 @@ export function createLayout3DViewer(options) {
         try { canvas.releasePointerCapture(e.pointerId); } catch (err) { /* ignore */ }
         if (d && !d.moved && d.btn === 0) {
             const info = pickAt(e.clientX, e.clientY);
-            if (info && info.kind === 'equipment') onSelect(info.eq, info.inst);
-            else if (!info) onSelect(null, 1);
+            if (info && info.kind === 'equipment') {
+                selectedKey = info.rec.key;
+                pinnedKey = null;
+                pinnedInfo = null;
+                showCallout();
+                setInspector(hoverInfo);
+                refreshEdges();
+                onSelect(info.eq, info.inst);
+            } else if (info && info.kind === 'road') {
+                const had = !!selectedKey;
+                selectedKey = null;
+                pinnedKey = info.key;
+                pinnedInfo = info;
+                showCallout();
+                setInspector(hoverInfo);
+                refreshEdges();
+                if (had) onSelect(null, 1);
+            } else if (!info) {
+                selectedKey = null;
+                pinnedKey = null;
+                pinnedInfo = null;
+                showCallout();
+                setInspector(hoverInfo);
+                refreshEdges();
+                onSelect(null, 1);
+            }
         }
     });
 
@@ -701,6 +818,13 @@ export function createLayout3DViewer(options) {
         if (gHT) gHT.visible = layers.ht;
         if (gRec) gRec.visible = layers.rec;
         if (gLines) gLines.visible = layers.lines;
+        if (gRoads) gRoads.visible = layers.roads;
+        if (!layers.roads && pinnedInfo && pinnedInfo.kind === 'road') {
+            pinnedKey = null;
+            pinnedInfo = null;
+            showCallout();
+            setInspector(hoverInfo);
+        }
         edgeLines.forEach(function (l) { l.visible = layers.edges; });
         invalidate();
     }
@@ -717,10 +841,13 @@ export function createLayout3DViewer(options) {
         gHT = new THREE.Group();
         gRec = new THREE.Group();
         gLines = new THREE.Group();
+        gRoads = new THREE.Group();
         world.add(gHT);
         world.add(gRec);
         world.add(gLines);
+        world.add(gRoads);
         clearLabels();
+        roadInfoMap = {};
         pickables = [];
         itemRecs = [];
         edgeLines = [];
@@ -764,7 +891,9 @@ export function createLayout3DViewer(options) {
         const shp = new THREE.Shape(plot.map(function (p) { return new THREE.Vector2(p.x, p.y); }));
         const padGeo = new THREE.ExtrudeGeometry(shp, { depth: PAD_H, bevelEnabled: false });
         padGeo.rotateX(-Math.PI / 2);
-        world.add(new THREE.Mesh(padGeo, new THREE.MeshLambertMaterial({ color: COL.pad })));
+        const padMesh = new THREE.Mesh(padGeo, new THREE.MeshLambertMaterial({ color: COL.pad }));
+        padMesh.receiveShadow = true;
+        world.add(padMesh);
 
         const unit = new THREE.BoxGeometry(1, 1, 1);
         const curbMat = new THREE.MeshLambertMaterial({ color: COL.curb });
@@ -820,9 +949,23 @@ export function createLayout3DViewer(options) {
         }
 
         if (layout && layout.roads) {
-            const roadMat = new THREE.MeshLambertMaterial({ color: COL.road });
-            layout.roads.forEach(function (rd) {
+            layout.roads.forEach(function (rd, ri) {
+                const st = roadStyle(rd);
+                const roadMat = new THREE.MeshLambertMaterial({ color: st.color });
                 const pts = rd.points || [];
+                const key = 'road:' + ri;
+                const mid = pts.length ? pts[Math.floor(pts.length / 2)] : null;
+                const info = {
+                    kind: 'road',
+                    key: key,
+                    title: (rd.name || 'Road') + ' · ' + st.label,
+                    lines: [
+                        { text: 'Type: ' + st.label },
+                        { text: 'Width: ' + fmt(rd.widthM || 4) + ' m' }
+                    ],
+                    pos: mid ? v3(mid.x, mid.y, PAD_H + 1.2) : null
+                };
+                roadInfoMap[key] = info;
                 for (let i = 0; i < pts.length - 1; i++) {
                     const a = pts[i];
                     const b = pts[i + 1];
@@ -832,7 +975,9 @@ export function createLayout3DViewer(options) {
                     seg.scale.set(len, 0.04, rd.widthM || 4);
                     seg.position.set((a.x + b.x) / 2, PAD_H + 0.03, -(a.y + b.y) / 2);
                     seg.rotation.y = Math.atan2(b.y - a.y, b.x - a.x);
-                    world.add(seg);
+                    seg.userData.info = info;
+                    pickables.push(seg);
+                    gRoads.add(seg);
                 }
             });
         }
@@ -894,12 +1039,14 @@ export function createLayout3DViewer(options) {
         const g = new THREE.Group();
         g.position.set(it.x, PAD_H, -it.y);
         g.rotation.y = (it.rotationDeg || 0) * DEG;
-        const mat = new THREE.MeshLambertMaterial({ color: COL.equip });
+        const mat = new THREE.MeshLambertMaterial({ color: equipColor(rec.hazard) });
         const h = rec.h;
         rec.edgeMats = [];
 
         const reg = function (m) {
             m.userData.info = rec.info;
+            m.castShadow = true;
+            m.receiveShadow = true;
             pickables.push(m);
         };
 
@@ -928,7 +1075,6 @@ export function createLayout3DViewer(options) {
             g.add(box);
         }
         world.add(g);
-        addLabel(it.tag + '  H ' + fmt(h) + ' m', v3(it.x, it.y, rec.topY + 0.8), 'l3d-tag', '');
     }
 
     function buildReceptor(r, cx, cy, plot) {
@@ -943,16 +1089,19 @@ export function createLayout3DViewer(options) {
             case 'Hospital': spec = { w: 28, l: 18, h: 16, color: COL.hospital }; break;
             case 'School': spec = { w: 24, l: 12, h: 8, color: COL.school }; break;
             case 'House': spec = { w: 10, l: 8, h: 6, color: COL.house }; break;
-            case 'Road': spec = { w: 36, l: 7, h: 0.15, color: 0xa1a1aa }; break;
+            case 'Road': spec = { w: 36, l: 7, h: 0.15, color: roadStyle({ name: r.name }).color }; break;
             case 'Canal': spec = { w: 36, l: 6, h: 0.1, color: 0x9aa5b1 }; break;
             default: spec = { w: 6, l: 6, h: 4, color: COL.house };
         }
 
         const info = {
-            kind: 'receptor',
+            kind: type === 'Road' ? 'road' : 'receptor',
+            key: 'rcp:' + (r.name || '') + ':' + Math.round(r.x) + ',' + Math.round(r.y),
             title: type + (r.name && r.name !== type ? ' \u00b7 ' + r.name : ''),
-            lines: []
+            lines: [],
+            pos: v3(r.x, r.y, spec.h + 3)
         };
+        if (type === 'Road') roadInfoMap[info.key] = info;
 
         const padR = Math.max(spec.w, spec.l) * 0.95;
         const pad = new THREE.Mesh(new THREE.CircleGeometry(padR, 40), new THREE.MeshLambertMaterial({ color: COL.groundPad }));
@@ -993,7 +1142,7 @@ export function createLayout3DViewer(options) {
             pickables.push(roof);
             g.add(roof);
         }
-        gRec.add(g);
+        (type === 'Road' ? gRoads : gRec).add(g);
 
         info.lines.push({ text: 'Distance from plot edge: ' + fmt(r.distEdge) + ' m' });
         if (type === 'Road' || type === 'Canal') {
@@ -1013,7 +1162,7 @@ export function createLayout3DViewer(options) {
             addLabel(type + ' \u00b7 ' + fmt(r.distEdge) + ' m',
                 v3((np.x + r.x) / 2, (np.y + r.y) / 2, PAD_H + 1.2), '', 'lines');
         }
-        addLabel(info.title, v3(r.x, r.y, spec.h + 3), 'l3d-tag', 'rec');
+        if (type !== 'Road') addLabel(info.title, v3(r.x, r.y, spec.h + 3), 'l3d-tag', 'rec');
         return spec;
     }
 
@@ -1140,15 +1289,20 @@ export function createLayout3DViewer(options) {
         const x = rec.it.x;
         const y = rec.it.y;
         const pts = [v3(x, y, rec.topY), v3(x, y, rec.low)];
+        const dg = new THREE.Group();
+        dg.visible = false;
+        rec.dimGroup = dg;
+        gHT.add(dg);
         const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
             new THREE.LineDashedMaterial({ color: col, dashSize: 0.7, gapSize: 0.4 }));
         line.computeLineDistances();
-        gHT.add(line);
+        dg.add(line);
         [rec.topY, rec.low].forEach(function (yy) {
             const tp = [v3(x - 0.8, y, yy), v3(x + 0.8, y, yy)];
-            gHT.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(tp), new THREE.LineBasicMaterial({ color: col })));
+            dg.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(tp), new THREE.LineBasicMaterial({ color: col })));
         });
-        addLabel('\u0394H ' + signed(rec.dH) + ' m', v3(x, y, (rec.topY + rec.low) / 2), bad ? 'l3d-bad' : '', 'ht');
+        const dl = addLabel('\u0394H ' + signed(rec.dH) + ' m', v3(x, y, (rec.topY + rec.low) / 2), bad ? 'l3d-bad' : '', 'ht');
+        dl.only = rec.key;
     }
 
     function rebuild() {
@@ -1256,17 +1410,29 @@ export function createLayout3DViewer(options) {
             }
         }
 
+        const sr = Math.max(R, 40) * 1.5;
+        sun.position.set(M.cx + sr * 0.6, sr * 1.2, M.cz + sr * 0.5);
+        sun.target.position.set(M.cx, 0, M.cz);
+        sun.shadow.camera.left = -sr;
+        sun.shadow.camera.right = sr;
+        sun.shadow.camera.top = sr;
+        sun.shadow.camera.bottom = -sr;
+        sun.shadow.camera.near = 1;
+        sun.shadow.camera.far = sr * 4;
+        sun.shadow.camera.updateProjectionMatrix();
+
         /* ground */
         const half = Math.max(300, Math.max(R, recR) * 1.6 + 120);
         const gGeo = new THREE.PlaneGeometry(half * 2, half * 2);
         gGeo.rotateX(-Math.PI / 2);
         const ground = new THREE.Mesh(gGeo, new THREE.MeshLambertMaterial({ color: COL.ground }));
+        ground.receiveShadow = true;
         ground.position.set(cx, -0.1, -cy);
         world.add(ground);
         const grid = new THREE.GridHelper(half * 2, Math.min(200, Math.round(half / 10)), COL.grid, COL.grid);
         grid.position.set(cx, -0.05, -cy);
         grid.material.transparent = true;
-        grid.material.opacity = 0.55;
+        grid.material.opacity = 0.28;
         world.add(grid);
 
         const gate = gatePointOf(site, layout, plot);
@@ -1309,16 +1475,20 @@ export function createLayout3DViewer(options) {
             if (rec.dH != null && rec.dh <= NEAR_M) buildDimension(rec);
         });
 
+        pinnedInfo = pinnedKey ? (roadInfoMap[pinnedKey] || null) : null;
+        if (!pinnedInfo) pinnedKey = null;
+
         applyLayers();
         refreshEdges();
         setInspector(null);
+        showCallout();
         updateHud();
         emitClearance();
         resize();
 
         if (!didFit) {
             didFit = true;
-            goPreset('overview', true);
+            goPreset('nbr', true);
         }
         invalidate();
     }
@@ -1357,9 +1527,6 @@ export function createLayout3DViewer(options) {
     }
 
     function updateHud() {
-        presetBtns.wire.disabled = !M.wire;
-        presetBtns.wire.title = M.wire ? '' : 'No HT line mapped. Use Preview corridor to test.';
-
         if (corridorKind === 'mapped') {
             htText.textContent = 'HT line: ' + corridors.length + ' mapped near site';
             previewBtn.style.display = 'none';
